@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# App data (mounted as volumes at runtime)
+data/chroma/
+data/app.db
+model_cache/
+
+# Git & CI
+.git/
+.github/
+
+# Dev config
+.env
+.devcontainer/
+.vscode/
+
+# Docs / meta
+*.md
+LICENSE

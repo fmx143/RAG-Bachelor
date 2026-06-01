@@ -26,13 +26,10 @@ RUN mkdir -p data/pdfs data/chroma model_cache
 ENV HF_HOME=/app/model_cache
 ENV SENTENCE_TRANSFORMERS_HOME=/app/model_cache
 
-EXPOSE 8501
+EXPOSE 8090
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-    CMD curl -f http://localhost:8501/_stcore/health || exit 1
+    CMD curl -f http://localhost:8090/ || exit 1
 
-CMD ["streamlit", "run", "src/rag_bachelor/app/main.py", \
-     "--server.address=0.0.0.0", \
-     "--server.port=8501", \
-     "--server.headless=true", \
-     "--browser.gatherUsageStats=false"]
+CMD ["uvicorn", "rag_bachelor.app.web.server:app", \
+     "--host", "0.0.0.0", "--port", "8090"]

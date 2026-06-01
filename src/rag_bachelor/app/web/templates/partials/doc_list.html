@@ -1,0 +1,36 @@
+{% if message %}
+<div class="alert alert-success">{{ message }}</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+{% if not pdfs %}
+<div class="alert alert-info">Aucun PDF trouvé dans <code>data/pdfs/</code>. Dépose des fichiers ci-dessus.</div>
+{% else %}
+<div style="margin-top:.25rem;">
+  {% for pdf in pdfs %}
+  <div class="file-row">
+    <span class="file-status">{% if pdf.indexed %}✅{% else %}⚠️{% endif %}</span>
+    <span class="file-name"><strong>{{ pdf.name }}</strong></span>
+    <button
+      hx-post="/docs/index/{{ pdf.name | url_encode }}"
+      hx-target="#doc-list"
+      hx-swap="innerHTML"
+      hx-indicator="#index-spinner"
+      class="btn btn-ghost btn-sm"
+    >Indexer</button>
+    <button
+      hx-post="/docs/delete/{{ pdf.name | url_encode }}"
+      hx-target="#doc-list"
+      hx-swap="innerHTML"
+      hx-confirm="Supprimer {{ pdf.name }} ?"
+      class="btn btn-danger btn-sm"
+    >🗑️</button>
+  </div>
+  {% endfor %}
+</div>
+<div style="font-size:.8rem; color:var(--muted); margin-top:.5rem;">
+  {{ chunk_count }} chunk(s) indexé(s) au total
+</div>
+{% endif %}
