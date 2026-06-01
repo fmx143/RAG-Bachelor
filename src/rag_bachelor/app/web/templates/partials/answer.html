@@ -1,0 +1,31 @@
+{% if error %}
+<div class="card">
+  <div class="alert alert-error">{{ error }}</div>
+</div>
+{% else %}
+<div class="card">
+  <div class="subheader">Réponse</div>
+  <div class="answer-body" style="margin-top:.75rem;">
+    {{ answer | md }}
+  </div>
+</div>
+
+{% if chunks %}
+<div class="card">
+  <details>
+    <summary>📖 Sources utilisées ({{ chunks | length }})</summary>
+    <div style="margin-top:.75rem;">
+      {% for chunk in chunks %}
+      <div class="source-item">
+        <div class="source-header">
+          {{ loop.index }}. <code>{{ chunk.source }}</code> — p.{{ chunk.page }}
+          &nbsp;·&nbsp; pertinence : {{ "%.0f" | format(chunk.score * 100) }}%
+        </div>
+        <div class="source-text">{{ chunk.text[:400] }}{% if chunk.text | length > 400 %}…{% endif %}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </details>
+</div>
+{% endif %}
+{% endif %}

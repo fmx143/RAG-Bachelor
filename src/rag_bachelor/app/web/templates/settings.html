@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h1>⚙️ Paramètres</h1>
+</div>
+
+<!-- ── Ollama status ─────────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="subheader">Fournisseur LLM</div>
+  {% include "partials/provider_status.html" %}
+</div>
+
+<!-- ── Model config ──────────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="subheader">Configuration Ollama</div>
+  <div style="font-size:.9rem; color:var(--muted); margin-bottom:.75rem;">
+    Pour changer le modèle ou l'hôte, modifie le fichier <code>.env</code> et relance l'application.
+  </div>
+  <pre class="env-example">
+# Modèle utilisé pour les questions et réponses
+OLLAMA_MODEL=qwen2.5:7b-instruct
+
+# Hôte Ollama (local ou réseau)
+OLLAMA_HOST=http://localhost:11434</pre>
+</div>
+
+<!-- ── Embeddings ────────────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="subheader">Embeddings</div>
+  <div style="font-size:.9rem; color:var(--muted);">
+    Modèle : <code>{{ cfg.embedding_model }}</code><br>
+    Cache : <code>{{ cfg.embedding_cache_dir }}</code>
+  </div>
+  <p style="font-size:.8rem; color:var(--muted); margin-top:.5rem;">
+    Changer le modèle d'embeddings nécessite de <strong>re-indexer</strong> tous tes documents.
+  </p>
+</div>
+{% endblock %}

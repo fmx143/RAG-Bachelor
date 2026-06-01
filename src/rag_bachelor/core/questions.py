@@ -89,9 +89,8 @@ def generate_questions(topic: str, difficulty: str) -> list[str]:
 
     # Use the more powerful model for hard questions when online
     model: str | None = None
-    if name == "openai" and difficulty == "difficile":
-        from rag_bachelor.config import settings
-        model = settings.openai_model_hard
+    # Ollama uses a single model for all difficulties
+    _ = name
 
     raw = provider.chat(messages, model=model)
     return _parse_questions(raw)

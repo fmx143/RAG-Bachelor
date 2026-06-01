@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h1>❓ Poser une question</h1>
+</div>
+
+{% if no_docs %}
+<div class="alert alert-warning">
+  ⚠️ Aucun document indexé. Va dans
+  <a href="/docs" style="color:inherit;font-weight:600;">📚 Documentation</a>
+  pour indexer tes cours.
+</div>
+{% endif %}
+
+<div class="card">
+  <form
+    hx-post="/ask"
+    hx-target="#answer-area"
+    hx-swap="innerHTML"
+    hx-indicator="#ask-spinner"
+  >
+    <div class="form-group">
+      <label for="question">Ta question</label>
+      <textarea
+        id="question"
+        name="question"
+        rows="4"
+        placeholder="Explique-moi la différence entre la complexité O(n log n) et O(n²)…"
+        {% if no_docs %}disabled{% endif %}
+      ></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="n_sources">Sources utilisées : <span id="n-val">5</span></label>
+      <input
+        type="range"
+        id="n_sources"
+        name="n_sources"
+        min="3" max="10" value="5"
+        oninput="document.getElementById('n-val').textContent = this.value"
+      >
+      <small style="color:var(--muted);">Nombre de passages de cours utilisés pour construire la réponse.</small>
+    </div>
+
+    <button
+      type="submit"
+      class="btn btn-primary"
+      {% if no_docs %}disabled{% endif %}
+    >🔍 Obtenir une réponse</button>
+  </form>
+
+  <div id="ask-spinner" class="htmx-indicator" style="margin-top:.75rem;">
+    <div class="spinner"></div> Recherche dans tes cours et génération de la réponse…
+  </div>
+</div>
+
+<!-- HTMX swaps the answer in here -->
+<div id="answer-area"></div>
+{% endblock %}

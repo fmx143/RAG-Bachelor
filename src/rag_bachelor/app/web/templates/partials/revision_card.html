@@ -1,0 +1,76 @@
+{% if not card %}
+<div class="card" style="text-align:center; padding:2.5rem 1.5rem;">
+  <div style="font-size:2rem; margin-bottom:.75rem;">🎉</div>
+  <div style="font-size:1.15rem; font-weight:600;">Bravo ! Aucune carte à réviser pour aujourd'hui.</div>
+  <p style="color:var(--muted); margin-top:.5rem;">Reviens demain ou génère de nouvelles questions.</p>
+  <a href="/generate" class="btn btn-primary" style="margin-top:1rem;">🎯 Générer des questions</a>
+</div>
+{% else %}
+{% set diff_badge = {"facile": "badge-green", "moyen": "badge-yellow", "difficile": "badge-red"} %}
+
+<div class="flashcard">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem;">
+    <div style="font-size:.85rem; color:var(--muted);">
+      Sujet : <strong>{{ card.topic }}</strong>
+    </div>
+    <span class="badge {{ diff_badge.get(card.difficulty, 'badge-yellow') }}">
+      {{ card.difficulty | capitalize }}
+    </span>
+  </div>
+
+  <h2>❓ {{ card.question }}</h2>
+
+  <details>
+    <summary>👁️ Afficher la réponse</summary>
+
+    <div class="card-answer">
+      <strong>Réponse :</strong> {{ card.answer }}
+    </div>
+
+    <p style="font-weight:600; margin-top:1.25rem;">Comment tu t'en es sorti ?</p>
+    <div class="grade-buttons">
+      <button
+        type="button"
+        hx-post="/revision/grade/{{ card.id }}"
+        hx-vals='{"grade": "0"}'
+        hx-target="#revision-content"
+        hx-swap="innerHTML"
+        class="btn btn-danger"
+      >😰 Raté</button>
+
+      <button
+        type="button"
+        hx-post="/revision/grade/{{ card.id }}"
+        hx-vals='{"grade": "2"}'
+        hx-target="#revision-content"
+        hx-swap="innerHTML"
+        class="btn btn-warning"
+      >🤔 Difficile</button>
+
+      <button
+        type="button"
+        hx-post="/revision/grade/{{ card.id }}"
+        hx-vals='{"grade": "4"}'
+        hx-target="#revision-content"
+        hx-swap="innerHTML"
+        class="btn btn-success"
+      >😊 Bien</button>
+
+      <button
+        type="button"
+        hx-post="/revision/grade/{{ card.id }}"
+        hx-vals='{"grade": "5"}'
+        hx-target="#revision-content"
+        hx-swap="innerHTML"
+        class="btn btn-primary"
+      >🌟 Parfait</button>
+    </div>
+  </details>
+</div>
+
+{% if due_count > 1 %}
+<p style="font-size:.85rem; color:var(--muted); margin-top:.75rem;">
+  Encore {{ due_count - 1 }} carte(s) à réviser après celle-ci.
+</p>
+{% endif %}
+{% endif %}

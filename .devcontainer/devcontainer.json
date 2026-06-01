@@ -1,0 +1,76 @@
+{
+  "name": "RAG Bachelor",
+
+  // Build directly from the project's Dockerfile
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": ".."
+  },
+
+  "workspaceFolder": "/app",
+
+  // ── Mounts ─────────────────────────────────────────────────────────────────
+  // data/ is bind-mounted so PDFs, the Chroma index, and the SQLite DB
+  // persist on your host machine across container rebuilds.
+  // model_cache is a named Docker volume (~1.2 GB for bge-m3) so the
+  // embedding model survives rebuilds without re-downloading.
+  "mounts": [
+    "source=${localWorkspaceFolder}/data,target=/app/data,type=bind,consistency=cached",
+    "source=rag_bachelor_model_cache,target=/app/model_cache,type=volume"
+  ],
+
+  // ── Environment ────────────────────────────────────────────────────────────
+  // Pass your .env file into the container automatically.
+  // Create it from .env.example before opening in container.
+  "runArgs": ["--env-file", "${localWorkspaceFolder}/.env"],
+
+  // Sensible defaults (overridden by .env if set there)
+  "containerEnv": {
+    // Mac: reach native Ollama running on your host machine (GPU-accelerated)
+    // Linux/WSL: change to http://localhost:11434
+    "OLLAMA_HOST": "http://host.docker.internal:11434",
+    "HF_HOME": "/app/model_cache",
+    "SENTENCE_TRANSFORMERS_HOME": "/app/model_cache"
+  },
+
+  // ── Ports ──────────────────────────────────────────────────────────────────
+  "forwardPorts": [8090],
+  "portsAttributes": {
+    "8090": {
+      "label": "FastAPI",
+      "onAutoForward": "silent"
+    }
+  },
+
+  // ── VS Code extensions ─────────────────────────────────────────────────────
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "ms-python.mypy-type-checker",
+        "streetsidesoftware.code-spell-checker-french"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "editor.formatOnSave": true,
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        }
+      }
+    }
+  },
+
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
+  // Keep the container alive after VS Code disconnects
+  "shutdownAction": "none",
+
+  // Reinstall the package in editable mode after the container starts
+  // (idempotent — safe to run every time)
+  "postCreateCommand": "pip install --no-compile -e '.[dev]' --quiet",
+
+  // No auto-launch — start the server deliberately with: rag-web
+  // or: uvicorn rag_bachelor.app.web.server:app --host 0.0.0.0 --port 8090
+  "postStartCommand": ""
+}

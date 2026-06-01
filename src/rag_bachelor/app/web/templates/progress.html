@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h1>📊 Progrès &amp; Sujets</h1>
+</div>
+
+<!-- ── Summary metrics ──────────────────────────────────────────────────── -->
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-label">🃏 Total cartes</div>
+    <div class="metric-value">{{ total_cards }}</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">📅 À réviser aujourd'hui</div>
+    <div class="metric-value">{{ due_count }}</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">⚖️ Facilité moyenne</div>
+    <div class="metric-value">{{ avg_ease if avg_ease is not none else "—" }}</div>
+  </div>
+</div>
+
+{% if not stats %}
+<div class="alert alert-info">
+  Aucune carte de révision créée. Va dans
+  <a href="/generate" style="color:inherit;font-weight:600;">🎯 Générer des questions</a>
+  pour commencer.
+</div>
+{% else %}
+
+<!-- ── Per-topic mastery ─────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="subheader">Maîtrise par sujet</div>
+  <small style="color:var(--muted);">Les sujets les plus faibles sont affichés en premier.</small>
+
+  <div style="margin-top:1rem;">
+  {% for s in stats %}
+    {% if s.mastery_pct < 40 %}
+      {% set icon = "🔴" %}
+      {% set bar_class = "red" %}
+    {% elif s.mastery_pct < 70 %}
+      {% set icon = "🟡" %}
+      {% set bar_class = "yellow" %}
+    {% else %}
+      {% set icon = "🟢" %}
+      {% set bar_class = "green" %}
+    {% endif %}
+
+    <div style="display:flex; gap:1rem; align-items:flex-start; margin-bottom:1rem;">
+      <div style="flex:1;">
+        <div style="font-weight:600;">{{ icon }} {{ s.topic }} — {{ s.mastery_pct | int }}%</div>
+        <div class="progress-wrap">
+          <div class="progress-fill {{ bar_class }}" style="width:{{ s.mastery_pct | int }}%;"></div>
+        </div>
+      </div>
+      <div style="font-size:.8rem; color:var(--muted); text-align:right; white-space:nowrap;">
+        📅 {{ s.due_cards }} due(s)<br>
+        🃏 {{ s.total_cards }} carte(s)<br>
+        ⏱️ {{ s.avg_interval | int }}j moy.
+      </div>
+    </div>
+  {% endfor %}
+  </div>
+</div>
+
+<!-- ── Weak vs strong ────────────────────────────────────────────────────── -->
+<div class="cols-2">
+  <div class="card">
+    <div class="subheader">📚 À renforcer</div>
+    {% if weak %}
+      {% for s in weak | sort(attribute="mastery_pct") %}
+        <div>🔴 <strong>{{ s.topic }}</strong> ({{ s.mastery_pct | int }}%)</div>
+      {% endfor %}
+    {% else %}
+      <div class="alert alert-success" style="margin-top:.5rem;">✅ Aucun sujet critique pour le moment !</div>
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="subheader">💪 Points forts</div>
+    {% if strong %}
+      {% for s in strong | sort(attribute="mastery_pct", reverse=True) %}
+        <div>🟢 <strong>{{ s.topic }}</strong> ({{ s.mastery_pct | int }}%)</div>
+      {% endfor %}
+    {% else %}
+      <div class="alert alert-info" style="margin-top:.5rem;">Continue à réviser pour faire apparaître tes points forts !</div>
+    {% endif %}
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h1>📚 Gestion des documents</h1>
+</div>
+
+<!-- ── Upload ──────────────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="subheader">Ajouter des PDFs</div>
+  <form
+    hx-post="/docs/upload"
+    hx-target="#doc-list"
+    hx-swap="innerHTML"
+    hx-encoding="multipart/form-data"
+    hx-indicator="#upload-spinner"
+    style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap;"
+  >
+    <div class="form-group" style="flex:1; min-width:240px; margin-bottom:0;">
+      <label for="files">Dépose tes PDFs ici (plusieurs fichiers acceptés)</label>
+      <input type="file" id="files" name="files" accept=".pdf" multiple
+             style="padding:.4rem .5rem;">
+    </div>
+    <button type="submit" class="btn btn-primary">📥 Sauvegarder</button>
+  </form>
+  <div id="upload-spinner" class="htmx-indicator" style="margin-top:.5rem;">
+    <div class="spinner"></div> Sauvegarde en cours…
+  </div>
+</div>
+
+<!-- ── Re-index all ─────────────────────────────────────────────────────── -->
+<div class="card" style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+  <button
+    hx-post="/docs/index"
+    hx-target="#doc-list"
+    hx-swap="innerHTML"
+    hx-indicator="#index-spinner"
+    class="btn btn-primary"
+  >🔄 (Re)indexer tous les PDFs</button>
+
+  <span>
+    <strong>{{ chunk_count }}</strong> chunk(s) indexé(s) au total
+  </span>
+
+  <div id="index-spinner" class="htmx-indicator">
+    <div class="spinner"></div> Indexation en cours…
+  </div>
+</div>
+
+<!-- ── Document list (HTMX target) ─────────────────────────────────────── -->
+<div class="card">
+  <div class="subheader">Documents</div>
+  <div id="doc-list">
+    {% include "partials/doc_list.html" %}
+  </div>
+</div>
+{% endblock %}

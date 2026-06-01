@@ -58,13 +58,20 @@ cp .env.example .env
 - A notification pops up: **"Reopen in Container"** — click it.
 - Alternatively: `Ctrl+Shift+P` → **Dev Containers: Reopen in Container**.
 
-VS Code builds the image (first time ~5 min, mostly downloading PyTorch), installs
-Python/Ruff extensions, and **automatically starts Streamlit** on port 8501.
+VS Code builds the image (first time ~5 min, mostly downloading PyTorch) and installs
+Python/Ruff extensions. The app does **not** auto-start — start it yourself once the
+container is ready (see below).
 
-### 4. Open the app
+### 4. Start and open the app
 
-The browser opens automatically at **http://localhost:8501**.  
-If it doesn't, open it manually or look in the VS Code **Ports** panel.
+Open a terminal inside the container (`Ctrl+` `` ` ``) and run:
+
+```bash
+uvicorn rag_bachelor.app.web.server:app --host 0.0.0.0 --port 8090
+```
+
+Then open **http://localhost:8090** in your browser.  
+Look in the VS Code **Ports** panel if the URL doesn't open automatically.
 
 ### Rebuilding after dependency changes
 
@@ -89,10 +96,11 @@ cp .env.example .env
 # Edit .env
 
 # 4. Launch
-streamlit run src/rag_bachelor/app/main.py
+uvicorn rag_bachelor.app.web.server:app --host 0.0.0.0 --port 8090
+# or: rag-web   (after pip install -e .)
 ```
 
-Open **http://localhost:8501**.
+Open **http://localhost:8090**.
 
 ---
 
@@ -255,8 +263,12 @@ RAG-Bachelor/
     │   ├── store.py              # SQLite persistence (cards + reviews)
     │   └── stats.py              # Per-topic mastery statistics
     └── app/
-        ├── main.py               # Streamlit entry point + sidebar
-        └── tabs/                 # One module per tab (render() function)
+        └── web/
+            ├── server.py         # FastAPI entry point, lifespan, router wiring
+            ├── _deps.py          # Shared Jinja2 templates + sidebar_ctx()
+            ├── routes/           # One APIRouter per tab
+            ├── templates/        # Jinja2 HTML templates + partials/
+            └── static/           # htmx.min.js, app.css (vendored)
 ```
 
 ---
@@ -274,7 +286,7 @@ ruff check src/ tests/
 mypy src/
 
 # Auto-reload on file changes (local dev)
-streamlit run src/rag_bachelor/app/main.py --server.runOnSave=true
+uvicorn rag_bachelor.app.web.server:app --port 8090 --reload
 ```
 
 **Changing the Ollama model:**  
@@ -295,7 +307,7 @@ Vectors from different models are incompatible — re-indexing is required.
 | Ollama error / no response | Run `ollama serve` and `ollama list` to check the model is pulled |
 | App shows "Ollama (hors ligne)" when online | Check `OPENAI_API_KEY` in `.env`; click 🔄 in ⚙️ Paramètres |
 | Dev Container can't reach Ollama on Mac | Set `OLLAMA_HOST=http://host.docker.internal:11434` in `.env` |
-| Port 8501 already in use | Kill other Streamlit instances, or change port in `devcontainer.json` |
+| Port 8090 already in use | Kill other uvicorn processes (`pkill -f uvicorn`), or change `--port` |
 | Blank pages not indexed | Expected — pages with no text layer are skipped with a warning |
 
 ---
@@ -304,7 +316,7 @@ Vectors from different models are incompatible — re-indexing is required.
 
 | Concern | Choice |
 |---|---|
-| UI | Streamlit |
+| UI | FastAPI + Jinja2 + HTMX |
 | PDF extraction | PyMuPDF |
 | Embeddings | sentence-transformers + BAAI/bge-m3 (local, multilingual) |
 | Vector store | ChromaDB (persistent, embedded) |
