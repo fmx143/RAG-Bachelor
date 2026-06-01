@@ -33,23 +33,12 @@ class Settings(BaseSettings):
     # ── Retrieval ─────────────────────────────────────────────────────────
     retrieval_top_k: int = 5
 
-    # ── OpenAI ────────────────────────────────────────────────────────────
-    openai_api_key: str = ""
-    openai_model_default: str = "gpt-4o-mini"
-    openai_model_hard: str = "gpt-4o"
-
     # ── Ollama ────────────────────────────────────────────────────────────
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5:7b-instruct"
 
-    # ── Provider override ─────────────────────────────────────────────────
-    # "" = auto-detect; "openai" or "ollama" = force a specific provider.
-    force_provider: str = ""
-
-    # ── Connectivity check ────────────────────────────────────────────────
-    connectivity_timeout: float = 3.0
-    # Cache TTL in seconds: how long to remember the last connectivity result
-    connectivity_cache_ttl: int = 30
+    # ── Server ───────────────────────────────────────────────────────────
+    app_port: int = 8090
 
 
 settings = Settings()

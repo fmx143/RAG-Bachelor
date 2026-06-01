@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h1>🎯 Générer des questions</h1>
+</div>
+
+{% if not sources %}
+<div class="alert alert-warning">
+  ⚠️ Aucun document indexé. Indexe d'abord tes cours dans
+  <a href="/docs" style="color:inherit;font-weight:600;">📚 Documentation</a>.
+</div>
+{% endif %}
+
+<div class="card">
+  <form
+    hx-post="/generate"
+    hx-target="#gen-results"
+    hx-swap="innerHTML"
+    hx-indicator="#gen-spinner"
+  >
+    <div class="cols-2">
+      <!-- Left column: document / topic -->
+      <div>
+        <div class="form-group">
+          <label for="doc_choice">Document source</label>
+          <select id="doc_choice" name="doc_choice">
+            <option value="">(choisir un document)</option>
+            {% for s in sources %}
+            <option value="{{ s }}">{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="topic">Ou entrer un sujet libre</label>
+          <input
+            type="text"
+            id="topic"
+            name="topic"
+            placeholder="Algorithmes de tri, Probabilités, Théorie des graphes…"
+          >
+          <small style="color:var(--muted);">Remplace le choix ci-dessus si renseigné.</small>
+        </div>
+      </div>
+
+      <!-- Right column: difficulty -->
+      <div>
+        <div class="form-group">
+          <label>Difficulté</label>
+          <div class="radio-group">
+            {% for d in difficulties %}
+            <label>
+              <input type="radio" name="difficulty" value="{{ d }}"
+                     {% if d == "moyen" %}checked{% endif %}>
+              {{ diff_labels[d] }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">✨ Générer des questions</button>
+  </form>
+
+  <div id="gen-spinner" class="htmx-indicator" style="margin-top:.75rem;">
+    <div class="spinner"></div> Génération des questions en cours…
+  </div>
+</div>
+
+<!-- HTMX swaps results here -->
+<div id="gen-results"></div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h1>🔄 Révision par répétition espacée</h1>
+</div>
+
+{% if due_count %}
+<div class="alert alert-info">
+  📅 <strong>{{ due_count }}</strong> carte(s) à réviser aujourd'hui
+</div>
+{% endif %}
+
+<!-- HTMX swaps the card in here after each grade -->
+<div id="revision-content">
+  {% include "partials/revision_card.html" %}
+</div>
+{% endblock %}

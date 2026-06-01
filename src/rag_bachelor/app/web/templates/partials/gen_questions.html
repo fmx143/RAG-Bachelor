@@ -1,0 +1,53 @@
+{% if error %}
+<div class="alert alert-error" style="margin-top:.5rem;">{{ error }}</div>
+
+{% elif questions %}
+<div class="card" style="margin-top:.5rem;">
+  <div class="subheader">
+    Questions générées — <em>{{ topic }}</em>
+    ({{ diff_labels.get(difficulty, difficulty) }})
+  </div>
+
+  {% for q in questions %}
+  <div class="card" style="margin-top:.75rem; background:#f8fafc;">
+    <div style="font-weight:600; margin-bottom:.75rem;">Question {{ loop.index }} — {{ q[:80] }}{% if q | length > 80 %}…{% endif %}</div>
+    <p style="font-size:.93rem;">{{ q }}</p>
+
+    <!-- Each question has its own add-to-deck mini-form -->
+    <form
+      hx-post="/generate/add"
+      hx-target="#add-btn-{{ loop.index }}"
+      hx-swap="outerHTML"
+      style="margin-top:.75rem;"
+    >
+      <input type="hidden" name="question"   value="{{ q | e }}">
+      <input type="hidden" name="topic"      value="{{ topic | e }}">
+      <input type="hidden" name="difficulty" value="{{ difficulty | e }}">
+
+      <div class="form-group">
+        <label for="ans-{{ loop.index }}">
+          Réponse modèle <span style="font-weight:400; color:var(--muted);">(optionnelle)</span>
+        </label>
+        <textarea
+          id="ans-{{ loop.index }}"
+          name="answer"
+          rows="2"
+          placeholder="Écris ici la réponse attendue pour t'aider lors de la révision…"
+        ></textarea>
+      </div>
+
+      <button
+        id="add-btn-{{ loop.index }}"
+        type="submit"
+        class="btn btn-ghost btn-sm"
+      >➕ Ajouter à la révision</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="alert alert-warning" style="margin-top:.5rem;">
+  Aucune question générée. Essaie un autre sujet ou une autre difficulté.
+</div>
+{% endif %}
