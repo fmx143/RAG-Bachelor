@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Form, Request
@@ -42,7 +43,7 @@ async def ask_question(
         )
 
     try:
-        answer, chunks = answer_question(q, top_k=max(3, min(n_sources, 10)))
+        answer, chunks = await asyncio.to_thread(answer_question, q, top_k=max(3, min(n_sources, 10)))
     except Exception as exc:
         return templates.TemplateResponse(
             request,

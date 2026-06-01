@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Form, Request
@@ -58,7 +59,7 @@ async def generate_qs(
     diff = difficulty if difficulty in _DIFFICULTIES else "moyen"
 
     try:
-        questions = generate_questions(effective_topic, diff)
+        questions = await asyncio.to_thread(generate_questions, effective_topic, diff)
     except Exception as exc:
         return templates.TemplateResponse(
             request,
