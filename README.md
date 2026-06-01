@@ -14,7 +14,7 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 | 🔄 **Spaced repetition** | SM-2 algorithm (Anki-style) — review due cards, self-grade, auto-reschedule |
 | 🎯 **Question generation** | LLM-generated easy / medium / hard questions per topic, add them to your deck |
 | 📊 **Progress tracking** | Per-topic mastery bars, weak vs strong subject overview |
-| ⚙️ **Auto online/offline** | OpenAI when online, Ollama when offline — embeddings always local |
+| ⚙️ **Local-first** | Ollama for LLM, bge-m3 for embeddings — fully offline, no API key needed |
 
 ---
 
@@ -25,8 +25,7 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 | Python | ≥ 3.13 | Local dev |
 | Docker Desktop | any recent | VS Code Dev Container |
 | VS Code + Dev Containers extension | any | Container-based dev on Mac / WSL |
-| Ollama | latest | Local LLM for offline mode |
-| OpenAI API key | — | Online mode (optional) |
+| Ollama | latest | Local LLM (required) |
 
 > **Mac users:** Install Ollama natively from [ollama.com](https://ollama.com/download) for GPU acceleration.  
 > Docker on Mac cannot pass the GPU through, so Ollama must run on the host.
@@ -47,9 +46,8 @@ and mounts your local `data/` folder so everything persists across rebuilds.
 
 ```bash
 cp .env.example .env
-# Open .env and fill in at minimum:
-#   OPENAI_API_KEY=sk-...          (optional — leave blank for offline-only)
-#   OLLAMA_HOST=http://host.docker.internal:11434   (default for Mac)
+# Open .env and set:
+#   OLLAMA_HOST=http://host.docker.internal:11434   (default for Mac + Dev Container)
 ```
 
 ### 3. Open in container
@@ -109,25 +107,14 @@ Open **http://localhost:8090**.
 Copy `.env.example` to `.env` before starting. Key settings:
 
 ```bash
-# ── Online mode ───────────────────────────────────────────────────────────────
-OPENAI_API_KEY=sk-...          # Leave blank to use Ollama-only mode
-
-# ── Offline mode (Ollama) ─────────────────────────────────────────────────────
+# ── Ollama ────────────────────────────────────────────────────────────────────
 # Mac + Dev Container:  host.docker.internal reaches Ollama on your Mac host
 OLLAMA_HOST=http://host.docker.internal:11434
 # Local Python on any OS:
 # OLLAMA_HOST=http://localhost:11434
-
-# ── Force a specific provider (optional) ─────────────────────────────────────
-# FORCE_PROVIDER=            # empty = auto-detect (recommended)
-# FORCE_PROVIDER=openai      # always use OpenAI
-# FORCE_PROVIDER=ollama      # always use Ollama
 ```
 
-The app **auto-detects** internet connectivity: OpenAI when reachable (and a key is set),
-Ollama otherwise. Override with `FORCE_PROVIDER`.
-
-> **Embeddings are always local** (BAAI/bge-m3). Switching providers never requires re-indexing.
+> **Embeddings are always local** (BAAI/bge-m3).
 
 ---
 
@@ -142,7 +129,7 @@ brew install ollama
 # Start the server
 ollama serve
 
-# Pull the model the app uses
+# Pull the model the app uses (~4.7 GB download)
 ollama pull qwen2.5:7b-instruct
 ```
 
@@ -153,7 +140,7 @@ or `http://localhost:11434` when running locally.
 
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
-ollama pull qwen2.5:7b-instruct
+ollama pull qwen2.5:7b-instruct  # ~4.7 GB download
 # OLLAMA_HOST=http://localhost:11434
 ```
 
@@ -255,7 +242,7 @@ RAG-Bachelor/
     ├── core/
     │   ├── embeddings.py         # BAAI/bge-m3 local embeddings
     │   ├── retriever.py          # Semantic search (cosine similarity)
-    │   ├── llm.py                # OpenAI / Ollama provider + auto-detect
+    │   ├── llm.py                # Ollama provider
     │   ├── qa.py                 # RAG Q&A with French system prompt + citations
     │   └── questions.py          # Easy / medium / hard question generation
     ├── study/
@@ -305,7 +292,6 @@ Vectors from different models are incompatible — re-indexing is required.
 | *"Aucun document indexé"* in Q&A tab | Go to 📚 Documentation → (Re)indexer |
 | Slow first container start | bge-m3 model downloading (~1.2 GB) — fast on subsequent starts |
 | Ollama error / no response | Run `ollama serve` and `ollama list` to check the model is pulled |
-| App shows "Ollama (hors ligne)" when online | Check `OPENAI_API_KEY` in `.env`; click 🔄 in ⚙️ Paramètres |
 | Dev Container can't reach Ollama on Mac | Set `OLLAMA_HOST=http://host.docker.internal:11434` in `.env` |
 | Port 8090 already in use | Kill other uvicorn processes (`pkill -f uvicorn`), or change `--port` |
 | Blank pages not indexed | Expected — pages with no text layer are skipped with a warning |
@@ -320,8 +306,7 @@ Vectors from different models are incompatible — re-indexing is required.
 | PDF extraction | PyMuPDF |
 | Embeddings | sentence-transformers + BAAI/bge-m3 (local, multilingual) |
 | Vector store | ChromaDB (persistent, embedded) |
-| Online LLM | OpenAI gpt-4o-mini / gpt-4o |
-| Offline LLM | Ollama qwen2.5:7b-instruct |
+| LLM | Ollama qwen2.5:7b-instruct |
 | Config | pydantic-settings |
 | Study DB | SQLite (stdlib) |
 | Spaced repetition | SM-2 (custom implementation) |
