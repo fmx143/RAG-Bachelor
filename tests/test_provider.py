@@ -1,111 +1,96 @@
-"""Tests for the LLM provider selection logic."""
+"""Tests for the LLM provider selection logic (manual toggle, persisted in SQLite)."""
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
-import pytest
+from pydantic import SecretStr
 
-from rag_bachelor.core import llm as llm_mod
+from rag_bachelor.config import settings
 from rag_bachelor.core.llm import (
+    PROVIDER_SETTING_KEY,
     OllamaProvider,
     OpenAIProvider,
-    _ConnectivityCache,
     get_provider,
 )
+from rag_bachelor.study import store
+
+# ── get_provider() selection ────────────────────────────────────────────────────
 
 
-@pytest.fixture(autouse=True)
-def reset_cache() -> None:
-    """Reset the connectivity cache before each test so tests are isolated."""
-    _ConnectivityCache.invalidate()
-    yield
-    _ConnectivityCache.invalidate()
+def test_defaults_to_ollama_when_nothing_persisted() -> None:
+    provider, name = get_provider()
+    assert name == "ollama"
+    assert isinstance(provider, OllamaProvider)
 
 
-# ── Force provider ────────────────────────────────────────────────────────────
-
-
-def test_force_openai_ignores_connectivity() -> None:
-    with patch.object(llm_mod.settings, "force_provider", "openai"):
-        with patch.object(llm_mod.settings, "openai_api_key", "sk-test"):
-            provider, name = get_provider()
+def test_respects_default_llm_provider_setting() -> None:
+    with (
+        patch.object(settings, "default_llm_provider", "openai"),
+        patch.object(settings, "openai_api_key", SecretStr("sk-test")),
+    ):
+        provider, name = get_provider()
     assert name == "openai"
     assert isinstance(provider, OpenAIProvider)
 
 
-def test_force_ollama_ignores_connectivity() -> None:
-    with patch.object(llm_mod.settings, "force_provider", "ollama"):
+def test_persisted_openai_choice_is_used_when_key_configured() -> None:
+    store.set_setting(PROVIDER_SETTING_KEY, "openai")
+    with patch.object(settings, "openai_api_key", SecretStr("sk-test")):
+        provider, name = get_provider()
+    assert name == "openai"
+    assert isinstance(provider, OpenAIProvider)
+
+
+def test_openai_choice_falls_back_to_ollama_without_key() -> None:
+    """A missing key must never surface as a raw exception — silent, safe fallback."""
+    store.set_setting(PROVIDER_SETTING_KEY, "openai")
+    with patch.object(settings, "openai_api_key", SecretStr("")):
         provider, name = get_provider()
     assert name == "ollama"
     assert isinstance(provider, OllamaProvider)
 
 
-def test_force_provider_case_insensitive() -> None:
-    with patch.object(llm_mod.settings, "force_provider", "OLLAMA"):
+def test_persisted_ollama_choice_is_used_even_with_key_configured() -> None:
+    store.set_setting(PROVIDER_SETTING_KEY, "ollama")
+    with patch.object(settings, "openai_api_key", SecretStr("sk-test")):
         provider, name = get_provider()
     assert name == "ollama"
-
-
-# ── Auto detection ────────────────────────────────────────────────────────────
-
-
-def test_auto_online_with_key_returns_openai() -> None:
-    import time
-
-    # Pre-populate with a fresh cache hit so no network probe is triggered
-    _ConnectivityCache._online = True
-    _ConnectivityCache._last_check = time.monotonic()
-
-    with patch.object(llm_mod.settings, "force_provider", ""):
-        with patch.object(llm_mod.settings, "openai_api_key", "sk-test"):
-            with patch.object(llm_mod.settings, "connectivity_cache_ttl", 3600):
-                provider, name = get_provider()
-
-    assert name == "openai"
-    assert isinstance(provider, OpenAIProvider)
-
-
-def test_auto_offline_returns_ollama() -> None:
-    with patch.object(llm_mod.settings, "force_provider", ""):
-        with patch.object(llm_mod.settings, "openai_api_key", "sk-test"):
-            _ConnectivityCache._online = False
-            provider, name = get_provider()
-    assert name == "ollama"
     assert isinstance(provider, OllamaProvider)
 
 
-def test_auto_online_no_key_returns_ollama() -> None:
-    """Even with internet, fall back to Ollama when there is no API key."""
-    with patch.object(llm_mod.settings, "force_provider", ""):
-        with patch.object(llm_mod.settings, "openai_api_key", ""):
-            _ConnectivityCache._online = True
-            provider, name = get_provider()
-    assert name == "ollama"
-    assert isinstance(provider, OllamaProvider)
+# ── OpenAIProvider ────────────────────────────────────────────────────────────
 
 
-# ── Connectivity cache ────────────────────────────────────────────────────────
+def test_openai_provider_builds_client_with_configured_key() -> None:
+    fake_response = MagicMock()
+    fake_response.choices = [MagicMock(message=MagicMock(content="réponse"))]
+    with (
+        patch.object(settings, "openai_api_key", SecretStr("sk-super-secret")),
+        patch("rag_bachelor.core.llm._OpenAI") as mock_openai_cls,
+    ):
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = fake_response
+        mock_openai_cls.return_value = mock_client
+
+        result = OpenAIProvider().chat([{"role": "user", "content": "salut"}])
+
+    mock_openai_cls.assert_called_once_with(api_key="sk-super-secret")
+    assert result == "réponse"
 
 
-def test_connectivity_cache_ttl_is_respected() -> None:
-    """Within the TTL, is_online() should return the cached value without re-probing."""
-    import time
-
-    # Pre-populate cache with True just now
-    _ConnectivityCache._online = True
-    _ConnectivityCache._last_check = time.monotonic()
-
-    # Set a long TTL so the cache is definitely still fresh
-    with patch.object(llm_mod.settings, "connectivity_cache_ttl", 3600):
-        result = _ConnectivityCache.is_online()
-
-    # Should return the cached True value without hitting the network
-    assert result is True
+# ── OllamaProvider ────────────────────────────────────────────────────────────
 
 
-def test_connectivity_invalidate_forces_reprobe() -> None:
-    """After invalidate(), the next is_online() should re-probe."""
-    _ConnectivityCache._online = True
-    _ConnectivityCache.invalidate()
-    assert _ConnectivityCache._online is None
+def test_ollama_provider_uses_configured_host_and_model() -> None:
+    fake_response = MagicMock()
+    fake_response.message.content = "réponse"
+    with patch("rag_bachelor.core.llm._ollama.Client") as mock_client_cls:
+        mock_client = MagicMock()
+        mock_client.chat.return_value = fake_response
+        mock_client_cls.return_value = mock_client
+
+        result = OllamaProvider().chat([{"role": "user", "content": "salut"}])
+
+    mock_client_cls.assert_called_once_with(host=settings.ollama_host)
+    assert result == "réponse"

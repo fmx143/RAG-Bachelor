@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,6 +37,20 @@ class Settings(BaseSettings):
     # ── Ollama ────────────────────────────────────────────────────────────
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5:7b-instruct"
+
+    # ── OpenAI (optional cloud provider, manual toggle in Settings) ────────
+    # Never render these via .get_secret_value() outside of client construction —
+    # SecretStr keeps them out of repr()/logs/template output by default.
+    openai_api_key: SecretStr = SecretStr("")
+    openai_model: str = "gpt-4o-mini"
+    default_llm_provider: str = "ollama"
+
+    # ── Auth (shared-secret login gate — required once exposed publicly) ───
+    app_password: SecretStr = SecretStr("")
+    session_secret: SecretStr = SecretStr("")
+    # False for local http:// dev; set true (via Doppler) once served over
+    # https through the Cloudflare Tunnel, so the session cookie gets Secure.
+    session_cookie_secure: bool = False
 
     # ── Server ───────────────────────────────────────────────────────────
     app_port: int = 8090

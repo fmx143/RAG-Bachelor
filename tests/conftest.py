@@ -8,6 +8,20 @@ import fitz  # pymupdf
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def isolated_study_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Point the SQLite study DB at a throwaway file so tests never touch data/app.db."""
+    from rag_bachelor.config import settings
+    from rag_bachelor.study import store
+
+    monkeypatch.setattr(settings, "db_path", tmp_path / "test_app.db")
+    store._conn = None
+    yield
+    if store._conn is not None:
+        store._conn.close()
+    store._conn = None
+
+
 @pytest.fixture
 def sample_pdf(tmp_path: Path) -> Path:
     """Create a two-page French PDF with readable text for testing."""

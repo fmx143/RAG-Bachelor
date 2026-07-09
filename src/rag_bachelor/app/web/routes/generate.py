@@ -60,13 +60,14 @@ async def generate_qs(
 
     try:
         questions = await asyncio.to_thread(generate_questions, effective_topic, diff)
-    except Exception as exc:
+    except Exception:
+        # Never surface the raw exception: LLM SDK auth errors can echo back the API key.
         return templates.TemplateResponse(
             request,
             "partials/gen_questions.html",
             {
                 "request": request,
-                "error": str(exc),
+                "error": "Erreur lors de la génération des questions. Vérifie la configuration du fournisseur LLM dans ⚙️ Paramètres.",
                 "questions": [],
                 "topic": effective_topic,
                 "difficulty": diff,
