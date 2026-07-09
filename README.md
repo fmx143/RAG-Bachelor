@@ -14,7 +14,8 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 | 🔄 **Spaced repetition** | SM-2 algorithm (Anki-style) — review due cards, self-grade, auto-reschedule |
 | 🎯 **Question generation** | LLM-generated easy / medium / hard questions per topic, add them to your deck |
 | 📊 **Progress tracking** | Per-topic mastery bars, weak vs strong subject overview |
-| ⚙️ **Local-first** | Ollama for LLM, bge-m3 for embeddings — fully offline, no API key needed |
+| ⚙️ **Local-first** | Ollama for LLM by default (fully offline, no API key needed); OpenAI available as an optional manual toggle in Settings — bge-m3 embeddings are always local |
+| 🔒 **Secrets via Doppler** | No API keys or passwords ever live in a `.env` file or the image — see [Configuration & sécurité](#configuration--sécurité-doppler) |
 
 ---
 
@@ -44,11 +45,9 @@ and mounts your local `data/` folder so everything persists across rebuilds.
 
 ### 2. Configure
 
-```bash
-cp .env.example .env
-# Open .env and set:
-#   OLLAMA_HOST=http://host.docker.internal:11434   (default for Mac + Dev Container)
-```
+No `.env` file is needed. If you use the Ollama defaults, no configuration at all is
+required. If you want the optional OpenAI provider or the login gate, use Doppler —
+see [Configuration & sécurité (Doppler)](#configuration--sécurité-doppler) below.
 
 ### 3. Open in container
 
@@ -89,32 +88,77 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 # 2. Install dependencies  (~3 GB first time — includes PyTorch)
 pip install -e ".[dev]"
 
-# 3. Configure
-cp .env.example .env
-# Edit .env
-
-# 4. Launch
+# 3. Launch (Ollama defaults — no secrets needed)
 uvicorn rag_bachelor.app.web.server:app --host 0.0.0.0 --port 8090
 # or: rag-web   (after pip install -e .)
+
+# 4. Or launch through Doppler, once you want OpenAI/auth (see next section)
+doppler run -- rag-web
 ```
 
 Open **http://localhost:8090**.
 
 ---
 
-## Configuration (`.env`)
+## Configuration & sécurité (Doppler)
 
-Copy `.env.example` to `.env` before starting. Key settings:
+This app takes **no `.env` file** — there is nothing to copy, and nothing sensitive
+ever lives on disk. Settings are read from real process environment variables
+(`pydantic-settings` in `config.py`), and [Doppler](https://doppler.com) is how those
+variables get there, both locally and on the NAS. With nothing configured, the app
+runs fully offline against Ollama with no login gate — Doppler is only needed once
+you want the optional OpenAI provider and/or the login gate.
+
+### Secret names
+
+| Variable | Required for | Notes |
+|---|---|---|
+| `OLLAMA_HOST` | Ollama (default) | e.g. `http://host.docker.internal:11434` on Mac + Dev Container, `http://localhost:11434` locally |
+| `OLLAMA_MODEL` | Ollama (default) | e.g. `qwen2.5:7b-instruct` |
+| `OPENAI_API_KEY` | Optional OpenAI provider | Only read at request time; never logged, templated, or echoed back on error |
+| `OPENAI_MODEL` | Optional OpenAI provider | e.g. `gpt-4o-mini` |
+| `DEFAULT_LLM_PROVIDER` | Optional | `ollama` (default) or `openai` — startup default; toggle in ⚙️ Paramètres overrides it afterwards |
+| `APP_PASSWORD` | Login gate | Empty/unset ⇒ gate disabled (fine for local dev, **required** before exposing the app publicly) |
+| `SESSION_SECRET` | Login gate | Required whenever `APP_PASSWORD` is set — signs the session cookie; app refuses to start otherwise |
+| `SESSION_COOKIE_SECURE` | Login gate over HTTPS | Set `true` once served through the Cloudflare Tunnel (TLS terminates there) |
+
+### Local dev
 
 ```bash
-# ── Ollama ────────────────────────────────────────────────────────────────────
-# Mac + Dev Container:  host.docker.internal reaches Ollama on your Mac host
-OLLAMA_HOST=http://host.docker.internal:11434
-# Local Python on any OS:
-# OLLAMA_HOST=http://localhost:11434
+doppler login                    # once per machine
+doppler setup                    # links this directory to a Doppler project/config
+doppler secrets set OPENAI_API_KEY APP_PASSWORD SESSION_SECRET   # only the ones you need
+
+doppler run -- rag-web           # or: doppler run -- uvicorn rag_bachelor.app.web.server:app --port 8090
 ```
 
-> **Embeddings are always local** (BAAI/bge-m3).
+### NAS / Docker
+
+The Doppler CLI is baked into the `Dockerfile`; the container's `ENTRYPOINT`
+(`docker/entrypoint.sh`) runs `doppler run -- uvicorn ...`. The **only** secret that
+needs to reach the NAS is a scoped, revocable **Doppler Service Token** — the real
+`OPENAI_API_KEY` / `APP_PASSWORD` never touch the NAS filesystem or the image.
+
+```bash
+# Create a service token scoped to this Doppler project/config, then on the NAS:
+docker run -e DOPPLER_TOKEN=dp.st.xxxxx ...
+# or, preferably, mount it as a file (not visible via `docker inspect`/`ps`):
+docker run -e DOPPLER_TOKEN_FILE=/run/secrets/doppler_token -v /path/to/token:/run/secrets/doppler_token:ro ...
+```
+
+If the NAS is ever compromised, **revoke the Doppler token** from the Doppler
+dashboard — no key rotation is needed anywhere else.
+
+If `DOPPLER_TOKEN`/`DOPPLER_TOKEN_FILE` isn't set, the entrypoint starts the app
+directly without Doppler (Ollama-only, no login gate) — useful for a plain local
+`docker compose up` with no secrets involved.
+
+### Defense in depth
+
+Put [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/)
+in front of the tunnel as a second layer on top of the app's own login gate.
+
+> **Embeddings are always local** (BAAI/bge-m3) — no key needed for that part regardless.
 
 ---
 
@@ -133,8 +177,8 @@ ollama serve
 ollama pull qwen2.5:7b-instruct
 ```
 
-Set `OLLAMA_HOST=http://host.docker.internal:11434` in `.env` when running inside the Dev Container,
-or `http://localhost:11434` when running locally.
+Set `OLLAMA_HOST=http://host.docker.internal:11434` when running inside the Dev Container,
+or `http://localhost:11434` when running locally (via Doppler, or just export it directly).
 
 ### Linux / WSL
 
@@ -212,9 +256,11 @@ Cards due today are shown one at a time. Click **👁️ Afficher la réponse** 
 
 **Tab: ⚙️ Paramètres**
 
-- View active provider (online/offline), connectivity, and API key status.
-- Click **🔄 Vérifier la connexion** to force a fresh check.
-- Change models in `.env` and restart — see notes below.
+- View the active LLM provider (Ollama/OpenAI), its model, and whether an OpenAI key
+  is configured (never the key itself).
+- Toggle between Ollama and OpenAI — the choice persists across restarts. Switching to
+  OpenAI is blocked if no `OPENAI_API_KEY` is configured.
+- Change models via Doppler/env vars and restart — see [Configuration & sécurité](#configuration--sécurité-doppler).
 
 ---
 
@@ -224,9 +270,9 @@ Cards due today are shown one at a time. Click **👁️ Afficher la réponse** 
 RAG-Bachelor/
 ├── .devcontainer/
 │   └── devcontainer.json         # VS Code Dev Container (builds from Dockerfile)
-├── Dockerfile                    # App image — Python 3.13 + all deps
+├── Dockerfile                    # App image — Python 3.13 + all deps + Doppler CLI
+├── docker/entrypoint.sh          # doppler run -- wrapper (falls back to no-Doppler for local dev)
 ├── pyproject.toml                # Python dependencies + tool config
-├── .env.example                  # Configuration template → copy to .env
 │
 ├── data/
 │   ├── pdfs/                     # ← Drop your PDF files here
@@ -242,7 +288,7 @@ RAG-Bachelor/
     ├── core/
     │   ├── embeddings.py         # BAAI/bge-m3 local embeddings
     │   ├── retriever.py          # Semantic search (cosine similarity)
-    │   ├── llm.py                # Ollama provider
+    │   ├── llm.py                # Ollama + OpenAI providers (toggle persisted in SQLite)
     │   ├── qa.py                 # RAG Q&A with French system prompt + citations
     │   └── questions.py          # Easy / medium / hard question generation
     ├── study/
@@ -277,10 +323,10 @@ uvicorn rag_bachelor.app.web.server:app --port 8090 --reload
 ```
 
 **Changing the Ollama model:**  
-Edit `OLLAMA_MODEL` in `.env`, then pull the model: `ollama pull <model-name>`.
+Set `OLLAMA_MODEL` (via Doppler or your environment), then pull the model: `ollama pull <model-name>`.
 
 **Changing the embedding model:**  
-Edit `EMBEDDING_MODEL` in `.env`, delete `data/chroma/`, and re-index all PDFs.  
+Set `EMBEDDING_MODEL`, delete `data/chroma/`, and re-index all PDFs.  
 Vectors from different models are incompatible — re-indexing is required.
 
 ---
@@ -292,7 +338,7 @@ Vectors from different models are incompatible — re-indexing is required.
 | *"Aucun document indexé"* in Q&A tab | Go to 📚 Documentation → (Re)indexer |
 | Slow first container start | bge-m3 model downloading (~1.2 GB) — fast on subsequent starts |
 | Ollama error / no response | Run `ollama serve` and `ollama list` to check the model is pulled |
-| Dev Container can't reach Ollama on Mac | Set `OLLAMA_HOST=http://host.docker.internal:11434` in `.env` |
+| Dev Container can't reach Ollama on Mac | Set `OLLAMA_HOST=http://host.docker.internal:11434` |
 | Port 8090 already in use | Kill other uvicorn processes (`pkill -f uvicorn`), or change `--port` |
 | Blank pages not indexed | Expected — pages with no text layer are skipped with a warning |
 

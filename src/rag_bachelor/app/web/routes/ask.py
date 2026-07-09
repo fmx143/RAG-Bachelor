@@ -44,11 +44,17 @@ async def ask_question(
 
     try:
         answer, chunks = await asyncio.to_thread(answer_question, q, top_k=max(3, min(n_sources, 10)))
-    except Exception as exc:
+    except Exception:
+        # Never surface the raw exception: LLM SDK auth errors can echo back the API key.
         return templates.TemplateResponse(
             request,
             "partials/answer.html",
-            {"request": request, "error": str(exc), "answer": None, "chunks": []},
+            {
+                "request": request,
+                "error": "Erreur lors de la génération de la réponse. Vérifie la configuration du fournisseur LLM dans ⚙️ Paramètres.",
+                "answer": None,
+                "chunks": [],
+            },
         )
 
     return templates.TemplateResponse(

@@ -4,24 +4,29 @@
   <h1>⚙️ Paramètres</h1>
 </div>
 
-<!-- ── Ollama status ─────────────────────────────────────────────────────── -->
+<!-- ── LLM provider ──────────────────────────────────────────────────────── -->
 <div class="card">
   <div class="subheader">Fournisseur LLM</div>
-  {% include "partials/provider_status.html" %}
+  <div id="provider-panel">
+    {% include "partials/provider_panel.html" %}
+  </div>
 </div>
 
 <!-- ── Model config ──────────────────────────────────────────────────────── -->
 <div class="card">
-  <div class="subheader">Configuration Ollama</div>
+  <div class="subheader">Configuration</div>
   <div style="font-size:.9rem; color:var(--muted); margin-bottom:.75rem;">
-    Pour changer le modèle ou l'hôte, modifie le fichier <code>.env</code> et relance l'application.
+    Pour changer les modèles, l'hôte Ollama ou la clé OpenAI, configure les variables via
+    Doppler (ou l'environnement) et relance l'application.
   </div>
   <pre class="env-example">
-# Modèle utilisé pour les questions et réponses
+# Ollama (local)
 OLLAMA_MODEL=qwen2.5:7b-instruct
+OLLAMA_HOST=http://localhost:11434
 
-# Hôte Ollama (local ou réseau)
-OLLAMA_HOST=http://localhost:11434</pre>
+# OpenAI (cloud, optionnel)
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-4o-mini</pre>
 </div>
 
 <!-- ── Embeddings ────────────────────────────────────────────────────────── -->
