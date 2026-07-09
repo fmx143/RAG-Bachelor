@@ -29,6 +29,9 @@
       <a href="/generate" class="nav-link {% if active_tab == 'generate' %}active{% endif %}">🎯 Générer des questions</a>
       <a href="/progress" class="nav-link {% if active_tab == 'progress' %}active{% endif %}">📊 Progrès</a>
       <a href="/settings" class="nav-link {% if active_tab == 'settings' %}active{% endif %}">⚙️ Paramètres</a>
+      {% if auth_enabled() %}
+      <a href="/logout" class="nav-link">🔓 Déconnexion</a>
+      {% endif %}
     </nav>
   </aside>
 

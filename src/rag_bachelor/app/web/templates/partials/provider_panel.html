@@ -1,0 +1,46 @@
+<div class="metrics" style="margin-bottom:.75rem;">
+  <div class="metric">
+    <div class="metric-label">🧠 Fournisseur actif</div>
+    <div class="metric-value" style="font-size:1rem; padding-top:.25rem;">
+      {% if active_provider == "openai" %}🤖 OpenAI (cloud){% else %}💻 Ollama (local){% endif %}
+    </div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">🤖 Modèle</div>
+    <div class="metric-value" style="font-size:1rem; padding-top:.25rem;">
+      <code>{% if active_provider == "openai" %}{{ cfg.openai_model }}{% else %}{{ cfg.ollama_model }}{% endif %}</code>
+    </div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">🔑 Clé OpenAI</div>
+    <div class="metric-value" style="font-size:1rem; padding-top:.25rem;">
+      {% if openai_key_configured %}configurée ✅{% else %}absente ❌{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+<form hx-post="/settings/provider" hx-target="#provider-panel" hx-swap="innerHTML">
+  <div class="form-group">
+    <label>Choisir le fournisseur</label>
+    <div style="display:flex; gap:1.5rem; margin-top:.25rem;">
+      <label style="font-weight:400;">
+        <input type="radio" name="provider" value="ollama" {% if active_provider == "ollama" %}checked{% endif %}>
+        💻 Ollama (local)
+      </label>
+      <label style="font-weight:400;">
+        <input type="radio" name="provider" value="openai"
+               {% if active_provider == "openai" %}checked{% endif %}
+               {% if not openai_key_configured %}disabled{% endif %}>
+        🤖 OpenAI
+        {% if not openai_key_configured %}
+        <small style="color:var(--muted);">(définis OPENAI_API_KEY)</small>
+        {% endif %}
+      </label>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+</form>

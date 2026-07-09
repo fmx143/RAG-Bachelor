@@ -30,6 +30,11 @@ CREATE TABLE IF NOT EXISTS reviews (
     grade       INTEGER NOT NULL,
     reviewed_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 
@@ -44,6 +49,27 @@ def get_conn() -> sqlite3.Connection:
         _conn.executescript(_SCHEMA)
         _conn.commit()
     return _conn
+
+
+# ── App settings (persisted key/value, e.g. active LLM provider toggle) ────────
+
+
+def get_setting(key: str, default: str) -> str:
+    """Return the persisted value for *key*, or *default* if unset."""
+    conn = get_conn()
+    row = conn.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(key: str, value: str) -> None:
+    """Persist *value* for *key*, overwriting any existing entry."""
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO app_settings (key, value) VALUES (?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (key, value),
+    )
+    conn.commit()
 
 
 # ── Card CRUD ─────────────────────────────────────────────────────────────────
