@@ -19,6 +19,7 @@ htmlcov/
 # App data (user data — not tracked in git)
 data/chroma/
 data/app.db
+data/pdfs/*.pdf
 model_cache/
 
 # Keep the pdfs dir placeholder
