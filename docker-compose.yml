@@ -1,0 +1,72 @@
+# NAS deployment — 2-tier topology (edge/Cloudflare is out of scope of this file):
+#
+#   app  (front + back, FastAPI/HTMX)  ── reachable from the tunnel/host
+#   postgres + chroma (data tier)      ── "data_tier" network only, no published
+#                                          ports, no route to the internet
+#
+# Launch with Doppler so POSTGRES_PASSWORD/APP_PASSWORD/SESSION_SECRET/
+# OPENAI_API_KEY never touch disk in cleartext:
+#
+#   doppler run -- docker compose up -d --build
+#
+# Point cloudflared (run separately, outside this file) at http://localhost:8090.
+
+services:
+  app:
+    build: .
+    ports:
+      - "8090:8090"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: rag_bachelor
+      POSTGRES_USER: rag_bachelor
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set via Doppler}
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
+      DEFAULT_LLM_PROVIDER: openai
+      # OPENAI_API_KEY / APP_PASSWORD / SESSION_SECRET / SESSION_COOKIE_SECURE
+      # come from Doppler (see docker/entrypoint.sh) — do not hardcode here.
+    volumes:
+      - pdfs:/app/data/pdfs
+      - model_cache:/app/model_cache
+    depends_on:
+      - postgres
+      - chroma
+    networks:
+      - default
+      - data_tier
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: rag_bachelor
+      POSTGRES_USER: rag_bachelor
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set via Doppler}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - data_tier
+    restart: unless-stopped
+    # No "ports:" — unreachable from the LAN or the internet, only from `app`.
+
+  chroma:
+    image: chromadb/chroma:latest
+    volumes:
+      - chroma_data:/chroma/chroma
+    networks:
+      - data_tier
+    restart: unless-stopped
+    # No "ports:" — same isolation as postgres.
+
+networks:
+  default:
+  data_tier:
+    internal: true # no route out of this network at all, including to the internet
+
+volumes:
+  postgres_data:
+  chroma_data:
+  pdfs:
+  model_cache:
