@@ -19,6 +19,20 @@ class Settings(BaseSettings):
     chroma_dir: Path = Path("data/chroma")
     db_path: Path = Path("data/app.db")
 
+    # ── PostgreSQL (optional — isolated data tier for a NAS deployment) ────
+    # Empty POSTGRES_HOST ⇒ falls back to the local SQLite file above, so
+    # local dev without Docker stays frictionless.
+    postgres_host: str = ""
+    postgres_port: int = 5432
+    postgres_db: str = "rag_bachelor"
+    postgres_user: str = "rag_bachelor"
+    postgres_password: SecretStr = SecretStr("")
+
+    # ── ChromaDB server (optional — isolated data tier for a NAS deployment)
+    # Empty CHROMA_HOST ⇒ falls back to the local PersistentClient (chroma_dir).
+    chroma_host: str = ""
+    chroma_port: int = 8000
+
     # ── Embedding ─────────────────────────────────────────────────────────
     # bge-m3 is the primary model (strong French/multilingual, ~1.2 GB).
     # Lighter alternative: "intfloat/multilingual-e5-base"
