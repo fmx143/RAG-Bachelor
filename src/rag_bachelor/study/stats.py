@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
 
-from rag_bachelor.study.store import get_conn
+from rag_bachelor.study.store import get_topic_stats_rows
 
 # Ease factor bounds used for mastery normalisation (SM-2 range ≈ 1.3–3.5)
 _EASE_MIN = 1.3
@@ -28,23 +27,7 @@ def get_topic_stats() -> list[TopicStats]:
     Topics with lower mastery are listed first so weak subjects are prominent
     in the UI.
     """
-    conn = get_conn()
-    today = date.today().isoformat()
-
-    rows = conn.execute(
-        """
-        SELECT
-            topic,
-            COUNT(*)                                              AS total,
-            SUM(CASE WHEN due_date <= :today THEN 1 ELSE 0 END)  AS due,
-            AVG(ease_factor)                                      AS avg_ease,
-            AVG(interval)                                         AS avg_interval
-        FROM cards
-        GROUP BY topic
-        ORDER BY topic
-        """,
-        {"today": today},
-    ).fetchall()
+    rows = get_topic_stats_rows()
 
     stats: list[TopicStats] = []
     for r in rows:
