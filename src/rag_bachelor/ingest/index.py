@@ -17,6 +17,10 @@ _collection: chromadb.Collection | None = None
 def get_collection() -> chromadb.Collection:
     """Return (and lazily create) the singleton ChromaDB collection.
 
+    Connects to a standalone Chroma server (isolated data-tier container, e.g.
+    on a NAS) when ``CHROMA_HOST`` is set, otherwise falls back to an embedded
+    ``PersistentClient`` for frictionless local dev.
+
     We always pass explicit ``embeddings=`` in every ``upsert`` and
     ``query_embeddings=`` in every ``query`` call, so ChromaDB's default
     embedding function is never actually invoked.  We still create the
@@ -25,8 +29,11 @@ def get_collection() -> chromadb.Collection:
     """
     global _client, _collection
     if _collection is None:
-        settings.chroma_dir.mkdir(parents=True, exist_ok=True)
-        _client = chromadb.PersistentClient(path=str(settings.chroma_dir))
+        if settings.chroma_host:
+            _client = chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port)
+        else:
+            settings.chroma_dir.mkdir(parents=True, exist_ok=True)
+            _client = chromadb.PersistentClient(path=str(settings.chroma_dir))
         _collection = _client.get_or_create_collection(
             name=_COLLECTION_NAME,
             metadata={"hnsw:space": "cosine"},
