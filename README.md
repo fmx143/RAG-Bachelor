@@ -121,6 +121,8 @@ you want the optional OpenAI provider and/or the login gate.
 | `APP_PASSWORD` | Login gate | Empty/unset ⇒ gate disabled (fine for local dev, **required** before exposing the app publicly) |
 | `SESSION_SECRET` | Login gate | Required whenever `APP_PASSWORD` is set — signs the session cookie; app refuses to start otherwise |
 | `SESSION_COOKIE_SECURE` | Login gate over HTTPS | Set `true` once served through the Cloudflare Tunnel (TLS terminates there) |
+| `POSTGRES_HOST` / `_PORT` / `_DB` / `_USER` / `_PASSWORD` | Isolated data tier (NAS) | Empty `POSTGRES_HOST` ⇒ falls back to local SQLite (`data/app.db`) |
+| `CHROMA_HOST` / `CHROMA_PORT` | Isolated data tier (NAS) | Empty `CHROMA_HOST` ⇒ falls back to the local embedded ChromaDB (`data/chroma`) |
 
 ### Local dev
 
@@ -156,9 +158,39 @@ directly without Doppler (Ollama-only, no login gate) — useful for a plain loc
 ### Defense in depth
 
 Put [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/)
-in front of the tunnel as a second layer on top of the app's own login gate.
+in front of the tunnel as a second layer on top of the app's own login gate. Scope the Access
+policy to your exact email (not just "any Google account") — otherwise anyone with a Google
+login passes the 2FA check, not just you.
 
 > **Embeddings are always local** (BAAI/bge-m3) — no key needed for that part regardless.
+
+### NAS deployment topology (2-tier + Cloudflare edge)
+
+`docker-compose.yml` splits the app from an isolated data tier:
+
+- **`app`** — FastAPI/HTMX (front + back in one process, they aren't separable without
+  abandoning the HTMX server-rendered pattern). The only service with a published port.
+- **`postgres` + `chroma`** — the data tier. Both sit on a Docker network marked `internal:
+  true`: no published ports, no route to the internet, reachable only from `app`. This is
+  what makes the tier boundary a real security boundary rather than just a folder layout —
+  a compromised `app` container can still query the data through its scoped DB credentials,
+  but can't reach the database engines' filesystem, and the databases themselves can't be
+  reached from the LAN or exfiltrate anything directly to the internet.
+
+Cloudflare Tunnel/Access is the edge in front of `app` and is **not** one of these tiers —
+it terminates entirely on Cloudflare's side before traffic ever reaches the NAS.
+
+```bash
+# Add POSTGRES_PASSWORD alongside the other secrets:
+doppler secrets set POSTGRES_PASSWORD OPENAI_API_KEY APP_PASSWORD SESSION_SECRET
+
+# Launch — Doppler populates POSTGRES_PASSWORD for docker-compose's ${...} substitution
+# too, so it never lands in a .env file on the NAS:
+doppler run -- docker compose up -d --build
+```
+
+Point `cloudflared` (run separately — it isn't part of this compose file) at
+`http://localhost:8090`.
 
 ---
 

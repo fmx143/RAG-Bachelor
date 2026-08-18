@@ -5,10 +5,14 @@ This file stacks on top of the global `~/.claude/CLAUDE.md`.
 ## What this app does
 
 Local-first RAG study assistant for French bachelor PDFs.
-- LLM: Ollama only (qwen2.5:7b-instruct by default) — no cloud API keys required
-- Embeddings: always local (bge-m3)
+- LLM: Ollama (qwen2.5:7b-instruct, default for local dev) or OpenAI (toggle in ⚙️ Paramètres /
+  `DEFAULT_LLM_PROVIDER=openai`) — the NAS deployment runs OpenAI-only, no Ollama container
+- Embeddings: always local (bge-m3) regardless of LLM provider
 - UI: FastAPI + HTMX, 6 tabs (docs, ask, revision, generate, progress, settings)
-- Study tracking: SM-2 spaced repetition, SQLite
+- Study tracking: SM-2 spaced repetition, persisted to SQLite (local dev) or PostgreSQL
+  (`POSTGRES_HOST` set — isolated data-tier container on the NAS)
+- Vector index: ChromaDB, embedded `PersistentClient` (local dev) or standalone server via
+  `CHROMA_HOST` (isolated data-tier container on the NAS)
 
 ## Key paths
 
@@ -16,13 +20,15 @@ Local-first RAG study assistant for French bachelor PDFs.
 |---|---|
 | `src/rag_bachelor/` | All source code |
 | `src/rag_bachelor/config.py` | Pydantic-settings (single source of truth for all settings) |
-| `src/rag_bachelor/core/llm.py` | Ollama provider — `get_provider()` always returns `OllamaProvider` |
+| `src/rag_bachelor/core/llm.py` | `get_provider()` — Ollama or OpenAI, per `DEFAULT_LLM_PROVIDER` / the Settings toggle |
 | `src/rag_bachelor/ingest/` | PDF → chunks → ChromaDB |
-| `src/rag_bachelor/study/` | SM-2, SQLite store, stats |
+| `src/rag_bachelor/study/store.py` | SM-2 persistence — dual backend: SQLite (default) or PostgreSQL (`POSTGRES_HOST` set) |
+| `src/rag_bachelor/study/` | SM-2, persistence store, stats |
 | `src/rag_bachelor/app/web/` | FastAPI server, route modules, Jinja2 templates, static assets |
+| `docker-compose.yml` | NAS deployment: `app` + isolated `postgres`/`chroma` data tier (no Ollama) |
 | `data/pdfs/` | User-supplied PDFs (not tracked in git) |
-| `data/chroma/` | Persistent vector index (not tracked in git) |
-| `data/app.db` | SQLite study DB (not tracked in git) |
+| `data/chroma/` | Local embedded vector index, used only when `CHROMA_HOST` is unset (not tracked in git) |
+| `data/app.db` | Local SQLite study DB, used only when `POSTGRES_HOST` is unset (not tracked in git) |
 
 ## Run commands
 
@@ -37,10 +43,10 @@ pip install -e ".[dev]"
 uvicorn rag_bachelor.app.web.server:app --host 0.0.0.0 --port 8090
 # or: rag-web   (after pip install -e .)
 
-# Docker (recommended for portability)
-docker compose up --build
-docker compose --profile local-llm up --build  # with bundled Ollama
-# app is served on http://localhost:8090
+# Docker / NAS (2-tier: app, plus an isolated postgres+chroma data tier)
+doppler run -- docker compose up -d --build
+# app is served on http://localhost:8090 — front it with a Cloudflare Tunnel
+# + Cloudflare Access for remote access; postgres/chroma publish no ports
 
 # Tests
 pytest
@@ -52,7 +58,7 @@ mypy src/
 
 - Python 3.13, strict mypy, ruff
 - `pydantic-settings` for config — never read env vars directly, always via `settings`
-- `chromadb` PersistentClient — always pass explicit embeddings (don't use Chroma's default embedding fn)
+- `chromadb` — `PersistentClient` (local dev) or `HttpClient` (`CHROMA_HOST` set); always pass explicit embeddings (don't use Chroma's default embedding fn)
 - FastAPI + Jinja2 + HTMX: each tab is a GET route + partial POST routes; HTMX swaps fragments
 - Shared deps: `app/web/_deps.py` exports `templates` (Jinja2) and `sidebar_ctx()` — all routes import from there; `sidebar_ctx()` is synchronous
 - All user-visible text in **French**; code comments/docstrings in English
