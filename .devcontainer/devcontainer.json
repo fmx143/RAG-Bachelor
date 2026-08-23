@@ -20,11 +20,9 @@
   ],
 
   // ── Environment ────────────────────────────────────────────────────────────
-  // Pass your .env file into the container automatically.
-  // Create it from .env.example before opening in container.
-  "runArgs": ["--env-file", "${localWorkspaceFolder}/.env"],
+  // No .env file — secrets (OPENAI_API_KEY, etc.) come from Doppler, see below.
 
-  // Sensible defaults (overridden by .env if set there)
+  // Sensible defaults
   "containerEnv": {
     // Mac: reach native Ollama running on your host machine (GPU-accelerated)
     // Linux/WSL: change to http://localhost:11434
@@ -70,7 +68,10 @@
   // (idempotent — safe to run every time)
   "postCreateCommand": "pip install --no-compile -e '.[dev]' --quiet",
 
-  // No auto-launch — start the server deliberately with: rag-web
-  // or: uvicorn rag_bachelor.app.web.server:app --host 0.0.0.0 --port 8090
+  // No auto-launch — start the server deliberately.
+  // Ollama-only (no OpenAI, no login gate): rag-web
+  // With OpenAI / login gate: run `doppler login` + `doppler setup` once
+  // per container (lost on rebuild — the CLI's own auth isn't persisted by
+  // any mount above), then: doppler run -- rag-web
   "postStartCommand": ""
 }
