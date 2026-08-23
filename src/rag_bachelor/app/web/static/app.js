@@ -21,4 +21,11 @@
   });
   backdrop.addEventListener("click", close);
   sidebar.querySelectorAll(".nav-link").forEach((link) => link.addEventListener("click", close));
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && sidebar.classList.contains("open")) {
+      close();
+      btn.focus();
+    }
+  });
 })();
