@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import re
+import threading
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, File, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
@@ -23,6 +24,80 @@ from rag_bachelor.ingest.index import (
 )
 
 router = APIRouter()
+
+# Chunks per embed() call while indexing — small enough that the progress bar
+# visibly advances (~9s/batch at the measured ~1.8 chunks/s), large enough not
+# to lose the batching benefit in embeddings.py.
+_BATCH = 16
+
+# Single in-process indexing job. Safe without extra locking around field
+# reads/writes (GIL + single uvicorn worker, no --workers — see docker-compose.yml);
+# the lock only guards the check-and-set at job start so two POSTs can't both start.
+_JOB_LOCK = threading.Lock()
+_JOB: dict[str, object] = {
+    "running": False,
+    "file_index": 0,
+    "file_total": 0,
+    "current": "",
+    "chunks_done": 0,
+    "chunks_total": 0,
+    "message": None,
+    "error": None,
+}
+
+
+def _try_start(file_total: int) -> bool:
+    """Atomically claim the job slot. Returns False if a job is already running."""
+    with _JOB_LOCK:
+        if _JOB["running"]:
+            return False
+        _JOB.update(
+            running=True,
+            file_index=0,
+            file_total=file_total,
+            current="",
+            chunks_done=0,
+            chunks_total=0,
+            message=None,
+            error=None,
+        )
+        return True
+
+
+def _run_index_job(pdfs: list[Path]) -> None:
+    """Index every PDF in *pdfs*, updating _JOB after each chunk batch.
+
+    Runs in FastAPI's BackgroundTasks threadpool — sync function, blocking
+    calls are fine here (there is no event loop to block).
+    """
+    total_chunks = 0
+    empty_pages: list[int] = []
+    try:
+        for i, pdf in enumerate(pdfs, start=1):
+            pages = extract_pages(pdf)
+            if len(pdfs) == 1:
+                empty_pages = [p.page_num for p in pages if p.is_empty]
+            chunks = chunk_pages(pages)
+            _JOB.update(file_index=i, current=pdf.name, chunks_done=0, chunks_total=len(chunks))
+            delete_source(pdf.name)
+            for start in range(0, len(chunks), _BATCH):
+                index_chunks(chunks[start : start + _BATCH])
+                _JOB["chunks_done"] = min(start + _BATCH, len(chunks))
+            total_chunks += len(chunks)
+
+        warning = (
+            f" (pages vides ignorées : {', '.join(map(str, empty_pages))})"
+            if empty_pages
+            else ""
+        )
+        if len(pdfs) == 1:
+            _JOB["message"] = f"✅ {pdfs[0].name} — {total_chunks} chunks indexés{warning}"
+        else:
+            _JOB["message"] = f"✅ {len(pdfs)} document(s) indexés — {total_chunks} chunks au total"
+    except Exception as exc:  # noqa: BLE001 — surfaced to the user via the status partial
+        _JOB["error"] = f"❌ Échec de l'indexation : {exc}"
+    finally:
+        _JOB["running"] = False
 
 
 def _resolve_safe(name: str) -> Path | None:
@@ -53,18 +128,6 @@ async def _doc_list_ctx() -> dict[str, object]:
     return await asyncio.to_thread(_sync)
 
 
-async def _index_one(path: Path) -> tuple[int, list[int]]:
-    """Index a single PDF in a thread; return (chunk_count, empty_page_numbers)."""
-    def _sync() -> tuple[int, list[int]]:
-        pages = extract_pages(path)
-        empty_pages = [p.page_num for p in pages if p.is_empty]
-        chunks = chunk_pages(pages)
-        delete_source(path.name)
-        index_chunks(chunks)
-        return len(chunks), empty_pages
-    return await asyncio.to_thread(_sync)
-
-
 # ── Full-page GET ──────────────────────────────────────────────────────────────
 
 
@@ -73,6 +136,9 @@ async def docs_page(request: Request) -> Response:
     ctx: dict[str, object] = {
         "request": request,
         "active_tab": "docs",
+        "job_running": _JOB["running"],
+        "job": _JOB,
+        "pct": _job_pct(),
         **sidebar_ctx(),
         **(await _doc_list_ctx()),
         "message": None,
@@ -118,9 +184,18 @@ async def upload_pdfs(
     return templates.TemplateResponse(request, "partials/doc_list.html", ctx)
 
 
+def _job_pct() -> int:
+    chunks_total = _JOB["chunks_total"]
+    return round(100 * _JOB["chunks_done"] / chunks_total) if chunks_total else 0  # type: ignore[operator]
+
+
+def _progress_ctx(request: Request) -> dict[str, object]:
+    return {"request": request, "job": _JOB, "pct": _job_pct()}
+
+
 @router.post("/docs/index", response_class=HTMLResponse)
-async def index_all(request: Request) -> Response:
-    """Re-index every PDF in data/pdfs/ and return the refreshed doc-list."""
+async def index_all(request: Request, background_tasks: BackgroundTasks) -> Response:
+    """Kick off re-indexing every PDF in data/pdfs/ in the background."""
     pdfs: list[Path] = (
         sorted(settings.pdfs_dir.glob("*.pdf")) if settings.pdfs_dir.exists() else []
     )
@@ -133,23 +208,14 @@ async def index_all(request: Request) -> Response:
         }
         return templates.TemplateResponse(request, "partials/doc_list.html", ctx)
 
-    total_chunks = 0
-    for pdf in pdfs:
-        n, _ = await _index_one(pdf)
-        total_chunks += n
-
-    ctx = {
-        "request": request,
-        **(await _doc_list_ctx()),
-        "message": f"✅ {len(pdfs)} document(s) indexés — {total_chunks} chunks au total",
-        "error": None,
-    }
-    return templates.TemplateResponse(request, "partials/doc_list.html", ctx)
+    if _try_start(len(pdfs)):
+        background_tasks.add_task(_run_index_job, pdfs)
+    return templates.TemplateResponse(request, "partials/index_progress.html", _progress_ctx(request))
 
 
 @router.post("/docs/index/{name}", response_class=HTMLResponse)
-async def index_one(request: Request, name: str) -> Response:
-    """Index a single PDF by filename and return the refreshed doc-list."""
+async def index_one(request: Request, name: str, background_tasks: BackgroundTasks) -> Response:
+    """Kick off indexing a single PDF by filename in the background."""
     path = _resolve_safe(name)
     if path is None or not path.exists():
         ctx: dict[str, object] = {
@@ -160,17 +226,24 @@ async def index_one(request: Request, name: str) -> Response:
         }
         return templates.TemplateResponse(request, "partials/doc_list.html", ctx)
 
-    n_chunks, empty_pages = await _index_one(path)
-    warning = (
-        f" (pages vides ignorées : {', '.join(map(str, empty_pages))})"
-        if empty_pages
-        else ""
-    )
-    ctx = {
+    if _try_start(1):
+        background_tasks.add_task(_run_index_job, [path])
+    return templates.TemplateResponse(request, "partials/index_progress.html", _progress_ctx(request))
+
+
+@router.get("/docs/index/status", response_class=HTMLResponse)
+async def index_status(request: Request) -> Response:
+    """Polled by the progress partial: still-running progress, or the final doc-list once."""
+    if _JOB["running"]:
+        return templates.TemplateResponse(request, "partials/index_progress.html", _progress_ctx(request))
+
+    message, error = _JOB["message"], _JOB["error"]
+    _JOB["message"], _JOB["error"] = None, None  # consume once, don't re-flash on next reload
+    ctx: dict[str, object] = {
         "request": request,
         **(await _doc_list_ctx()),
-        "message": f"✅ {name} — {n_chunks} chunks indexés{warning}",
-        "error": None,
+        "message": message,
+        "error": error,
     }
     return templates.TemplateResponse(request, "partials/doc_list.html", ctx)
 

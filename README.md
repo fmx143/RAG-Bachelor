@@ -236,8 +236,8 @@ ollama pull qwen2.5:7b-instruct  # ~4.7 GB download
 
 > **Re-indexing:** Replace a PDF and click **Indexer** — old chunks are removed automatically.
 
-> **⏱️ Indexing is slow — the spinner is not frozen.** Embedding runs locally on CPU
-> with bge-m3 (568M params, no GPU). Measured on a 10-core ARM container:
+> **⏱️ Indexing is slow.** Embedding runs locally on CPU with bge-m3 (568M params,
+> no GPU). Measured on a 10-core ARM container:
 >
 > | | |
 > |---|---|
@@ -245,13 +245,10 @@ ollama pull qwen2.5:7b-instruct  # ~4.7 GB download
 > | A 150-page PDF (~250 chunks) | ~2 min |
 > | 4 PDFs (~530 chunks total) | ~5 min |
 >
-> **(Re)indexer tous les PDFs** does every file in a single request and returns
-> nothing until the last one is done, so expect several minutes of spinner with no
-> feedback. Indexing one file at a time gives visible progress between files.
->
-> **Behind the Cloudflare Tunnel this times out (524 after 100 s)** even though the
-> server keeps indexing to completion — index from a direct/local connection, or one
-> file at a time.
+> Indexing runs in the background: the click returns immediately and a progress
+> bar (file N/M, chunks done/total) polls every 2 s until it finishes — safe behind
+> the Cloudflare Tunnel, no 524, and you can navigate away or reload `/docs` without
+> losing the job.
 
 ---
 
@@ -386,8 +383,7 @@ Vectors from different models are incompatible — re-indexing is required.
 |---|---|
 | *"Aucun document indexé"* in Q&A tab | Go to 📚 Documentation → (Re)indexer |
 | Slow first container start | bge-m3 model downloading (~1.2 GB) — fast on subsequent starts |
-| Indexing spinner runs for minutes | Expected — ~1.8 chunks/s on CPU, ~2 min per 150-page PDF. See [Add and index your PDFs](#1--add-and-index-your-pdfs) |
-| Cloudflare 524 while indexing | The 100 s edge timeout, not a crash — the server finishes indexing anyway. Index locally or one file at a time |
+| Indexing progress bar runs for minutes | Expected — ~1.8 chunks/s on CPU, ~2 min per 150-page PDF. It runs in the background, no 524. See [Add and index your PDFs](#1--add-and-index-your-pdfs) |
 | Ollama error / no response | Run `ollama serve` and `ollama list` to check the model is pulled |
 | Dev Container can't reach Ollama on Mac | Set `OLLAMA_HOST=http://host.docker.internal:11434` |
 | Port 8090 already in use | Kill other uvicorn processes (`pkill -f uvicorn`), or change `--port` |

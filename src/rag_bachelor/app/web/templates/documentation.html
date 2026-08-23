@@ -33,24 +33,23 @@
     hx-post="/docs/index"
     hx-target="#doc-list"
     hx-swap="innerHTML"
-    hx-indicator="#index-spinner"
     class="btn btn-primary"
   >🔄 (Re)indexer tous les PDFs</button>
 
   <span>
     <strong>{{ chunk_count }}</strong> chunk(s) indexé(s) au total
   </span>
-
-  <div id="index-spinner" class="htmx-indicator">
-    <div class="spinner"></div> Indexation en cours…
-  </div>
 </div>
 
 <!-- ── Document list (HTMX target) ─────────────────────────────────────── -->
 <div class="card">
   <div class="subheader">Documents</div>
   <div id="doc-list">
-    {% include "partials/doc_list.html" %}
+    {% if job_running %}
+      {% include "partials/index_progress.html" %}
+    {% else %}
+      {% include "partials/doc_list.html" %}
+    {% endif %}
   </div>
 </div>
 {% endblock %}
