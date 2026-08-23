@@ -3,15 +3,41 @@
 
 {% elif questions %}
 <div class="card" style="margin-top:.5rem;">
-  <h2 class="subheader">
-    Questions générées — <em>{{ topic }}</em>
-    ({{ diff_labels.get(difficulty, difficulty) }})
-  </h2>
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem;">
+    <div class="subheader" style="margin:0;">
+      Questions générées — <em>{{ topic }}</em>
+      ({{ diff_labels.get(difficulty, difficulty) }})
+    </div>
+    <form hx-post="/generate/add-all" hx-target="#add-all-btn" hx-swap="outerHTML">
+      <input type="hidden" name="topic" value="{{ topic | e }}">
+      <input type="hidden" name="questions_json" value='{{ questions | tojson }}'>
+      <button id="add-all-btn" type="submit" class="btn btn-ghost btn-sm">➕ Tout ajouter</button>
+    </form>
+  </div>
+  <div style="font-size:.8rem; color:var(--muted); margin-top:.3rem;">
+    {{ questions | length }} question(s) générée(s)
+    {%- if requested and questions | length < requested %} sur {{ requested }} demandée(s){% endif %}
+  </div>
 
   {% for q in questions %}
   <div class="card" style="margin-top:.75rem; background:var(--surface-inset);">
-    <div style="font-weight:600; margin-bottom:.75rem;">Question {{ loop.index }} — {{ q[:80] }}{% if q | length > 80 %}…{% endif %}</div>
-    <p style="font-size:.93rem;">{{ q }}</p>
+    <div style="font-weight:600; margin-bottom:.75rem;">
+      Question {{ loop.index }} — {{ qtype_labels.get(q.qtype, q.qtype) }}
+    </div>
+    <p style="font-size:.93rem;">{{ q.question }}</p>
+
+    {% if q.qtype != "free" %}
+    <ul style="font-size:.9rem; padding-left:1.2rem;">
+      {% for opt in q.options %}
+      <li{% if loop.index0 in q.correct %} style="font-weight:600; color:var(--success);"{% endif %}>
+        {{ opt }}{% if loop.index0 in q.correct %} ✓{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% if q.answer %}
+    <p style="font-size:.85rem; color:var(--muted);"><em>{{ q.answer }}</em></p>
+    {% endif %}
+    {% endif %}
 
     <!-- Each question has its own add-to-deck mini-form -->
     <form
@@ -20,10 +46,12 @@
       hx-swap="outerHTML"
       style="margin-top:.75rem;"
     >
-      <input type="hidden" name="question"   value="{{ q | e }}">
+      <input type="hidden" name="question"   value="{{ q.question | e }}">
       <input type="hidden" name="topic"      value="{{ topic | e }}">
       <input type="hidden" name="difficulty" value="{{ difficulty | e }}">
+      <input type="hidden" name="qtype"      value="{{ q.qtype | e }}">
 
+      {% if q.qtype == "free" %}
       <div class="form-group">
         <label for="ans-{{ loop.index }}">
           Réponse modèle <span style="font-weight:400; color:var(--muted);">(optionnelle)</span>
@@ -35,6 +63,11 @@
           placeholder="Écris ici la réponse attendue pour t'aider lors de la révision…"
         ></textarea>
       </div>
+      {% else %}
+      <input type="hidden" name="answer"   value="{{ q.answer | e }}">
+      <input type="hidden" name="options"  value='{{ q.options | tojson }}'>
+      <input type="hidden" name="correct"  value='{{ q.correct | tojson }}'>
+      {% endif %}
 
       <button
         id="add-btn-{{ loop.index }}"

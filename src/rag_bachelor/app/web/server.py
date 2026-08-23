@@ -22,7 +22,15 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from rag_bachelor.app.web import auth
 from rag_bachelor.app.web._deps import templates as _templates
-from rag_bachelor.app.web.routes import ask, documentation, generate, progress, revision, settings
+from rag_bachelor.app.web.routes import (
+    ask,
+    bank,
+    documentation,
+    generate,
+    progress,
+    revision,
+    settings,
+)
 from rag_bachelor.config import settings as cfg
 
 _templates.env.globals["auth_enabled"] = auth.auth_enabled
@@ -87,6 +95,7 @@ app.include_router(documentation.router)
 app.include_router(ask.router)
 app.include_router(revision.router)
 app.include_router(generate.router)
+app.include_router(bank.router)
 app.include_router(progress.router)
 app.include_router(settings.router)
 

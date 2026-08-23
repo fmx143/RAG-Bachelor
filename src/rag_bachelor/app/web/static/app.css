@@ -116,6 +116,15 @@ hr.sidebar-divider { border: none; border-top: 1px solid rgba(255,255,255,0.1); 
 
 .page-header { margin-bottom: 1.5rem; }
 .page-header h1 { font-size: 1.4rem; font-weight: 700; }
+.page-header .eyebrow {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--primary);
+  margin-bottom: 0.4rem;
+}
 
 /* ── Cards ───────────────────────────────────────────────────────────────── */
 
@@ -229,6 +238,7 @@ input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--primary)
 .badge-green  { background: var(--success-bg); color: var(--success-text); }
 .badge-yellow { background: var(--warning-bg); color: var(--warning-text); }
 .badge-red    { background: var(--danger-bg);  color: var(--danger-text); }
+.badge-gray   { background: var(--surface-inset); color: var(--muted); }
 
 /* ── Spinner / HTMX indicator ────────────────────────────────────────────── */
 
