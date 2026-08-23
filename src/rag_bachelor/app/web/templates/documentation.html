@@ -6,7 +6,7 @@
 
 <!-- ── Upload ──────────────────────────────────────────────────────────── -->
 <div class="card">
-  <div class="subheader">Ajouter des PDFs</div>
+  <h2 class="subheader">Ajouter des PDFs</h2>
   <form
     hx-post="/docs/upload"
     hx-target="#doc-list"
@@ -43,7 +43,7 @@
 
 <!-- ── Document list (HTMX target) ─────────────────────────────────────── -->
 <div class="card">
-  <div class="subheader">Documents</div>
+  <h2 class="subheader">Documents</h2>
   <div id="doc-list">
     {% if job_running %}
       {% include "partials/index_progress.html" %}

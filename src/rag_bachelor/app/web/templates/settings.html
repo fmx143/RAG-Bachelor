@@ -6,7 +6,7 @@
 
 <!-- ── LLM provider ──────────────────────────────────────────────────────── -->
 <div class="card">
-  <div class="subheader">Fournisseur LLM</div>
+  <h2 class="subheader">Fournisseur LLM</h2>
   <div id="provider-panel">
     {% include "partials/provider_panel.html" %}
   </div>
@@ -14,7 +14,7 @@
 
 <!-- ── Model config ──────────────────────────────────────────────────────── -->
 <div class="card">
-  <div class="subheader">Configuration</div>
+  <h2 class="subheader">Configuration</h2>
   <div style="font-size:.9rem; color:var(--muted); margin-bottom:.75rem;">
     Pour changer les modèles, l'hôte Ollama ou la clé OpenAI, configure les variables via
     Doppler (ou l'environnement) et relance l'application.
@@ -31,7 +31,7 @@ OPENAI_MODEL=gpt-4o-mini</pre>
 
 <!-- ── Embeddings ────────────────────────────────────────────────────────── -->
 <div class="card">
-  <div class="subheader">Embeddings</div>
+  <h2 class="subheader">Embeddings</h2>
   <div style="font-size:.9rem; color:var(--muted);">
     Modèle : <code>{{ cfg.embedding_model }}</code><br>
     Cache : <code>{{ cfg.embedding_cache_dir }}</code>

@@ -30,7 +30,7 @@
 
 <!-- ── Per-topic mastery ─────────────────────────────────────────────────── -->
 <div class="card">
-  <div class="subheader">Maîtrise par sujet</div>
+  <h2 class="subheader">Maîtrise par sujet</h2>
   <small style="color:var(--muted);">Les sujets les plus faibles sont affichés en premier.</small>
 
   <div style="margin-top:1rem;">
@@ -66,7 +66,7 @@
 <!-- ── Weak vs strong ────────────────────────────────────────────────────── -->
 <div class="cols-2">
   <div class="card">
-    <div class="subheader">📚 À renforcer</div>
+    <h2 class="subheader">📚 À renforcer</h2>
     {% if weak %}
       {% for s in weak | sort(attribute="mastery_pct") %}
         <div>🔴 <strong>{{ s.topic }}</strong> ({{ s.mastery_pct | int }}%)</div>
@@ -76,7 +76,7 @@
     {% endif %}
   </div>
   <div class="card">
-    <div class="subheader">💪 Points forts</div>
+    <h2 class="subheader">💪 Points forts</h2>
     {% if strong %}
       {% for s in strong | sort(attribute="mastery_pct", reverse=True) %}
         <div>🟢 <strong>{{ s.topic }}</strong> ({{ s.mastery_pct | int }}%)</div>
