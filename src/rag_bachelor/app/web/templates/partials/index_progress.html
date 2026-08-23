@@ -1,4 +1,4 @@
-<div hx-get="/docs/index/status" hx-trigger="every 2s" hx-target="#doc-list" hx-swap="innerHTML">
+<div hx-get="/docs/index/status" hx-trigger="load delay:2s" hx-target="this" hx-swap="outerHTML">
   <div class="alert alert-info">🔄 Indexation en cours — tu peux quitter cette page, elle continue en arrière-plan.</div>
   <div>Fichier {{ job.file_index }}/{{ job.file_total }}{% if job.current %} · <strong>{{ job.current }}</strong>{% endif %}</div>
   <div class="progress-wrap"><div class="progress-fill" style="width:{{ pct }}%"></div></div>

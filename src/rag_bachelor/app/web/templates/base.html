@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🎓 Assistant Révision</title>
-  <link rel="stylesheet" href="/static/app.css">
-  <script src="/static/htmx.min.js" defer></script>
-  <script src="/static/app.js" defer></script>
+  <link rel="stylesheet" href="{{ asset_url('app.css') }}">
+  <script src="{{ asset_url('htmx.min.js') }}" defer></script>
+  <script src="{{ asset_url('app.js') }}" defer></script>
 </head>
 <body>
 <a href="#main-content" class="skip-link">Aller au contenu principal</a>
@@ -32,6 +32,7 @@
       <a href="/ask"      class="nav-link {% if active_tab == 'ask'      %}active{% endif %}">❓ Poser une question</a>
       <a href="/revision" class="nav-link {% if active_tab == 'revision' %}active{% endif %}">🔄 Révision</a>
       <a href="/generate" class="nav-link {% if active_tab == 'generate' %}active{% endif %}">🎯 Générer des questions</a>
+      <a href="/bank"     class="nav-link {% if active_tab == 'bank'     %}active{% endif %}">🏦 Banque de questions</a>
       <a href="/progress" class="nav-link {% if active_tab == 'progress' %}active{% endif %}">📊 Progrès</a>
       <a href="/settings" class="nav-link {% if active_tab == 'settings' %}active{% endif %}">⚙️ Paramètres</a>
       {% if auth_enabled() %}

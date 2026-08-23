@@ -15,18 +15,27 @@ PROVIDER_SETTING_KEY = "llm_provider"
 
 @runtime_checkable
 class LLMProvider(Protocol):
-    def chat(self, messages: list[dict[str, str]], model: str | None = None) -> str:
-        """Send *messages* and return the assistant reply as a string."""
+    def chat(
+        self, messages: list[dict[str, str]], model: str | None = None, json_mode: bool = False
+    ) -> str:
+        """Send *messages* and return the assistant reply as a string.
+
+        *json_mode* asks the provider to constrain output to a single valid
+        JSON object — the tolerant parsing in ``core/qtypes.py`` stays the
+        safety net, not the primary mechanism.
+        """
         ...
 
 
 class OllamaProvider:
     """Wrapper around the Ollama Python client."""
 
-    def chat(self, messages: list[dict[str, str]], model: str | None = None) -> str:
+    def chat(
+        self, messages: list[dict[str, str]], model: str | None = None, json_mode: bool = False
+    ) -> str:
         m = model or settings.ollama_model
         client = _ollama.Client(host=settings.ollama_host)
-        response = client.chat(model=m, messages=messages)
+        response = client.chat(model=m, messages=messages, format="json" if json_mode else None)
         return response.message.content or ""
 
 
@@ -37,10 +46,19 @@ class OpenAIProvider:
     never stored, logged, or passed anywhere else.
     """
 
-    def chat(self, messages: list[dict[str, str]], model: str | None = None) -> str:
+    def chat(
+        self, messages: list[dict[str, str]], model: str | None = None, json_mode: bool = False
+    ) -> str:
         m = model or settings.openai_model
         client = _OpenAI(api_key=settings.openai_api_key.get_secret_value())
-        response = client.chat.completions.create(model=m, messages=messages)  # type: ignore[arg-type]
+        if json_mode:
+            response = client.chat.completions.create(  # type: ignore[call-overload]
+                model=m,
+                messages=messages,
+                response_format={"type": "json_object"},
+            )
+        else:
+            response = client.chat.completions.create(model=m, messages=messages)  # type: ignore[arg-type]
         return response.choices[0].message.content or ""
 
 

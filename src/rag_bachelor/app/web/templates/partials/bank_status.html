@@ -1,0 +1,44 @@
+{% if gen_error %}
+<div class="alert alert-error">{{ gen_error }}</div>
+
+{% elif running %}
+<div
+  hx-get="/bank/status"
+  hx-trigger="load delay:1200ms"
+  hx-target="this"
+  hx-swap="outerHTML"
+>
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:.5rem; flex-wrap:wrap;">
+    <div style="font-weight:600;">
+      <div class="spinner" style="display:inline-block; vertical-align:middle;"></div>
+      {% if gen_cancelling %}
+      Arrêt en cours pour <em>{{ gen_source }}</em>…
+      {% else %}
+      Génération en cours pour <em>{{ gen_source }}</em>… ({{ gen_inserted }}/{{ gen_target }} questions)
+      {% endif %}
+    </div>
+    {% if not gen_cancelling %}
+    <button
+      type="button"
+      hx-post="/bank/cancel"
+      hx-target="#bank-status"
+      hx-swap="innerHTML"
+      class="btn btn-danger btn-sm"
+    >⏹ Arrêter</button>
+    {% endif %}
+  </div>
+  <div class="progress-wrap" style="margin-top:.4rem;">
+    <div class="progress-fill green" style="width:{{ gen_pct }}%;"></div>
+  </div>
+  <div style="font-size:.8rem; color:var(--muted); margin-top:.3rem;">
+    {{ gen_inserted }} ajoutée(s)
+    {%- if gen_skipped %} · {{ gen_skipped }} ignorée(s) (doublons/similaires){% endif %}
+  </div>
+</div>
+
+{% elif gen_source %}
+<div class="alert alert-success">
+  ✅ Génération terminée pour <strong>{{ gen_source }}</strong> — {{ gen_inserted }} ajoutée(s)
+  {%- if gen_skipped %} · {{ gen_skipped }} ignorée(s) (doublons/similaires){% endif %}.
+</div>
+{% endif %}

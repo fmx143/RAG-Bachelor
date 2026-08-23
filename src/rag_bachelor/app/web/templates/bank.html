@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <span class="eyebrow">Réserve de questions</span>
+  <h1>🏦 Banque de questions</h1>
+</div>
+
+{% if not sources %}
+<div class="alert alert-warning">
+  ⚠️ Aucun document indexé. Indexe d'abord tes cours dans
+  <a href="/docs" style="color:inherit;font-weight:600;">📚 Documentation</a>.
+</div>
+{% endif %}
+
+<!-- ── Generation ──────────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="subheader">Générer une banque pour un document entier</div>
+  <small style="color:var(--muted);">
+    Parcourt tout le PDF et génère une question facile/moyenne/difficile par extrait.
+  </small>
+
+  <form
+    hx-post="/bank/generate"
+    hx-target="#bank-status"
+    hx-swap="innerHTML"
+    style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-top:.75rem;"
+  >
+    <div class="form-group" style="margin-bottom:0; min-width:240px;">
+      <label for="gen_source">Document source</label>
+      <select id="gen_source" name="source">
+        <option value="">(choisir un document)</option>
+        {% for s in sources %}
+        <option value="{{ s }}">{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:0; min-width:200px;">
+      <label for="gen_qtype">Type de question</label>
+      <select id="gen_qtype" name="qtype">
+        {% for qt in qtypes %}
+        <option value="{{ qt }}" {% if qt == "free" %}selected{% endif %}>{{ qtype_labels[qt] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:0; min-width:220px;">
+      <label for="gen_count">Nombre de questions visées : <span id="gen-count-val">{{ default_target }}</span></label>
+      <input
+        type="range"
+        id="gen_count"
+        name="count"
+        min="{{ min_target }}" max="{{ max_target }}" step="5" value="{{ default_target }}"
+        oninput="document.getElementById('gen-count-val').textContent = this.value"
+      >
+    </div>
+    <button type="submit" class="btn btn-primary">✨ Générer la banque complète</button>
+  </form>
+
+  <div id="bank-status" style="margin-top:.75rem;">
+    {% include "partials/bank_status.html" %}
+  </div>
+</div>
+
+<!-- ── Browsing ────────────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="subheader">Questions de la banque</div>
+
+  <form
+    id="bank-filter-form"
+    hx-get="/bank/list" hx-trigger="change, keyup changed delay:400ms from:#filter_search"
+    hx-target="#bank-list" hx-swap="innerHTML"
+    style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:1rem;"
+  >
+    <div class="form-group" style="margin-bottom:0; min-width:220px;">
+      <label for="filter_source">Document</label>
+      <select id="filter_source" name="source">
+        <option value="">(tous)</option>
+        {% for s in sources %}
+        <option value="{{ s }}" {% if s == filter_source %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:0; min-width:180px;">
+      <label for="filter_difficulty">Difficulté</label>
+      <select id="filter_difficulty" name="difficulty">
+        <option value="">(toutes)</option>
+        {% for d, label in diff_labels.items() %}
+        <option value="{{ d }}" {% if d == filter_difficulty %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:0; min-width:220px;">
+      <label for="filter_search">Recherche</label>
+      <input type="text" id="filter_search" name="search" value="{{ filter_search }}" placeholder="Rechercher dans les questions…">
+    </div>
+    <div class="form-group" style="margin-bottom:0; min-width:180px;">
+      <label for="filter_qtype">Type de question</label>
+      <select id="filter_qtype" name="qtype">
+        <option value="">(tous)</option>
+        {% for qt in qtypes %}
+        <option value="{{ qt }}" {% if qt == filter_qtype %}selected{% endif %}>{{ qtype_labels[qt] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:0; min-width:160px;">
+      <label for="filter_result">Résultat</label>
+      <select id="filter_result" name="result">
+        <option value="">(tous)</option>
+        {% for r, label in result_labels.items() %}
+        <option value="{{ r }}" {% if r == filter_result %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:0; min-width:180px;">
+      <label for="filter_deck">Statut révision</label>
+      <select id="filter_deck" name="deck">
+        <option value="">(tous)</option>
+        {% for d, label in deck_labels.items() %}
+        <option value="{{ d }}" {% if d == filter_deck %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+
+  <div style="display:flex; gap:.5rem; margin-bottom:.75rem;">
+    <button
+      type="button"
+      hx-get="/bank/list"
+      hx-include="#bank-filter-form"
+      hx-target="#bank-list"
+      hx-swap="innerHTML"
+      class="btn btn-primary btn-sm"
+    >🔍 Appliquer les filtres</button>
+    <button
+      type="button"
+      hx-post="/bank/add-all"
+      hx-include="#bank-filter-form"
+      hx-target="#bank-list"
+      hx-swap="innerHTML"
+      hx-confirm="Ajouter toutes les questions du filtre actuel à la révision ?"
+      class="btn btn-ghost btn-sm"
+    >➕ Tout ajouter à la révision</button>
+  </div>
+
+  <div id="bank-list">
+    {% include "partials/bank_list.html" %}
+  </div>
+</div>
+{% endblock %}

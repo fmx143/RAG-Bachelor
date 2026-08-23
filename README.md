@@ -13,6 +13,7 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 | ❓ **Q&A with citations** | Ask anything in French, get a sourced answer with file name + page number |
 | 🔄 **Spaced repetition** | SM-2 algorithm (Anki-style) — review due cards, self-grade, auto-reschedule |
 | 🎯 **Question generation** | LLM-generated easy / medium / hard questions per topic, add them to your deck |
+| 🏦 **Question bank** | Generate a whole-document bank of free / QCM (single/multi) / Vrai-Faux questions, semantic near-duplicate filtering, filter by difficulty/type/result, auto-graded structured revision |
 | 📊 **Progress tracking** | Per-topic mastery bars, weak vs strong subject overview |
 | ⚙️ **Local-first** | Ollama for LLM by default (fully offline, no API key needed); OpenAI available as an optional manual toggle in Settings — bge-m3 embeddings are always local |
 | 🔒 **Secrets via Doppler** | No API keys or passwords ever live in a `.env` file or the image — see [Configuration & sécurité](#configuration--sécurité-doppler) |
@@ -274,20 +275,42 @@ ollama pull qwen2.5:7b-instruct  # ~4.7 GB download
 
 ---
 
-### 4 — Revise with spaced repetition
+### 4 — Generate a question bank for a whole document
+
+**Tab: 🏦 Banque**
+
+1. Pick an indexed **document**, a **question type** (libre, QCM simple, QCM multiple,
+   Vrai-Faux), and a target count (1–100).
+2. Click **Générer** — the app walks the document window by window (a few chunks at a
+   time), asking the LLM for questions grounded in each window, until the target is
+   reached. A progress bar polls itself until the job finishes; click **Arrêter** to stop early.
+3. Near-duplicate questions are filtered out automatically via embedding similarity
+   against everything already in the bank for that source.
+4. Filter the resulting list by **difficulty**, **type**, and **result** (correct /
+   incorrect / untried), search by text, add individual questions (or **Tout ajouter**)
+   to your revision deck, or delete selected ones.
+
+---
+
+### 5 — Revise with spaced repetition
 
 **Tab: 🔄 Révision**
 
-Cards due today are shown one at a time. Click **👁️ Afficher la réponse** when ready, then grade yourself:
+Cards due today are shown one at a time. Free-text cards: click **👁️ Afficher la réponse**
+when ready, then grade yourself:
 
 | Button | Effect |
 |---|---|
 | 😰 Raté / 🤔 Difficile | Resets the card — back to 1 day |
 | 😊 Bien / 🌟 Parfait | Advances the card — interval grows via SM-2 |
 
+Structured cards (QCM/Vrai-Faux) added from the 🏦 Banque are **auto-graded**: pick your
+answer(s), the app compares them to the stored correct set and applies the matching SM-2
+grade automatically — no self-assessment, no LLM call.
+
 ---
 
-### 5 — Track your progress
+### 6 — Track your progress
 
 **Tab: 📊 Progrès**
 
@@ -298,7 +321,7 @@ Cards due today are shown one at a time. Click **👁️ Afficher la réponse** 
 
 ---
 
-### 6 — Settings
+### 7 — Settings
 
 **Tab: ⚙️ Paramètres**
 
@@ -336,10 +359,12 @@ RAG-Bachelor/
     │   ├── retriever.py          # Semantic search (cosine similarity)
     │   ├── llm.py                # Ollama + OpenAI providers (toggle persisted in SQLite)
     │   ├── qa.py                 # RAG Q&A with French system prompt + citations
-    │   └── questions.py          # Easy / medium / hard question generation
+    │   ├── questions.py          # Easy / medium / hard question generation (per-topic)
+    │   ├── qtypes.py             # Question types (free/mcq_single/mcq_multi/tf), JSON parsing
+    │   └── bank.py               # Whole-document question-bank generation + semantic dedup
     ├── study/
     │   ├── srs.py                # SM-2 spaced-repetition algorithm
-    │   ├── store.py              # SQLite persistence (cards + reviews)
+    │   ├── store.py              # SQLite/PostgreSQL persistence (cards + reviews + question_bank)
     │   └── stats.py              # Per-topic mastery statistics
     └── app/
         └── web/
@@ -355,7 +380,7 @@ RAG-Bachelor/
 ## Development
 
 ```bash
-# Run tests (32 tests)
+# Run tests (91 tests)
 pytest
 
 # Lint

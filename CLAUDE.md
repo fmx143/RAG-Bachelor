@@ -8,7 +8,7 @@ Local-first RAG study assistant for French bachelor PDFs.
 - LLM: Ollama (qwen2.5:7b-instruct, default for local dev) or OpenAI (toggle in ⚙️ Paramètres /
   `DEFAULT_LLM_PROVIDER=openai`) — the NAS deployment runs OpenAI-only, no Ollama container
 - Embeddings: always local (bge-m3) regardless of LLM provider
-- UI: FastAPI + HTMX, 6 tabs (docs, ask, revision, generate, progress, settings)
+- UI: FastAPI + HTMX, 7 tabs (docs, ask, revision, generate, bank, progress, settings)
 - Study tracking: SM-2 spaced repetition, persisted to SQLite (local dev) or PostgreSQL
   (`POSTGRES_HOST` set — isolated data-tier container on the NAS)
 - Vector index: ChromaDB, embedded `PersistentClient` (local dev) or standalone server via
@@ -21,8 +21,10 @@ Local-first RAG study assistant for French bachelor PDFs.
 | `src/rag_bachelor/` | All source code |
 | `src/rag_bachelor/config.py` | Pydantic-settings (single source of truth for all settings) |
 | `src/rag_bachelor/core/llm.py` | `get_provider()` — Ollama or OpenAI, per `DEFAULT_LLM_PROVIDER` / the Settings toggle |
+| `src/rag_bachelor/core/qtypes.py` | Question types (free/mcq_single/mcq_multi/tf), difficulty levels, tolerant LLM-JSON parsing |
+| `src/rag_bachelor/core/bank.py` | Whole-document question-bank generation, windowed LLM calls, semantic near-duplicate filtering |
 | `src/rag_bachelor/ingest/` | PDF → chunks → ChromaDB |
-| `src/rag_bachelor/study/store.py` | SM-2 persistence — dual backend: SQLite (default) or PostgreSQL (`POSTGRES_HOST` set) |
+| `src/rag_bachelor/study/store.py` | SM-2 + question-bank persistence — dual backend: SQLite (default) or PostgreSQL (`POSTGRES_HOST` set) |
 | `src/rag_bachelor/study/` | SM-2, persistence store, stats |
 | `src/rag_bachelor/app/web/` | FastAPI server, route modules, Jinja2 templates, static assets |
 | `docker-compose.yml` | NAS deployment: `app` + isolated `postgres`/`chroma` data tier (no Ollama) |

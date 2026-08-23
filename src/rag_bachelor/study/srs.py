@@ -33,6 +33,12 @@ class Card:
     topic: str
     difficulty: str  # "facile" | "moyen" | "difficile" (generation difficulty)
 
+    # Question type: "free" | "mcq_single" | "mcq_multi" | "tf".
+    # options / correct are only meaningful for structured types.
+    qtype: str = "free"
+    options: list[str] | None = None
+    correct: list[int] | None = None
+
     # SM-2 state
     interval: int = 1          # days until next review
     repetitions: int = 0       # number of consecutive successful reviews

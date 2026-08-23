@@ -1,0 +1,135 @@
+{% set diff_badge = {"facile": "badge-green", "moyen": "badge-yellow", "difficile": "badge-red"} %}
+
+{% if added_count is defined %}
+<div class="alert alert-success" style="margin-bottom:.75rem;">✅ {{ added_count }} carte(s) ajoutée(s) à la révision.</div>
+{% endif %}
+
+{% if not items %}
+<div class="alert alert-info">Aucune question dans la banque pour ce filtre.</div>
+{% else %}
+
+<form id="bank-bulk-form" hx-post="/bank/delete-selected" hx-target="#bank-list" hx-swap="innerHTML" hx-confirm="Supprimer les questions sélectionnées de la banque ?">
+  <input type="hidden" name="source" value="{{ filter_source | e }}">
+  <input type="hidden" name="difficulty" value="{{ filter_difficulty | e }}">
+  <input type="hidden" name="search" value="{{ filter_search | e }}">
+  <input type="hidden" name="qtype" value="{{ filter_qtype | e }}">
+  <input type="hidden" name="result" value="{{ filter_result | e }}">
+  <input type="hidden" name="deck" value="{{ filter_deck | e }}">
+
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; margin-bottom:.75rem;">
+    <div style="font-size:.8rem; color:var(--muted);">
+      {{ list_total }} question(s) au total
+    </div>
+    <button type="submit" class="btn btn-danger btn-sm">🗑️ Supprimer la sélection</button>
+  </div>
+
+  {% for q in items %}
+  <div class="card bank-item" style="margin-bottom:.75rem; background:var(--surface-inset);">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem;">
+      <div style="font-size:.85rem; color:var(--muted); display:flex; align-items:center; gap:.5rem;">
+        <input type="checkbox" name="ids" value="{{ q.id }}">
+        📄 <strong>{{ q.source }}</strong> — p. {{ q.pages | join(', ') }}
+      </div>
+      <span style="display:flex; gap:.4rem;">
+        <span class="badge badge-gray">{{ qtype_labels.get(q.qtype, q.qtype) }}</span>
+        <span class="badge {{ diff_badge.get(q.difficulty, 'badge-yellow') }}">
+          {{ diff_labels.get(q.difficulty, q.difficulty) }}
+        </span>
+        {% if q.last_result == 1 %}
+        <span class="badge badge-green">✅ Juste</span>
+        {% elif q.last_result == 0 %}
+        <span class="badge badge-red">❌ Faux</span>
+        {% else %}
+        <span class="badge badge-gray">◯ Non tenté</span>
+        {% endif %}
+      </span>
+    </div>
+
+    {% if q.qtype != "free" %}
+    <div id="attempt-{{ q.id }}" style="margin-top:.5rem;">
+      <form hx-post="/bank/{{ q.id }}/answer" hx-target="#attempt-{{ q.id }}" hx-swap="outerHTML">
+        {% for opt in q.options %}
+        <label style="display:block; margin-bottom:.35rem; cursor:pointer;">
+          <input type="{{ 'checkbox' if q.qtype == 'mcq_multi' else 'radio' }}" name="selected" value="{{ loop.index0 }}">
+          {{ opt }}
+        </label>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary btn-sm" style="margin-top:.35rem;">✅ Répondre</button>
+      </form>
+    </div>
+    {% endif %}
+
+    <details style="margin-top:.5rem;">
+      <summary>❓ {{ q.question }}</summary>
+      <div class="card-answer">
+        {% if q.qtype != "free" %}
+        <ul style="padding-left:1.2rem;">
+          {% for opt in q.options %}
+          <li{% if loop.index0 in q.correct %} style="font-weight:600; color:var(--success);"{% endif %}>
+            {{ opt }}{% if loop.index0 in q.correct %} ✓{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% if q.answer %}<p><strong>Explication :</strong> {{ q.answer }}</p>{% endif %}
+        {% else %}
+        <strong>Réponse :</strong> {{ q.answer }}
+        <p style="font-weight:600; margin-top:.75rem;">Tu avais juste ?</p>
+        <div id="attempt-{{ q.id }}" style="display:flex; gap:.5rem;">
+          <button
+            type="button"
+            hx-post="/bank/{{ q.id }}/answer"
+            hx-vals='{"self_grade":"correct"}'
+            hx-target="#attempt-{{ q.id }}"
+            hx-swap="outerHTML"
+            class="btn btn-success btn-sm"
+          >✅ Juste</button>
+          <button
+            type="button"
+            hx-post="/bank/{{ q.id }}/answer"
+            hx-vals='{"self_grade":"incorrect"}'
+            hx-target="#attempt-{{ q.id }}"
+            hx-swap="outerHTML"
+            class="btn btn-danger btn-sm"
+          >❌ Faux</button>
+        </div>
+        {% endif %}
+      </div>
+    </details>
+
+    <div style="margin-top:.75rem; display:flex; gap:.5rem; align-items:center;">
+      {% if q.card_id %}
+      <span class="alert alert-success" style="display:inline-block; padding:.2rem .6rem;">✅ Déjà ajoutée</span>
+      {% else %}
+      <button
+        id="add-btn-{{ q.id }}"
+        type="button"
+        hx-post="/bank/{{ q.id }}/add"
+        hx-target="#add-btn-{{ q.id }}"
+        hx-swap="outerHTML"
+        class="btn btn-ghost btn-sm"
+      >➕ Ajouter à la révision</button>
+      {% endif %}
+
+      <button
+        type="button"
+        hx-post="/bank/{{ q.id }}/delete"
+        hx-target="closest .bank-item"
+        hx-swap="outerHTML"
+        hx-confirm="Supprimer cette question de la banque ?"
+        class="btn btn-danger btn-sm"
+      >🗑️</button>
+    </div>
+  </div>
+  {% endfor %}
+</form>
+
+{% if has_more %}
+<button
+  hx-get="/bank/list?source={{ filter_source | url_encode }}&difficulty={{ filter_difficulty | url_encode }}&search={{ filter_search | url_encode }}&qtype={{ filter_qtype | url_encode }}&result={{ filter_result | url_encode }}&deck={{ filter_deck | url_encode }}&limit={{ next_limit }}"
+  hx-target="#bank-list"
+  hx-swap="innerHTML"
+  class="btn btn-ghost btn-sm"
+>Voir plus</button>
+{% endif %}
+
+{% endif %}

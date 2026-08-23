@@ -13,13 +13,31 @@
     <div style="font-size:.85rem; color:var(--muted);">
       Sujet : <strong>{{ card.topic }}</strong>
     </div>
-    <span class="badge {{ diff_badge.get(card.difficulty, 'badge-yellow') }}">
-      {{ card.difficulty | capitalize }}
+    <span style="display:flex; gap:.4rem;">
+      {% if card.qtype != "free" and qtype_labels %}
+      <span class="badge badge-gray">{{ qtype_labels.get(card.qtype, card.qtype) }}</span>
+      {% endif %}
+      <span class="badge {{ diff_badge.get(card.difficulty, 'badge-yellow') }}">
+        {{ card.difficulty | capitalize }}
+      </span>
     </span>
   </div>
 
   <h2>❓ {{ card.question }}</h2>
 
+  {% if card.qtype != "free" %}
+  <!-- Structured type (QCM/Vrai-Faux): auto-graded, no LLM call -->
+  <form hx-post="/revision/answer/{{ card.id }}" hx-target="#revision-content" hx-swap="innerHTML" style="margin-top:1rem;">
+    {% for opt in card.options %}
+    <label style="display:block; margin-bottom:.5rem; cursor:pointer;">
+      <input type="{{ 'checkbox' if card.qtype == 'mcq_multi' else 'radio' }}" name="selected" value="{{ loop.index0 }}">
+      {{ opt }}
+    </label>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary" style="margin-top:.75rem;">✅ Valider</button>
+  </form>
+
+  {% else %}
   <details>
     <summary>👁️ Afficher la réponse</summary>
 
@@ -66,6 +84,7 @@
       >🌟 Parfait</button>
     </div>
   </details>
+  {% endif %}
 </div>
 
 {% if due_count > 1 %}

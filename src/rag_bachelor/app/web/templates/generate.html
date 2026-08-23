@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page-header">
+  <span class="eyebrow">Génération IA</span>
   <h1>🎯 Générer des questions</h1>
 </div>
 
@@ -42,7 +43,7 @@
         </div>
       </div>
 
-      <!-- Right column: difficulty -->
+      <!-- Right column: difficulty + question type -->
       <div>
         <div class="form-group">
           <label>Difficulté</label>
@@ -55,6 +56,25 @@
             </label>
             {% endfor %}
           </div>
+        </div>
+        <div class="form-group">
+          <label for="qtype">Type de question</label>
+          <select id="qtype" name="qtype">
+            {% for qt in qtypes %}
+            <option value="{{ qt }}" {% if qt == "free" %}selected{% endif %}>{{ qtype_labels[qt] }}</option>
+            {% endfor %}
+          </select>
+          <small style="color:var(--muted);">Les types structurés sont corrigés automatiquement (0 token à la révision).</small>
+        </div>
+        <div class="form-group">
+          <label for="count">Nombre de questions : <span id="count-val">3</span></label>
+          <input
+            type="range"
+            id="count"
+            name="count"
+            min="1" max="10" value="3"
+            oninput="document.getElementById('count-val').textContent = this.value"
+          >
         </div>
       </div>
     </div>
