@@ -3,13 +3,13 @@
 
 {% elif questions %}
 <div class="card" style="margin-top:.5rem;">
-  <div class="subheader">
+  <h2 class="subheader">
     Questions générées — <em>{{ topic }}</em>
     ({{ diff_labels.get(difficulty, difficulty) }})
-  </div>
+  </h2>
 
   {% for q in questions %}
-  <div class="card" style="margin-top:.75rem; background:#f8fafc;">
+  <div class="card" style="margin-top:.75rem; background:var(--surface-inset);">
     <div style="font-weight:600; margin-bottom:.75rem;">Question {{ loop.index }} — {{ q[:80] }}{% if q | length > 80 %}…{% endif %}</div>
     <p style="font-size:.93rem;">{{ q }}</p>
 
