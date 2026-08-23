@@ -1,0 +1,30 @@
+<div id="attempt-{{ bank_id }}">
+  {% if is_correct %}
+  <div class="alert alert-success" style="margin-top:.5rem;">✅ Bonne réponse !</div>
+  {% else %}
+  <div class="alert alert-error" style="margin-top:.5rem;">❌ Mauvaise réponse.</div>
+  {% endif %}
+
+  {% if q.qtype != "free" %}
+  <ul style="padding-left:1.2rem; margin-top:.5rem;">
+    {% for opt in q.options %}
+    <li
+      {% if loop.index0 in q.correct %}
+        style="font-weight:600; color:var(--success);"
+      {% elif loop.index0 in selected %}
+        style="color:var(--danger); text-decoration:line-through;"
+      {% endif %}
+    >
+      {{ opt }}
+      {% if loop.index0 in q.correct %} ✓{% endif %}
+      {% if loop.index0 in selected and loop.index0 not in q.correct %} (ta réponse){% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% if q.answer %}<p style="margin-top:.5rem;"><strong>Explication :</strong> {{ q.answer }}</p>{% endif %}
+  {% endif %}
+
+  {% if added %}
+  <div class="alert alert-info" style="margin-top:.5rem;">➕ Ajoutée à la révision.</div>
+  {% endif %}
+</div>

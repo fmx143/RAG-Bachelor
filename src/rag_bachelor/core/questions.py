@@ -1,96 +1,68 @@
-"""Generate easy / medium / hard study questions for a topic via the LLM."""
+"""Generate easy / medium / hard study questions for a topic via the LLM.
+
+Supports free-text questions as well as the three auto-gradable structured
+types (QCM single/multi, Vrai/Faux) — see ``core/qtypes.py``.
+"""
 
 from __future__ import annotations
 
-import json
-import re
-
 from rag_bachelor.core.llm import get_provider
+from rag_bachelor.core.qtypes import QuestionItem, item_schema_instructions, parse_structured_items
 from rag_bachelor.core.retriever import retrieve
 
 # ── Difficulty instructions ────────────────────────────────────────────────────
 
 _DIFFICULTY_INSTRUCTIONS: dict[str, str] = {
     "facile": (
-        "Génère exactement 3 questions de compréhension de base (définitions, faits clés). "
-        "Chaque question doit avoir une réponse courte et factuelle."
+        "Génère exactement {count} questions de compréhension de base (définitions, faits clés)."
     ),
     "moyen": (
-        "Génère exactement 3 questions de compréhension intermédiaires qui demandent "
+        "Génère exactement {count} questions de compréhension intermédiaires qui demandent "
         "d'expliquer des concepts, de faire des liens entre eux ou d'illustrer par des exemples."
     ),
     "difficile": (
-        "Génère exactement 3 questions d'analyse avancées qui demandent de synthétiser "
+        "Génère exactement {count} questions d'analyse avancées qui demandent de synthétiser "
         "plusieurs concepts, de comparer des approches ou d'appliquer les connaissances "
         "à des situations concrètes."
     ),
 }
 
-_SYSTEM_PROMPT = (
-    "Tu es un professeur qui crée des questions de révision pour un étudiant de licence.\n"
-    "Réponds UNIQUEMENT avec un JSON valide de cette forme exacte :\n"
-    '{"questions": ["Question 1 ?", "Question 2 ?", "Question 3 ?"]}\n'
-    "N'ajoute aucun texte, commentaire ou balise Markdown en dehors du JSON."
-)
 
-# Regex to extract a JSON object from potentially noisy LLM output
-_JSON_RE = re.compile(r"\{.*\}", re.DOTALL)
-
-
-def _parse_questions(raw: str) -> list[str]:
-    """Extract the questions list from a (possibly noisy) LLM reply."""
-    # Strip Markdown code fences if present
-    cleaned = re.sub(r"```(?:json)?", "", raw).strip().strip("`").strip()
-    # Try direct parse first
-    try:
-        data = json.loads(cleaned)
-        return [str(q) for q in data.get("questions", [])][:3]
-    except (json.JSONDecodeError, AttributeError):
-        pass
-    # Fallback: regex for JSON object anywhere in the string
-    match = _JSON_RE.search(cleaned)
-    if match:
-        try:
-            data = json.loads(match.group())
-            return [str(q) for q in data.get("questions", [])][:3]
-        except (json.JSONDecodeError, AttributeError):
-            pass
-    # Last resort: extract lines that look like questions
-    lines = [ln.strip() for ln in raw.split("\n") if "?" in ln and len(ln.strip()) > 10]
-    return lines[:3]
+def _system_prompt(qtype: str, difficulty: str, count: int) -> str:
+    instruction = _DIFFICULTY_INSTRUCTIONS.get(difficulty, _DIFFICULTY_INSTRUCTIONS["moyen"])
+    return (
+        "Tu es un professeur qui crée des questions de révision pour un étudiant de licence.\n"
+        f"{instruction.format(count=count)}\n"
+        "Réponds UNIQUEMENT avec un JSON valide de cette forme exacte :\n"
+        f'{{"items": [ {item_schema_instructions(qtype)} , ... ({count} items) ]}}\n'
+        "N'ajoute aucun texte, commentaire ou balise Markdown en dehors du JSON."
+    )
 
 
-def generate_questions(topic: str, difficulty: str) -> list[str]:
-    """Generate 3 study questions about *topic* at the given *difficulty*.
+def generate_questions(
+    topic: str, difficulty: str, qtype: str = "free", count: int = 3
+) -> list[QuestionItem]:
+    """Generate *count* study questions about *topic* at the given *difficulty*.
 
     *difficulty* must be one of ``"facile"``, ``"moyen"``, ``"difficile"``.
-    Returns a list of up to 3 question strings.
+    *qtype* selects the question format (see ``core/qtypes.QTYPES``).
+    Returns up to *count* normalized, validated question items.
     """
     difficulty = difficulty.lower()
-    instruction = _DIFFICULTY_INSTRUCTIONS.get(difficulty, _DIFFICULTY_INSTRUCTIONS["moyen"])
 
     # Retrieve relevant context from the index
     chunks = retrieve(topic, top_k=6)
     context = "\n\n".join(c.text for c in chunks[:4]) if chunks else "(aucun extrait disponible)"
 
     messages = [
-        {"role": "system", "content": _SYSTEM_PROMPT},
-        {
-            "role": "user",
-            "content": (
-                f"Sujet : {topic}\n\n"
-                f"Extraits de cours :\n{context}\n\n"
-                f"{instruction}"
-            ),
-        },
+        {"role": "system", "content": _system_prompt(qtype, difficulty, count)},
+        {"role": "user", "content": f"Sujet : {topic}\n\nExtraits de cours :\n{context}"},
     ]
 
-    provider, name = get_provider()
-
-    # Use the more powerful model for hard questions when online
-    model: str | None = None
-    # Ollama uses a single model for all difficulties
-    _ = name
-
-    raw = provider.chat(messages, model=model)
-    return _parse_questions(raw)
+    provider, _name = get_provider()
+    raw = provider.chat(messages, json_mode=True)
+    items = parse_structured_items(raw, qtype)[:count]
+    # The requested difficulty is authoritative — override whatever the LLM echoed back.
+    for item in items:
+        item["difficulty"] = difficulty
+    return items

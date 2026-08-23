@@ -65,6 +65,18 @@ def test_index_all_returns_immediately_and_reports_progress(client: TestClient) 
     assert sum(batch_sizes) == _N_CHUNKS
 
 
+def test_status_while_running_polls_via_self_reinjecting_trigger(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    docs_module._JOB.update(running=True, file_total=1, file_index=1, chunks_total=40, chunks_done=20)
+    resp = client.get("/docs/index/status")
+
+    assert resp.status_code == 200
+    assert 'hx-trigger="load delay:2s"' in resp.text
+    assert 'hx-target="this"' in resp.text
+    assert 'hx-swap="outerHTML"' in resp.text
+
+
 def test_status_after_completion_shows_doc_list_and_stops_polling(client: TestClient) -> None:
     client.post("/docs/index")
     resp = client.get("/docs/index/status")
