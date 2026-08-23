@@ -6,12 +6,17 @@
   <title>🎓 Assistant Révision</title>
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
 </head>
 <body>
+<a href="#main-content" class="skip-link">Aller au contenu principal</a>
+<button id="nav-toggle-btn" class="nav-toggle-btn" type="button"
+        aria-expanded="false" aria-controls="sidebar" aria-label="Ouvrir le menu">☰</button>
+<div id="nav-backdrop" class="nav-backdrop" hidden></div>
 <div class="layout">
 
   <!-- ── Sidebar ──────────────────────────────────────────────────────── -->
-  <aside class="sidebar">
+  <aside id="sidebar" class="sidebar">
     <div class="sidebar-brand">🎓 Assistant Révision</div>
     <div class="sidebar-caption">Révise tes cours avec l'IA locale — Ollama.</div>
 
@@ -36,7 +41,7 @@
   </aside>
 
   <!-- ── Main content ─────────────────────────────────────────────────── -->
-  <main class="main">
+  <main id="main-content" class="main">
     {% block content %}{% endblock %}
   </main>
 
