@@ -55,6 +55,13 @@ def test_mcq_multi_requires_at_least_one_correct() -> None:
     assert qtypes.parse_structured_items(raw, "mcq_multi") == []
 
 
+def test_mcq_multi_with_single_correct_is_relabeled_mcq_single() -> None:
+    raw = '{"items": [{"question": "Q ?", "options": ["A", "B", "C"], "correct": [1]}]}'
+    items = qtypes.parse_structured_items(raw, "mcq_multi")
+    assert items[0]["qtype"] == "mcq_single"
+    assert items[0]["correct"] == [1]
+
+
 # ── tf (Vrai/Faux) ───────────────────────────────────────────────────────────
 
 
