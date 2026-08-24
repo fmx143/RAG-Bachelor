@@ -247,15 +247,44 @@ def add_card(
     return int(new_id)
 
 
-def get_due_cards(limit: int = 20) -> list[Card]:
-    """Return cards whose due_date ≤ today, ordered by due_date ASC."""
+def get_due_cards(
+    limit: int = 20,
+    source: str | None = None,
+    difficulty: str | None = None,
+    qtype: str | None = None,
+) -> list[Card]:
+    """Return cards whose due_date ≤ today, ordered by due_date ASC.
+
+    ``source`` filters on ``topic`` — the PDF filename a bank-derived card was
+    stamped with at materialization time (see :func:`materialize_bank_question`).
+    """
     conn = get_conn()
     today = date.today().isoformat()
+    clauses = ["due_date <= ?"]
+    params: list[Any] = [today]
+    if source:
+        clauses.append("topic = ?")
+        params.append(source)
+    if difficulty:
+        clauses.append("difficulty = ?")
+        params.append(difficulty)
+    if qtype:
+        clauses.append("qtype = ?")
+        params.append(qtype)
+    where = " AND ".join(clauses)
+    params.append(limit)
     rows = conn.execute(
-        _adapt("SELECT * FROM cards WHERE due_date <= ? ORDER BY due_date LIMIT ?"),
-        (today, limit),
+        _adapt(f"SELECT * FROM cards WHERE {where} ORDER BY due_date LIMIT ?"),
+        params,
     ).fetchall()
     return [_row_to_card(r) for r in rows]
+
+
+def get_card(card_id: int) -> Card | None:
+    """Return one card by id, or None."""
+    conn = get_conn()
+    row = conn.execute(_adapt("SELECT * FROM cards WHERE id = ?"), (card_id,)).fetchone()
+    return _row_to_card(row) if row else None
 
 
 def get_all_cards(topic: str | None = None) -> list[Card]:
@@ -424,12 +453,18 @@ def list_bank_questions(
     deck: str | None = None,
     limit: int = 20,
     offset: int = 0,
+    order_asc: bool = False,
 ) -> list[BankQuestion]:
-    """Return bank questions, optionally filtered, newest first."""
+    """Return bank questions, optionally filtered.
+
+    Newest first by default (the bank tab); ``order_asc`` serves them in
+    document order instead — used by revision to work through a PDF front-to-back.
+    """
     conn = get_conn()
     where, params = _bank_where(source, difficulty, search, qtype, result, deck)
+    order = "ASC" if order_asc else "DESC"
     rows = conn.execute(
-        _adapt(f"SELECT * FROM question_bank{where} ORDER BY id DESC LIMIT ? OFFSET ?"),
+        _adapt(f"SELECT * FROM question_bank{where} ORDER BY id {order} LIMIT ? OFFSET ?"),
         [*params, limit, offset],
     ).fetchall()
     return [_row_to_bank_question(r) for r in rows]
@@ -472,6 +507,27 @@ def link_bank_card(bank_id: int, card_id: int) -> None:
         _adapt("UPDATE question_bank SET card_id = ? WHERE id = ?"), (card_id, bank_id)
     )
     conn.commit()
+
+
+def materialize_bank_question(q: BankQuestion) -> int:
+    """Copy one bank question into the SRS deck and link it back. Returns the new card id.
+
+    Factors out the add_card()+link_bank_card() pair used by every "add to
+    révision" call site (manual add, bulk add-all, auto-add on a wrong answer,
+    and revision pulling straight from the bank when nothing is due).
+    """
+    assert q.id is not None
+    card_id = add_card(
+        question=q.question,
+        answer=q.answer,
+        topic=q.source,
+        difficulty=q.difficulty,
+        qtype=q.qtype,
+        options=q.options,
+        correct=q.correct,
+    )
+    link_bank_card(q.id, card_id)
+    return card_id
 
 
 def record_bank_attempt(bank_id: int, correct: bool) -> None:

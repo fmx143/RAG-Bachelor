@@ -28,7 +28,7 @@
     {% endif %}
   </div>
   <div class="progress-wrap" style="margin-top:.4rem;">
-    <div class="progress-fill green" style="width:{{ gen_pct }}%;"></div>
+    <div class="progress-fill green" style="--pct:{{ gen_pct / 100 }};"></div>
   </div>
   <div style="font-size:.8rem; color:var(--muted); margin-top:.3rem;">
     {{ gen_inserted }} ajoutée(s)

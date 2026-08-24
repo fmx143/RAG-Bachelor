@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     # ── Ollama ────────────────────────────────────────────────────────────
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5:7b-instruct"
+    ollama_vision_model: str = "llava:7b"
 
     # ── OpenAI (optional cloud provider, manual toggle in Settings) ────────
     # Never render these via .get_secret_value() outside of client construction —

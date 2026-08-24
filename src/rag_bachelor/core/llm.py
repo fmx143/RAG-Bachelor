@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from typing import Protocol, runtime_checkable
 
 import ollama as _ollama
@@ -11,6 +12,7 @@ from rag_bachelor.config import settings
 from rag_bachelor.study import store
 
 PROVIDER_SETTING_KEY = "llm_provider"
+VISION_SETTING_KEY = "vision_captioning_enabled"
 
 
 @runtime_checkable
@@ -26,6 +28,10 @@ class LLMProvider(Protocol):
         """
         ...
 
+    def caption(self, image_png: bytes, prompt: str) -> str:
+        """Describe *image_png* per *prompt* and return the reply as a string."""
+        ...
+
 
 class OllamaProvider:
     """Wrapper around the Ollama Python client."""
@@ -36,6 +42,14 @@ class OllamaProvider:
         m = model or settings.ollama_model
         client = _ollama.Client(host=settings.ollama_host)
         response = client.chat(model=m, messages=messages, format="json" if json_mode else None)
+        return response.message.content or ""
+
+    def caption(self, image_png: bytes, prompt: str) -> str:
+        client = _ollama.Client(host=settings.ollama_host)
+        response = client.chat(
+            model=settings.ollama_vision_model,
+            messages=[{"role": "user", "content": prompt, "images": [image_png]}],
+        )
         return response.message.content or ""
 
 
@@ -59,6 +73,23 @@ class OpenAIProvider:
             )
         else:
             response = client.chat.completions.create(model=m, messages=messages)  # type: ignore[arg-type]
+        return response.choices[0].message.content or ""
+
+    def caption(self, image_png: bytes, prompt: str) -> str:
+        client = _OpenAI(api_key=settings.openai_api_key.get_secret_value())
+        b64 = base64.b64encode(image_png).decode()
+        response = client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+                    ],
+                }
+            ],
+        )
         return response.choices[0].message.content or ""
 
 

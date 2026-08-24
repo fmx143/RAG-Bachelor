@@ -1,0 +1,10 @@
+<form hx-post="/settings/vision" hx-target="#vision-panel" hx-swap="innerHTML" hx-trigger="change">
+  <label style="font-weight:400; display:flex; align-items:center; gap:.5rem;">
+    <input type="checkbox" name="enabled" value="true" {% if vision_enabled %}checked{% endif %}>
+    Décrire les figures/graphiques des pages sans texte lors de l'indexation
+  </label>
+  <p style="font-size:.8rem; color:var(--muted); margin-top:.4rem;">
+    Utilise <code>{{ cfg.ollama_vision_model }}</code> (Ollama) ou <code>{{ cfg.openai_model }}</code> (OpenAI).
+    Un appel par page à figures — ralentit l'indexation. Nécessite de re-indexer pour prendre effet.
+  </p>
+</form>

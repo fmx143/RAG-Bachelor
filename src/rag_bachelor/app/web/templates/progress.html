@@ -50,7 +50,7 @@
       <div style="flex:1;">
         <div style="font-weight:600;">{{ icon }} {{ s.topic }} — {{ s.mastery_pct | int }}%</div>
         <div class="progress-wrap">
-          <div class="progress-fill {{ bar_class }}" style="width:{{ s.mastery_pct | int }}%;"></div>
+          <div class="progress-fill {{ bar_class }}" style="--pct:{{ (s.mastery_pct | int) / 100 }};"></div>
         </div>
       </div>
       <div style="font-size:.8rem; color:var(--muted); text-align:right; white-space:nowrap;">

@@ -17,13 +17,12 @@ from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES
 from rag_bachelor.ingest.index import list_sources
 from rag_bachelor.study.store import (
     BankQuestion,
-    add_card,
     count_bank_questions,
     delete_bank_question,
     delete_bank_questions,
     get_bank_question,
-    link_bank_card,
     list_bank_questions,
+    materialize_bank_question,
     record_bank_attempt,
 )
 
@@ -112,26 +111,6 @@ def _status_ctx(error_override: str | None = None) -> dict[str, object]:
         "gen_pct": round(inserted / target * 100) if target else 0,
         "gen_cancelling": bool(_JOB["cancel"]),
     }
-
-
-def _add_bank_question_to_deck(q: BankQuestion) -> int:
-    """Copy one bank question into the SRS deck and link it back. Returns the new card id.
-
-    Factors out the add_card()+link_bank_card() pair used by every "add to
-    révision" call site (manual add, bulk add-all, and auto-add on a wrong answer).
-    """
-    assert q.id is not None
-    card_id = add_card(
-        question=q.question,
-        answer=q.answer,
-        topic=q.source,
-        difficulty=q.difficulty,
-        qtype=q.qtype,
-        options=q.options,
-        correct=q.correct,
-    )
-    link_bank_card(q.id, card_id)
-    return card_id
 
 
 async def _list_ctx(
@@ -298,7 +277,7 @@ async def add_all_bank_to_deck(
         for item in batch:
             if item.id is None or item.card_id is not None:
                 continue
-            _add_bank_question_to_deck(item)
+            materialize_bank_question(item)
             added += 1
         return added
 
@@ -336,7 +315,7 @@ async def add_bank_to_deck(bank_id: int) -> Response:
         q = get_bank_question(bank_id)
         if q is None:
             return None
-        return _add_bank_question_to_deck(q)
+        return materialize_bank_question(q)
 
     card_id = await asyncio.to_thread(_sync)
     if card_id is None:
@@ -379,7 +358,7 @@ async def answer_bank_question(
         record_bank_attempt(bank_id, is_correct)
         added = False
         if not is_correct and q.card_id is None:
-            _add_bank_question_to_deck(q)
+            materialize_bank_question(q)
             added = True
         return {"q": q, "is_correct": is_correct, "selected": selected, "added": added}
 

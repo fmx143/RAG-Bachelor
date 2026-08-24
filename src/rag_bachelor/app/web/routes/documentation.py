@@ -8,20 +8,23 @@ import threading
 from pathlib import Path
 from typing import Annotated
 
+import fitz  # pymupdf
 from fastapi import APIRouter, BackgroundTasks, File, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
+from rag_bachelor.app.web.routes.settings import vision_captioning_enabled
 from rag_bachelor.config import settings
 from rag_bachelor.ingest.chunk import chunk_pages
-from rag_bachelor.ingest.extract import extract_pages
+from rag_bachelor.ingest.extract import extract_pages, render_page_png
 from rag_bachelor.ingest.index import (
     collection_count,
     delete_source,
     index_chunks,
     list_sources,
 )
+from rag_bachelor.ingest.vision import caption_page
 
 router = APIRouter()
 
@@ -72,9 +75,18 @@ def _run_index_job(pdfs: list[Path]) -> None:
     """
     total_chunks = 0
     empty_pages: list[int] = []
+    caption_figures = vision_captioning_enabled()
     try:
         for i, pdf in enumerate(pdfs, start=1):
             pages = extract_pages(pdf)
+            if caption_figures:
+                for p in pages:
+                    if not p.has_images:
+                        continue
+                    caption = caption_page(pdf, p.page_num)
+                    if caption:
+                        p.text = f"{p.text}\n\n[Figure] {caption}".strip()
+                        p.is_empty = False
             if len(pdfs) == 1:
                 empty_pages = [p.page_num for p in pages if p.is_empty]
             chunks = chunk_pages(pages)
@@ -278,5 +290,26 @@ async def delete_pdf(request: Request, name: str) -> Response:
 async def chunk_count(request: Request) -> Response:
     """Return a plain-text chunk count (used by the metric badge)."""
     return HTMLResponse(str(collection_count()))
+
+
+# ── Page image (rendered on demand for citations) ──────────────────────────────
+
+@router.get("/docs/page/{name}/{page}.png")
+async def page_image(name: str, page: int) -> Response:
+    """Render one page of a PDF to PNG, for the citation preview in answer.html."""
+    path = _resolve_safe(name)
+    if path is None or not path.exists() or page < 1:
+        return Response(status_code=404)
+
+    def _sync() -> bytes | None:
+        with fitz.open(str(path)) as doc:
+            if page > doc.page_count:
+                return None
+        return render_page_png(path, page)
+
+    png = await asyncio.to_thread(_sync)
+    if png is None:
+        return Response(status_code=404)
+    return Response(content=png, media_type="image/png")
 
 

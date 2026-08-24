@@ -21,6 +21,12 @@
           {{ loop.index }}. <code>{{ chunk.source }}</code> — p.{{ chunk.page }}
           &nbsp;·&nbsp; pertinence : {{ "%.0f" | format(chunk.score * 100) }}%
         </div>
+        <img
+          loading="lazy"
+          src="/docs/page/{{ chunk.source }}/{{ chunk.page }}.png"
+          alt="Page {{ chunk.page }} de {{ chunk.source }}"
+          style="max-width:100%; margin-top:.5rem; border-radius:6px; border:1px solid var(--border);"
+        >
         <div class="source-text">{{ chunk.text[:400] }}{% if chunk.text | length > 400 %}…{% endif %}</div>
       </div>
       {% endfor %}
