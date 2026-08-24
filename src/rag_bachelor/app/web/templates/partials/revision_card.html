@@ -2,8 +2,8 @@
 <div class="card" style="text-align:center; padding:2.5rem 1.5rem;">
   <div style="font-size:2rem; margin-bottom:.75rem;">🎉</div>
   <div style="font-size:1.15rem; font-weight:600;">Bravo ! Aucune carte à réviser pour aujourd'hui.</div>
-  <p style="color:var(--muted); margin-top:.5rem;">Reviens demain ou génère de nouvelles questions.</p>
-  <a href="/generate" class="btn btn-primary" style="margin-top:1rem;">🎯 Générer des questions</a>
+  <p style="color:var(--muted); margin-top:.5rem;">Reviens demain, élargis le filtre, ou pioche dans la banque de questions.</p>
+  <a href="/bank" class="btn btn-primary" style="margin-top:1rem;">🏦 Voir la banque de questions</a>
 </div>
 {% else %}
 {% set diff_badge = {"facile": "badge-green", "moyen": "badge-yellow", "difficile": "badge-red"} %}
@@ -27,7 +27,7 @@
 
   {% if card.qtype != "free" %}
   <!-- Structured type (QCM/Vrai-Faux): auto-graded, no LLM call -->
-  <form hx-post="/revision/answer/{{ card.id }}" hx-target="#revision-content" hx-swap="innerHTML" style="margin-top:1rem;">
+  <form hx-post="/revision/answer/{{ card.id }}" hx-include="#revision-filter-form" hx-target="#revision-content" hx-swap="innerHTML" style="margin-top:1rem;">
     {% for opt in card.options %}
     <label style="display:block; margin-bottom:.5rem; cursor:pointer;">
       <input type="{{ 'checkbox' if card.qtype == 'mcq_multi' else 'radio' }}" name="selected" value="{{ loop.index0 }}">
@@ -50,6 +50,7 @@
       <button
         type="button"
         hx-post="/revision/grade/{{ card.id }}"
+        hx-include="#revision-filter-form"
         hx-vals='{"grade": "0"}'
         hx-target="#revision-content"
         hx-swap="innerHTML"
@@ -59,6 +60,7 @@
       <button
         type="button"
         hx-post="/revision/grade/{{ card.id }}"
+        hx-include="#revision-filter-form"
         hx-vals='{"grade": "2"}'
         hx-target="#revision-content"
         hx-swap="innerHTML"
@@ -68,6 +70,7 @@
       <button
         type="button"
         hx-post="/revision/grade/{{ card.id }}"
+        hx-include="#revision-filter-form"
         hx-vals='{"grade": "4"}'
         hx-target="#revision-content"
         hx-swap="innerHTML"
@@ -77,6 +80,7 @@
       <button
         type="button"
         hx-post="/revision/grade/{{ card.id }}"
+        hx-include="#revision-filter-form"
         hx-vals='{"grade": "5"}'
         hx-target="#revision-content"
         hx-swap="innerHTML"
