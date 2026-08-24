@@ -21,7 +21,7 @@ from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
-from rag_bachelor.core.qtypes import DIFFICULTIES, QTYPE_LABELS, QTYPES
+from rag_bachelor.core.qtypes import DIFFICULTIES, QTYPE_LABELS, QTYPES, score_selection
 from rag_bachelor.ingest.index import list_sources
 from rag_bachelor.study.srs import Card, update_card
 from rag_bachelor.study.store import (
@@ -38,10 +38,19 @@ router = APIRouter()
 # Valid SM-2 grades used in the UI
 _VALID_GRADES: frozenset[int] = frozenset({0, 2, 4, 5})
 
-# Auto-grading for structured (0-token) question types: correct/incorrect
-# maps directly onto SM-2's pass/fail thresholds (grade >= 3 is a pass).
-_AUTO_GRADE_CORRECT = 4
-_AUTO_GRADE_INCORRECT = 0
+def _grade_for_score(score: float) -> int:
+    """Map a Jaccard overlap score onto the app's {0,2,4,5} grade scale.
+
+    A partial mcq_multi match (e.g. 1 of 2 correct) still earns a passing
+    grade — SM-2 only needs "did they mostly know it", not perfection.
+    """
+    if score >= 1.0:
+        return 5
+    if score >= 0.5:
+        return 4
+    if score > 0.0:
+        return 2
+    return 0
 
 
 def _next_card(source: str, difficulty: str, qtype: str) -> Card | None:
@@ -127,9 +136,9 @@ async def answer_card(
 ) -> Response:
     """Auto-grade a structured (QCM/Vrai-Faux) card — no LLM call.
 
-    Correctness is a deterministic set comparison against the stored
-    ``correct`` indices; the result maps onto the same SM-2 grade scale used
-    by the free-text flow.
+    Correctness is a Jaccard overlap between the selected and stored
+    ``correct`` indices, giving partial credit on ``mcq_multi``; the result
+    maps onto the same SM-2 grade scale used by the free-text flow.
     """
 
     card = await asyncio.to_thread(get_card, card_id)
@@ -148,8 +157,10 @@ async def answer_card(
             },
         )
 
-    is_correct = set(selected) == set(card.correct)
-    grade = _AUTO_GRADE_CORRECT if is_correct else _AUTO_GRADE_INCORRECT
+    score = score_selection(card.correct, selected)
+    is_correct = score >= 1.0
+    is_partial = 0.0 < score < 1.0
+    grade = _grade_for_score(score)
 
     def _save() -> int:
         updated = update_card(card, grade)
@@ -163,6 +174,7 @@ async def answer_card(
         "card": card,
         "selected": selected,
         "is_correct": is_correct,
+        "is_partial": is_partial,
         "due_count": due_count,
         **_filter_ctx(source, difficulty, qtype),
     }

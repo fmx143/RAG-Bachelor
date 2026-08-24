@@ -56,3 +56,30 @@ def test_migrate_backfills_columns_and_is_idempotent() -> None:
     assert card.qtype == "mcq_single"
     assert card.options == ["A", "B"]
     assert card.correct == [0]
+
+
+def test_migrate_retags_single_answer_mcq_multi_rows() -> None:
+    """_migrate() must relabel pre-fix `mcq_multi` rows with only 1 correct answer."""
+    conn = store.get_conn()
+    conn.execute(
+        "INSERT INTO question_bank (question, answer, difficulty, qtype, options, correct, "
+        "source, pages, chunk_ids) VALUES "
+        "('Q single ?', 'R.', 'facile', 'mcq_multi', '[\"A\",\"B\"]', '[0]', 's', '[1]', '[\"c\"]'),"
+        "('Q multi ?', 'R.', 'facile', 'mcq_multi', '[\"A\",\"B\",\"C\"]', '[0, 2]', 's', '[1]', '[\"c\"]')"
+    )
+    conn.commit()
+
+    store._migrate(conn)
+
+    rows = {
+        row["question"]: row["qtype"]
+        for row in conn.execute("SELECT question, qtype FROM question_bank")
+    }
+    assert rows["Q single ?"] == "mcq_single"
+    assert rows["Q multi ?"] == "mcq_multi"
+
+    # Idempotent: a second migrate() must not error and must not touch the
+    # already-correct multi row.
+    store._migrate(conn)
+    row = conn.execute("SELECT qtype FROM question_bank WHERE question = 'Q multi ?'").fetchone()
+    assert row["qtype"] == "mcq_multi"

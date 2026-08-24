@@ -5,8 +5,13 @@
     <div style="font-size:.85rem; color:var(--muted);">
       Sujet : <strong>{{ card.topic }}</strong>
     </div>
-    <span class="badge {{ diff_badge.get(card.difficulty, 'badge-yellow') }}">
-      {{ card.difficulty | capitalize }}
+    <span style="display:flex; gap:.4rem;">
+      {% if card.qtype != "free" and qtype_labels %}
+      <span class="badge badge-gray">{{ qtype_labels.get(card.qtype, card.qtype) }}</span>
+      {% endif %}
+      <span class="badge {{ diff_badge.get(card.difficulty, 'badge-yellow') }}">
+        {{ card.difficulty | capitalize }}
+      </span>
     </span>
   </div>
 
@@ -14,6 +19,8 @@
 
   {% if is_correct %}
   <div class="alert alert-success" style="margin-top:1rem;">✅ Bonne réponse !</div>
+  {% elif is_partial %}
+  <div class="alert alert-warning" style="margin-top:1rem;">🤏 Partiellement correct.</div>
   {% else %}
   <div class="alert alert-error" style="margin-top:1rem;">❌ Mauvaise réponse.</div>
   {% endif %}

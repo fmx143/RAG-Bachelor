@@ -50,6 +50,51 @@ def test_wrong_selection_auto_grades_as_failure(client: TestClient) -> None:
     assert after.repetitions == 0
 
 
+def _mcq_multi_card_id() -> int:
+    return store.add_card(
+        question="Quels sont des nombres pairs ?",
+        answer="2 et 4",
+        topic="Maths",
+        difficulty="facile",
+        qtype="mcq_multi",
+        options=["1", "2", "3", "4"],
+        correct=[1, 3],
+    )
+
+
+def test_multi_correct_selection_auto_grades_as_success(client: TestClient) -> None:
+    card_id = _mcq_multi_card_id()
+    before = next(c for c in store.get_all_cards() if c.id == card_id)
+
+    resp = client.post(f"/revision/answer/{card_id}", data={"selected": ["1", "3"]})
+
+    assert resp.status_code == 200
+    after = next(c for c in store.get_all_cards() if c.id == card_id)
+    assert after.repetitions > before.repetitions
+
+
+def test_half_correct_multi_selection_still_passes_with_partial_grade(client: TestClient) -> None:
+    """1 of 2 correct = Jaccard 0.5 -> grade 4, a pass (not the old all-or-nothing 0)."""
+    card_id = _mcq_multi_card_id()
+
+    resp = client.post(f"/revision/answer/{card_id}", data={"selected": ["1"]})
+
+    assert resp.status_code == 200
+    assert "Partiellement correct" in resp.text
+    after = next(c for c in store.get_all_cards() if c.id == card_id)
+    assert after.repetitions > 0
+
+
+def test_no_overlap_multi_selection_auto_grades_as_failure(client: TestClient) -> None:
+    card_id = _mcq_multi_card_id()
+
+    resp = client.post(f"/revision/answer/{card_id}", data={"selected": ["0", "2"]})
+
+    assert resp.status_code == 200
+    after = next(c for c in store.get_all_cards() if c.id == card_id)
+    assert after.repetitions == 0
+
+
 def test_unknown_card_falls_back_to_next_card_partial(client: TestClient) -> None:
     resp = client.post("/revision/answer/999", data={"selected": ["0"]})
     assert resp.status_code == 200
