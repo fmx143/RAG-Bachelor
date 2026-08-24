@@ -136,7 +136,7 @@ def _adapt(sql: str) -> str:
 
 
 def _migrate(conn: sqlite3.Connection | psycopg.Connection[dict[str, Any]]) -> None:
-    """Add any missing `cards` columns. Idempotent on both backends."""
+    """Add any missing `cards` columns, and backfill stale data. Idempotent on both backends."""
     if _use_postgres():
         for name, decl in _CARD_COLUMNS_ADDED.items():
             conn.execute(f"ALTER TABLE cards ADD COLUMN IF NOT EXISTS {name} {decl}")
@@ -145,7 +145,23 @@ def _migrate(conn: sqlite3.Connection | psycopg.Connection[dict[str, Any]]) -> N
         for name, decl in _CARD_COLUMNS_ADDED.items():
             if name not in existing:
                 conn.execute(f"ALTER TABLE cards ADD COLUMN {name} {decl}")
+    _retag_single_answer_multi(conn)
     conn.commit()
+
+
+def _retag_single_answer_multi(conn: sqlite3.Connection | psycopg.Connection[dict[str, Any]]) -> None:
+    """Relabel `mcq_multi` rows holding a single correct answer as `mcq_single`.
+
+    Generation used to accept a one-answer `mcq_multi` from the LLM (see
+    core/qtypes._validate_mcq), and those rows render as a checkbox group with
+    exactly one right option. Idempotent — a retagged row no longer matches
+    the WHERE clause on the next run.
+    """
+    for table in ("cards", "question_bank"):
+        rows = conn.execute(_adapt(f"SELECT id, correct FROM {table} WHERE qtype = 'mcq_multi'")).fetchall()
+        stale_ids = [row["id"] for row in rows if len(json.loads(row["correct"] or "[]")) < 2]
+        for row_id in stale_ids:
+            conn.execute(_adapt(f"UPDATE {table} SET qtype = 'mcq_single' WHERE id = ?"), (row_id,))
 
 
 def get_conn() -> sqlite3.Connection | psycopg.Connection[dict[str, Any]]:

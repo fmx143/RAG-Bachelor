@@ -62,9 +62,12 @@ _ITEM_SCHEMAS: dict[str, str] = {
     "mcq_multi": (
         '{"question": "...", "options": ["...", "...", "...", "..."], '
         '"correct": [i, j, ...], "answer": "...", "difficulty": "facile|moyen|difficile"}\n'
-        'Propose 3 à 5 options plausibles, dont au moins une (idéalement plusieurs) '
-        'correctes. "correct" contient les indices (0-based) de toutes les bonnes '
-        'réponses. "answer" justifie brièvement.'
+        'Formule la question au pluriel (« Quels sont… ? », « Lesquelles de ces '
+        'affirmations sont exactes ? ») pour que PLUSIEURS options soient vraies. '
+        'Propose 4 ou 5 options plausibles dont OBLIGATOIREMENT 2 ou 3 correctes — '
+        'une seule bonne réponse est une erreur de format. "correct" contient les '
+        'indices (0-based) de toutes les bonnes réponses. "answer" justifie '
+        'brièvement chacune.'
     ),
     "tf": (
         '{"question": "affirmation à évaluer", "correct": [0] si vraie ou [1] si '
@@ -125,6 +128,11 @@ def _validate_mcq(entry: dict[str, object], qtype: str) -> QuestionItem | None:
         return None
     if any(i < 0 or i >= len(options) for i in correct):
         return None
+    if qtype == "mcq_multi" and len(correct) < 2:
+        # The LLM wrote a single-answer question despite the multi prompt:
+        # relabel rather than drop, so the checkbox UI never promises a
+        # multiple choice the question can't deliver.
+        qtype = "mcq_single"
     if qtype == "mcq_single" and len(correct) != 1:
         return None
 
@@ -191,6 +199,19 @@ def validate_item(entry: object, qtype: str) -> QuestionItem | None:
     if qtype == "tf":
         return _validate_tf(entry)
     return _validate_free(entry)
+
+
+def score_selection(correct: list[int], selected: list[int]) -> float:
+    """Jaccard overlap between the selected and correct option indices.
+
+    1.0 for an exact match, 0.0 for no overlap, partial credit in between —
+    used to grade ``mcq_multi`` answers instead of an all-or-nothing check.
+    """
+    correct_set, selected_set = set(correct), set(selected)
+    union = correct_set | selected_set
+    if not union:
+        return 1.0
+    return len(correct_set & selected_set) / len(union)
 
 
 def parse_structured_items(
