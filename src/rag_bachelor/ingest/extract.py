@@ -12,10 +12,11 @@ _EMPTY_PAGE_THRESHOLD = 20
 
 @dataclass
 class Page:
-    source: str     # PDF filename (not the full path)
-    page_num: int   # 1-indexed page number, used in citations
-    text: str       # extracted text content
+    source: str  # PDF filename (not the full path)
+    page_num: int  # 1-indexed page number, used in citations
+    text: str  # extracted text content
     is_empty: bool  # True when text is suspiciously short
+    has_images: bool = False  # True when the page embeds at least one image/figure
 
 
 def extract_pages(pdf_path: Path) -> list[Page]:
@@ -34,6 +35,15 @@ def extract_pages(pdf_path: Path) -> list[Page]:
                     page_num=i,
                     text=text,
                     is_empty=len(text) < _EMPTY_PAGE_THRESHOLD,
+                    has_images=bool(page.get_images()),
                 )
             )
     return pages
+
+
+def render_page_png(pdf_path: Path, page_num: int, dpi: int = 110) -> bytes:
+    """Render one 1-indexed page of *pdf_path* to PNG bytes."""
+    with fitz.open(str(pdf_path)) as doc:
+        page = doc[page_num - 1]
+        png: bytes = page.get_pixmap(dpi=dpi).tobytes("png")
+        return png

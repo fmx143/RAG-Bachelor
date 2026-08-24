@@ -21,7 +21,7 @@ router = APIRouter()
 
 _DIFF_LABELS = {"facile": "🟢 Facile", "moyen": "🟡 Moyen", "difficile": "🔴 Difficile"}
 _MIN_COUNT = 1
-_MAX_COUNT = 10
+_MAX_COUNT = 20
 
 
 def _safe_json_list(raw: str) -> list[Any] | None:

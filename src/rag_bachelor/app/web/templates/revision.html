@@ -10,6 +10,45 @@
 </div>
 {% endif %}
 
+<div class="card">
+  <form
+    id="revision-filter-form"
+    hx-get="/revision/next"
+    hx-trigger="change"
+    hx-target="#revision-content"
+    hx-swap="innerHTML"
+    style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap;"
+  >
+    <div class="form-group" style="margin-bottom:0; min-width:220px;">
+      <label for="filter_source">Document</label>
+      <select id="filter_source" name="source">
+        <option value="">(tous)</option>
+        {% for s in sources %}
+        <option value="{{ s }}" {% if s == filter_source %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:0; min-width:180px;">
+      <label for="filter_difficulty">Difficulté</label>
+      <select id="filter_difficulty" name="difficulty">
+        <option value="">(toutes)</option>
+        {% for d in difficulties %}
+        <option value="{{ d }}" {% if d == filter_difficulty %}selected{% endif %}>{{ d | capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:0; min-width:180px;">
+      <label for="filter_qtype">Type de question</label>
+      <select id="filter_qtype" name="qtype">
+        <option value="">(tous)</option>
+        {% for qt in qtypes %}
+        <option value="{{ qt }}" {% if qt == filter_qtype %}selected{% endif %}>{{ qtype_labels[qt] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+</div>
+
 <!-- HTMX swaps the card in here after each grade -->
 <div id="revision-content">
   {% include "partials/revision_card.html" %}
