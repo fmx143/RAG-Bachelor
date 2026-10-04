@@ -420,6 +420,9 @@ The Chroma server image (pinned by digest in `docker-compose.yml`) and the `chro
 (pinned in `pyproject.toml`) must be upgraded **together**. Back up the `chroma_data` volume
 first, and test the new versions on a copy of it before touching production.
 
+Compatibility verified in production on 2026-10-04: client `chromadb` 1.5.9 (container
+`rag-bachelor-app-1`) against the server image pinned by digest.
+
 ---
 
 ## Tech stack
