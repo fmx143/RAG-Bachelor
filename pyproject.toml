@@ -33,6 +33,7 @@ dev = [
 
 [project.scripts]
 rag-web = "rag_bachelor.app.web.server:main"
+rag-eval = "rag_bachelor.eval.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rag_bachelor"]
