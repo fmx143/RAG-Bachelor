@@ -37,3 +37,6 @@ model_cache/
 *.swp
 *.swo
 .DS_Store
+data/*.db-wal
+data/*.db-shm
+data/*.db-journal
