@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import chromadb
+from chromadb.api import ClientAPI
 
 from rag_bachelor.config import settings
 from rag_bachelor.ingest.chunk import Chunk
@@ -10,7 +11,7 @@ from rag_bachelor.ingest.chunk import Chunk
 _COLLECTION_NAME = "bachelor_docs"
 
 # Module-level singleton client & collection
-_client: chromadb.ClientAPI | None = None
+_client: ClientAPI | None = None
 _collection: chromadb.Collection | None = None
 
 
@@ -64,7 +65,7 @@ def index_chunks(chunks: list[Chunk]) -> None:
 
     collection.upsert(
         ids=ids,
-        embeddings=vectors,
+        embeddings=vectors,  # type: ignore[arg-type]  # chroma stubs reject list[list[float]]
         documents=texts,
         metadatas=metadatas,  # type: ignore[arg-type]
     )

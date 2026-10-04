@@ -1,6 +1,7 @@
 """Semantic retriever: embed a query and return nearest chunks from ChromaDB."""
 
 from dataclasses import dataclass
+from typing import cast
 
 from rag_bachelor.config import settings
 from rag_bachelor.core.embeddings import embed
@@ -29,7 +30,7 @@ def retrieve(query: str, top_k: int | None = None) -> list[SearchResult]:
     query_vec = embed([query])[0]
 
     results = collection.query(
-        query_embeddings=[query_vec],
+        query_embeddings=[query_vec],  # type: ignore[arg-type]  # chroma stubs reject list[list[float]]
         n_results=min(k, collection.count()),
         include=["documents", "metadatas", "distances"],
     )
@@ -44,7 +45,7 @@ def retrieve(query: str, top_k: int | None = None) -> list[SearchResult]:
             SearchResult(
                 text=doc,
                 source=str(meta.get("source", "")),
-                page=int(meta.get("page", 0)),
+                page=int(cast(int, meta.get("page", 0))),
                 score=max(0.0, 1.0 - dist),  # cosine distance → similarity
             )
         )
