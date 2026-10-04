@@ -275,7 +275,7 @@ async def delete_pdf(request: Request, name: str) -> Response:
     path.unlink(missing_ok=True)
     delete_source(Path(name).name)
 
-    ctx: dict[str, object] = {
+    ctx = {
         "request": request,
         **(await _doc_list_ctx()),
         "message": f"🗑️ {name} supprimé",
