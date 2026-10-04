@@ -37,6 +37,8 @@ def test_valid_file_loads_with_defaults_and_sorted_unique_pages(tmp_path: Path) 
         _row(pages=["1"]),
         _row(pages=[True]),
         _row(status="ok"),
+        _row(status="validé"),
+        {**_row(), "statut": "valide"},  # misspelled field must not silently fall back to draft
     ],
 )
 def test_invalid_rows_are_rejected_with_line_number(tmp_path: Path, bad: object) -> None:
