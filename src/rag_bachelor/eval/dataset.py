@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 STATUSES = ("brouillon", "valide")
+_FIELDS = frozenset({"id", "question", "source", "pages", "status"})
 
 
 @dataclass(frozen=True)
@@ -26,6 +27,9 @@ def _parse(line: str, lineno: int) -> EvalQuestion:
     if not isinstance(raw, dict):
         raise ValueError(f"line {lineno}: expected a JSON object")
 
+    unknown = set(raw) - _FIELDS
+    if unknown:
+        raise ValueError(f"line {lineno}: unknown field(s) {sorted(unknown)}")
     for key in ("id", "question", "source"):
         if not isinstance(raw.get(key), str) or not raw[key].strip():
             raise ValueError(f"line {lineno}: '{key}' must be a non-empty string")
