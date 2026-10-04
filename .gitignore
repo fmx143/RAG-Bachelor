@@ -22,6 +22,10 @@ data/app.db
 data/pdfs/*.pdf
 model_cache/
 
+# Eval reports (only the committed baseline is kept)
+eval/reports/*
+!eval/reports/baseline.json
+
 # Keep the pdfs dir placeholder
 !data/pdfs/.gitkeep
 
