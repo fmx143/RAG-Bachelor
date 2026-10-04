@@ -7,6 +7,22 @@ from pathlib import Path
 import fitz  # pymupdf
 import pytest
 
+_REPO_DATA = Path(__file__).resolve().parent.parent / "data"
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Abort the whole run if the environment points tests at a real backend."""
+    from rag_bachelor.config import Settings
+
+    env = Settings()
+    for name in ("chroma_host", "postgres_host"):
+        if getattr(env, name):
+            pytest.exit(
+                f"Refusing to run tests: {name.upper()} is set (would hit a real backend). "
+                "Unset it (e.g. run pytest without `doppler run --`).",
+                returncode=2,
+            )
+
 
 @pytest.fixture(autouse=True)
 def isolated_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -23,6 +39,9 @@ def isolated_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "pdfs_dir", tmp_path / "pdfs")
     monkeypatch.setattr(settings, "chroma_host", "")
     monkeypatch.setattr(settings, "postgres_host", "")
+    for path in (settings.db_path, settings.chroma_dir, settings.pdfs_dir):
+        if path.resolve().is_relative_to(_REPO_DATA):
+            pytest.exit(f"Refusing to run tests: {path} is under the real data/ folder", returncode=2)
     store._conn = None
     index._client = None
     index._collection = None
