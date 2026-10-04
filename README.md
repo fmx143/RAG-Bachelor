@@ -414,6 +414,12 @@ Vectors from different models are incompatible — re-indexing is required.
 | Port 8090 already in use | Kill other uvicorn processes (`pkill -f uvicorn`), or change `--port` |
 | Blank pages not indexed | Expected — pages with no text layer are skipped with a warning |
 
+### Upgrading Chroma
+
+The Chroma server image (pinned by digest in `docker-compose.yml`) and the `chromadb` client
+(pinned in `pyproject.toml`) must be upgraded **together**. Back up the `chroma_data` volume
+first, and test the new versions on a copy of it before touching production.
+
 ---
 
 ## Tech stack
