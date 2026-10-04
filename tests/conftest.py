@@ -9,17 +9,29 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def isolated_study_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Point the SQLite study DB at a throwaway file so tests never touch data/app.db."""
+def isolated_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Point SQLite, Chroma and the PDFs folder at tmp_path and force the embedded backends.
+
+    Tests must never reach data/, a remote Chroma server or a Postgres instance.
+    """
     from rag_bachelor.config import settings
+    from rag_bachelor.ingest import index
     from rag_bachelor.study import store
 
     monkeypatch.setattr(settings, "db_path", tmp_path / "test_app.db")
+    monkeypatch.setattr(settings, "chroma_dir", tmp_path / "chroma")
+    monkeypatch.setattr(settings, "pdfs_dir", tmp_path / "pdfs")
+    monkeypatch.setattr(settings, "chroma_host", "")
+    monkeypatch.setattr(settings, "postgres_host", "")
     store._conn = None
+    index._client = None
+    index._collection = None
     yield
     if store._conn is not None:
         store._conn.close()
     store._conn = None
+    index._client = None
+    index._collection = None
 
 
 @pytest.fixture
