@@ -53,7 +53,9 @@ services:
 
   chroma:
     # image en production depuis le 23.08.2026, construite le 2026-05-05 ; version exacte non
-    # identifiée ; épinglée par digest pour garder chroma_data lisible
+    # identifiée ; épinglée par digest pour garder chroma_data lisible.
+    # Compatibilité vérifiée en production le 2026-10-04 : client chromadb 1.5.9
+    # (rag-bachelor-app-1) contre ce serveur.
     image: chromadb/chroma@sha256:1e0b73a187a28757c572acba508c46f48c9e8b0acaf5c20e6d95cdedce1acdf6
     volumes:
       - chroma_data:/chroma/chroma
