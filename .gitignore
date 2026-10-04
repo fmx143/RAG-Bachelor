@@ -23,6 +23,7 @@ data/pdfs/*.pdf
 model_cache/
 
 # Eval reports (only the committed baseline is kept)
+eval/review.md
 eval/reports/*
 !eval/reports/baseline.json
 
