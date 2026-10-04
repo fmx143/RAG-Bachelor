@@ -52,7 +52,9 @@ services:
     # No "ports:" — unreachable from the LAN or the internet, only from `app`.
 
   chroma:
-    image: chromadb/chroma:latest
+    # image en production depuis le 23.08.2026, construite le 2026-05-05 ; version exacte non
+    # identifiée ; épinglée par digest pour garder chroma_data lisible
+    image: chromadb/chroma@sha256:1e0b73a187a28757c572acba508c46f48c9e8b0acaf5c20e6d95cdedce1acdf6
     volumes:
       - chroma_data:/chroma/chroma
     networks:
