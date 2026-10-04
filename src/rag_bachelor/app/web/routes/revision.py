@@ -35,8 +35,8 @@ from rag_bachelor.study.store import (
 
 router = APIRouter()
 
-# Valid SM-2 grades used in the UI
-_VALID_GRADES: frozenset[int] = frozenset({0, 2, 4, 5})
+# Valid SM-2 grades used in the UI (Difficile = 3: a pass, unlike grade < 3 which resets)
+_VALID_GRADES: frozenset[int] = frozenset({0, 3, 4, 5})
 
 def _grade_for_score(score: float) -> int:
     """Map a Jaccard overlap score onto the app's {0,2,4,5} grade scale.
