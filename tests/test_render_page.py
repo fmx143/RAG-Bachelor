@@ -22,7 +22,9 @@ def test_render_page_png_returns_png_bytes(sample_pdf: Path) -> None:
 
 
 @pytest.fixture
-def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, sample_pdf: Path) -> Iterator[TestClient]:
+def client(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, sample_pdf: Path
+) -> Iterator[TestClient]:
     monkeypatch.setattr(settings, "pdfs_dir", tmp_path)
     (tmp_path / sample_pdf.name).write_bytes(sample_pdf.read_bytes())
 

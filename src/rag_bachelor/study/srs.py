@@ -40,8 +40,8 @@ class Card:
     correct: list[int] | None = None
 
     # SM-2 state
-    interval: int = 1          # days until next review
-    repetitions: int = 0       # number of consecutive successful reviews
+    interval: int = 1  # days until next review
+    repetitions: int = 0  # number of consecutive successful reviews
     ease_factor: float = field(default=_INITIAL_EASE)
     due_date: date = field(default_factory=date.today)
 

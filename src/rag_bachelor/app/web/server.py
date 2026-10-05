@@ -107,6 +107,7 @@ async def root() -> RedirectResponse:
 
 # ── CLI entry point ────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     """Entry point registered as `rag-web` in pyproject.toml."""
     uvicorn.run(

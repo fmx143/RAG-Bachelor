@@ -57,17 +57,17 @@ _ITEM_SCHEMAS: dict[str, str] = {
         '{"question": "...", "options": ["...", "...", "...", "..."], '
         '"correct": [i], "answer": "...", "difficulty": "facile|moyen|difficile"}\n'
         'Propose 3 à 5 options plausibles. "correct" contient l\'indice (0-based) '
-        "de l'unique bonne réponse. \"answer\" justifie brièvement la bonne réponse."
+        'de l\'unique bonne réponse. "answer" justifie brièvement la bonne réponse.'
     ),
     "mcq_multi": (
         '{"question": "...", "options": ["...", "...", "...", "..."], '
         '"correct": [i, j, ...], "answer": "...", "difficulty": "facile|moyen|difficile"}\n'
-        'Formule la question au pluriel (« Quels sont… ? », « Lesquelles de ces '
-        'affirmations sont exactes ? ») pour que PLUSIEURS options soient vraies. '
-        'Propose 4 ou 5 options plausibles dont OBLIGATOIREMENT 2 ou 3 correctes — '
+        "Formule la question au pluriel (« Quels sont… ? », « Lesquelles de ces "
+        "affirmations sont exactes ? ») pour que PLUSIEURS options soient vraies. "
+        "Propose 4 ou 5 options plausibles dont OBLIGATOIREMENT 2 ou 3 correctes — "
         'une seule bonne réponse est une erreur de format. "correct" contient les '
         'indices (0-based) de toutes les bonnes réponses. "answer" justifie '
-        'brièvement chacune.'
+        "brièvement chacune."
     ),
     "tf": (
         '{"question": "affirmation à évaluer", "correct": [0] si vraie ou [1] si '
@@ -214,9 +214,7 @@ def score_selection(correct: list[int], selected: list[int]) -> float:
     return len(correct_set & selected_set) / len(union)
 
 
-def parse_structured_items(
-    raw: str, qtype: str, items_key: str = "items"
-) -> list[QuestionItem]:
+def parse_structured_items(raw: str, qtype: str, items_key: str = "items") -> list[QuestionItem]:
     """Extract and validate every item under *items_key* in a (noisy) LLM reply.
 
     Invalid entries are dropped rather than raising — generation degrades

@@ -98,9 +98,7 @@ def _run_index_job(pdfs: list[Path]) -> None:
             total_chunks += len(chunks)
 
         warning = (
-            f" (pages vides ignorées : {', '.join(map(str, empty_pages))})"
-            if empty_pages
-            else ""
+            f" (pages vides ignorées : {', '.join(map(str, empty_pages))})" if empty_pages else ""
         )
         if len(pdfs) == 1:
             _JOB["message"] = f"✅ {pdfs[0].name} — {total_chunks} chunks indexés{warning}"
@@ -130,6 +128,7 @@ def _resolve_safe(name: str) -> Path | None:
 
 async def _doc_list_ctx() -> dict[str, object]:
     """Build the context needed to render the doc-list partial (non-blocking)."""
+
     def _sync() -> dict[str, object]:
         all_pdfs: list[Path] = (
             sorted(settings.pdfs_dir.glob("*.pdf")) if settings.pdfs_dir.exists() else []
@@ -137,6 +136,7 @@ async def _doc_list_ctx() -> dict[str, object]:
         indexed: set[str] = set(list_sources())
         pdfs = [{"name": p.name, "indexed": p.name in indexed} for p in all_pdfs]
         return {"pdfs": pdfs, "chunk_count": collection_count()}
+
     return await asyncio.to_thread(_sync)
 
 
@@ -208,9 +208,7 @@ def _progress_ctx(request: Request) -> dict[str, object]:
 @router.post("/docs/index", response_class=HTMLResponse)
 async def index_all(request: Request, background_tasks: BackgroundTasks) -> Response:
     """Kick off re-indexing every PDF in data/pdfs/ in the background."""
-    pdfs: list[Path] = (
-        sorted(settings.pdfs_dir.glob("*.pdf")) if settings.pdfs_dir.exists() else []
-    )
+    pdfs: list[Path] = sorted(settings.pdfs_dir.glob("*.pdf")) if settings.pdfs_dir.exists() else []
     if not pdfs:
         ctx: dict[str, object] = {
             "request": request,
@@ -222,7 +220,9 @@ async def index_all(request: Request, background_tasks: BackgroundTasks) -> Resp
 
     if _try_start(len(pdfs)):
         background_tasks.add_task(_run_index_job, pdfs)
-    return templates.TemplateResponse(request, "partials/index_progress.html", _progress_ctx(request))
+    return templates.TemplateResponse(
+        request, "partials/index_progress.html", _progress_ctx(request)
+    )
 
 
 @router.post("/docs/index/{name}", response_class=HTMLResponse)
@@ -240,14 +240,18 @@ async def index_one(request: Request, name: str, background_tasks: BackgroundTas
 
     if _try_start(1):
         background_tasks.add_task(_run_index_job, [path])
-    return templates.TemplateResponse(request, "partials/index_progress.html", _progress_ctx(request))
+    return templates.TemplateResponse(
+        request, "partials/index_progress.html", _progress_ctx(request)
+    )
 
 
 @router.get("/docs/index/status", response_class=HTMLResponse)
 async def index_status(request: Request) -> Response:
     """Polled by the progress partial: still-running progress, or the final doc-list once."""
     if _JOB["running"]:
-        return templates.TemplateResponse(request, "partials/index_progress.html", _progress_ctx(request))
+        return templates.TemplateResponse(
+            request, "partials/index_progress.html", _progress_ctx(request)
+        )
 
     message, error = _JOB["message"], _JOB["error"]
     _JOB["message"], _JOB["error"] = None, None  # consume once, don't re-flash on next reload
@@ -286,6 +290,7 @@ async def delete_pdf(request: Request, name: str) -> Response:
 
 # ── Form helper — chunk count via GET (for the counter badge) ─────────────────
 
+
 @router.get("/docs/count", response_class=HTMLResponse)
 async def chunk_count(request: Request) -> Response:
     """Return a plain-text chunk count (used by the metric badge)."""
@@ -293,6 +298,7 @@ async def chunk_count(request: Request) -> Response:
 
 
 # ── Page image (rendered on demand for citations) ──────────────────────────────
+
 
 @router.get("/docs/page/{name}/{page}.png")
 async def page_image(name: str, page: int) -> Response:
@@ -311,5 +317,3 @@ async def page_image(name: str, page: int) -> Response:
     if png is None:
         return Response(status_code=404)
     return Response(content=png, media_type="image/png")
-
-

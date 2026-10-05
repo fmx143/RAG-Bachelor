@@ -16,7 +16,9 @@ class EvalQuestion:
     id: str
     question: str
     source: str  # PDF filename, as stored in the index metadata
-    pages: tuple[int, ...]  # expected 1-indexed pages (any hit on one of them counts); () if hors_sujet
+    pages: tuple[
+        int, ...
+    ]  # expected 1-indexed pages (any hit on one of them counts); () if hors_sujet
     status: str  # "brouillon" until validated by hand, then "valide"
     type: str | None = None  # one of TYPES; may stay unset only while status is "brouillon"
     note: str | None = None  # free text, ignored by the metrics

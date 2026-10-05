@@ -15,10 +15,10 @@ _EASE_MAX = 3.5
 class TopicStats:
     topic: str
     total_cards: int
-    due_cards: int        # cards due today or overdue
-    avg_ease: float       # average ease factor across all cards in this topic
-    avg_interval: float   # average current interval (days)
-    mastery_pct: float    # 0–100; higher = more mastered
+    due_cards: int  # cards due today or overdue
+    avg_ease: float  # average ease factor across all cards in this topic
+    avg_interval: float  # average current interval (days)
+    mastery_pct: float  # 0–100; higher = more mastered
 
 
 def get_topic_stats() -> list[TopicStats]:

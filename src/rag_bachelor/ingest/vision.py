@@ -10,7 +10,7 @@ from rag_bachelor.ingest.extract import render_page_png
 _PROMPT = (
     "Décris en français, en une à trois phrases, les graphiques, diagrammes, tableaux "
     "ou schémas visibles sur cette page. Ignore le texte déjà lisible. Si la page ne "
-    "contient aucun élément visuel notable, réponds \"(rien à décrire)\"."
+    'contient aucun élément visuel notable, réponds "(rien à décrire)".'
 )
 
 

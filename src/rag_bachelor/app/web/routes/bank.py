@@ -267,7 +267,9 @@ async def add_all_bank_to_deck(
         # Fetch the whole matching set in one shot rather than paging: with the
         # deck="out" filter, adding a card removes that row from later pages,
         # so offset-based paging silently skips rows as the filtered set shrinks.
-        total = count_bank_questions(source=src, difficulty=diff, search=q, qtype=qt, result=res, deck=dk)
+        total = count_bank_questions(
+            source=src, difficulty=diff, search=q, qtype=qt, result=res, deck=dk
+        )
         if total == 0:
             return 0
         batch = list_bank_questions(

@@ -16,11 +16,19 @@ def _write(path: Path, *rows: object) -> Path:
 
 
 def _row(**over: object) -> dict[str, object]:
-    return {"id": "q1", "question": "Qu'est-ce que X ?", "source": "a.pdf", "pages": [3, 2, 3], **over}
+    return {
+        "id": "q1",
+        "question": "Qu'est-ce que X ?",
+        "source": "a.pdf",
+        "pages": [3, 2, 3],
+        **over,
+    }
 
 
 def test_valid_file_loads_with_defaults_and_sorted_unique_pages(tmp_path: Path) -> None:
-    qs = load_questions(_write(tmp_path / "q.jsonl", _row(), "", _row(id="q2", status="valide", type="lexical")))
+    qs = load_questions(
+        _write(tmp_path / "q.jsonl", _row(), "", _row(id="q2", status="valide", type="lexical"))
+    )
     assert [q.id for q in qs] == ["q1", "q2"]
     assert qs[0].pages == (2, 3)
     assert (qs[0].status, qs[1].status) == ("brouillon", "valide")

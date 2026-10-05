@@ -50,7 +50,11 @@ def _search(query: str, k: int) -> list[Hit]:
 
 def _print_metrics(metrics: dict[str, float], baseline: dict[str, float] | None) -> None:
     for name, value in metrics.items():
-        delta = f"  ({value - baseline[name]:+.3f} vs baseline)" if baseline and name in baseline else ""
+        delta = (
+            f"  ({value - baseline[name]:+.3f} vs baseline)"
+            if baseline and name in baseline
+            else ""
+        )
         print(f"{name:>10}: {value:.3f}{delta}")
 
 
@@ -79,7 +83,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"{len(scored)} questions (+{n_off} hors_sujet, excluded from recall), k={args.k}")
     _print_metrics(metrics, baseline)
     for name, m in kinds.items():
-        print(f"[{name}] n={m['n']:.0f}  " + "  ".join(f"{a}={v:.3f}" for a, v in m.items() if a != "n"))
+        print(
+            f"[{name}] n={m['n']:.0f}  "
+            + "  ".join(f"{a}={v:.3f}" for a, v in m.items() if a != "n")
+        )
 
     out = args.out or Path("eval/reports") / f"{datetime.now():%Y%m%d-%H%M%S}.json"
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -43,7 +43,9 @@ def test_generate_error_never_leaks_exception_text(client: TestClient) -> None:
         "rag_bachelor.app.web.routes.generate.generate_questions",
         side_effect=RuntimeError(f"Incorrect API key provided: {_FAKE_KEY}"),
     ):
-        resp = client.post("/generate", data={"topic": "Complexité algorithmique", "difficulty": "moyen"})
+        resp = client.post(
+            "/generate", data={"topic": "Complexité algorithmique", "difficulty": "moyen"}
+        )
 
     assert resp.status_code == 200
     assert _FAKE_KEY not in resp.text

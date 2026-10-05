@@ -41,7 +41,9 @@ def isolated_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "postgres_host", "")
     for path in (settings.db_path, settings.chroma_dir, settings.pdfs_dir):
         if path.resolve().is_relative_to(_REPO_DATA):
-            pytest.exit(f"Refusing to run tests: {path} is under the real data/ folder", returncode=2)
+            pytest.exit(
+                f"Refusing to run tests: {path} is under the real data/ folder", returncode=2
+            )
     store._conn = None
     index._client = None
     index._collection = None

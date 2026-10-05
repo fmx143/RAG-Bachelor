@@ -51,7 +51,15 @@ def test_migrate_backfills_columns_and_is_idempotent() -> None:
     # already-present columns.
     store._migrate(conn)
 
-    card_id = store.add_card("Q2 ?", "R2.", topic="Sujet", difficulty="moyen", qtype="mcq_single", options=["A", "B"], correct=[0])
+    card_id = store.add_card(
+        "Q2 ?",
+        "R2.",
+        topic="Sujet",
+        difficulty="moyen",
+        qtype="mcq_single",
+        options=["A", "B"],
+        correct=[0],
+    )
     card = next(c for c in store.get_all_cards() if c.id == card_id)
     assert card.qtype == "mcq_single"
     assert card.options == ["A", "B"]

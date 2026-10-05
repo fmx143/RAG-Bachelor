@@ -33,19 +33,14 @@ def answer_question(
         )
         return no_doc_msg, []
 
-    context_parts = [
-        f"[{c.source}, p.{c.page}]\n{c.text}" for c in chunks
-    ]
+    context_parts = [f"[{c.source}, p.{c.page}]\n{c.text}" for c in chunks]
     context = "\n\n---\n\n".join(context_parts)
 
     messages = [
         {"role": "system", "content": _SYSTEM_PROMPT},
         {
             "role": "user",
-            "content": (
-                f"Extraits de cours pertinents :\n\n{context}\n\n"
-                f"Question : {question}"
-            ),
+            "content": (f"Extraits de cours pertinents :\n\n{context}\n\nQuestion : {question}"),
         },
     ]
 
