@@ -84,3 +84,10 @@ Default: **8090**. VS Code Dev Container forwards this port. On Windows, avoid p
 
 Recursive splitter, separators: `["\n\n", "\n", ". ", " "]`, ~900 chars, ~150 overlap.
 Chunks carry `source` (filename) and `page_num` for citations.
+
+## Data safety rules
+
+- Never write to `data/` (`app.db*`, `chroma/`, `pdfs/`). No reindexing.
+- To read the DB, copy `app.db`, `app.db-wal` and `app.db-shm` together into `/tmp` and read the copy.
+- Never display or log a secret.
+- Before any commit: `pytest -q`, `ruff check src/ tests/` and `mypy src/` must pass.
