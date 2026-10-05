@@ -86,3 +86,14 @@ def test_source_is_optional_only_for_hors_sujet(tmp_path: Path) -> None:
 def test_duplicate_id_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="duplicate id"):
         load_questions(_write(tmp_path / "q.jsonl", _row(), _row()))
+
+
+def test_category_is_optional_and_stripped(tmp_path: Path) -> None:
+    qs = load_questions(_write(tmp_path / "q.jsonl", _row(), _row(id="q2", category=" cours 1 ")))
+    assert [q.category for q in qs] == [None, "cours 1"]
+
+
+@pytest.mark.parametrize("bad", ["", "  ", 3, ["a"]])
+def test_invalid_category_is_rejected_with_line_number(tmp_path: Path, bad: object) -> None:
+    with pytest.raises(ValueError, match="line 1.*category"):
+        load_questions(_write(tmp_path / "q.jsonl", _row(category=bad)))

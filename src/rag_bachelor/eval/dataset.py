@@ -8,7 +8,7 @@ from pathlib import Path
 
 STATUSES = ("brouillon", "valide")
 TYPES = ("lexical", "paraphrase", "multi_page", "hors_sujet")
-_FIELDS = frozenset({"id", "question", "source", "pages", "status", "type", "note"})
+_FIELDS = frozenset({"id", "question", "source", "pages", "status", "type", "note", "category"})
 
 
 @dataclass(frozen=True)
@@ -22,6 +22,7 @@ class EvalQuestion:
     status: str  # "brouillon" until validated by hand, then "valide"
     type: str | None = None  # one of TYPES; may stay unset only while status is "brouillon"
     note: str | None = None  # free text, ignored by the metrics
+    category: str | None = None  # free-form grouping axis; None = "non classée"
 
 
 def _parse(line: str, lineno: int) -> EvalQuestion:
@@ -52,6 +53,10 @@ def _parse(line: str, lineno: int) -> EvalQuestion:
     if note is not None and not isinstance(note, str):
         raise ValueError(f"line {lineno}: 'note' must be a string")
 
+    category = raw.get("category")
+    if category is not None and (not isinstance(category, str) or not category.strip()):
+        raise ValueError(f"line {lineno}: 'category' must be a non-empty string")
+
     pages = raw.get("pages", [] if qtype == "hors_sujet" else None)
     if qtype == "hors_sujet":
         if pages != []:
@@ -71,6 +76,7 @@ def _parse(line: str, lineno: int) -> EvalQuestion:
         status=status,
         type=qtype,
         note=note,
+        category=category.strip() if category else None,
     )
 
 
