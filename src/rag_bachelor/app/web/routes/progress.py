@@ -19,9 +19,7 @@ async def progress_page(request: Request) -> Response:
     due_cards = get_due_cards(limit=200)
     stats = get_topic_stats()
 
-    avg_ease = (
-        sum(c.ease_factor for c in all_cards) / len(all_cards) if all_cards else None
-    )
+    avg_ease = sum(c.ease_factor for c in all_cards) / len(all_cards) if all_cards else None
 
     ctx: dict[str, object] = {
         "request": request,

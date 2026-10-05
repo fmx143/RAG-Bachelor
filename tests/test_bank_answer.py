@@ -31,7 +31,9 @@ def _mcq(question: str = "2 + 2 = ?", source: str = "cours.pdf") -> store.BankQu
     )
 
 
-def _free(question: str = "Qu'est-ce qu'un algorithme ?", source: str = "cours.pdf") -> store.BankQuestion:
+def _free(
+    question: str = "Qu'est-ce qu'un algorithme ?", source: str = "cours.pdf"
+) -> store.BankQuestion:
     return store.BankQuestion(
         question=question,
         answer="Une suite finie d'instructions.",
@@ -128,7 +130,9 @@ def test_list_filters_by_qtype_result_and_deck(client: TestClient) -> None:
     assert mcq.id is not None
     client.post(f"/bank/{mcq.id}/answer", data={"selected": ["0"]})  # wrong -> linked + incorrect
 
-    resp = client.get("/bank/list", params={"qtype": "mcq_single", "result": "incorrect", "deck": "in"})
+    resp = client.get(
+        "/bank/list", params={"qtype": "mcq_single", "result": "incorrect", "deck": "in"}
+    )
     assert resp.status_code == 200
     assert "Q-mcq" in resp.text
     assert "Q-free" not in resp.text

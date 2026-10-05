@@ -12,7 +12,7 @@ _SEPARATORS = ["\n\n", "\n", ". ", " "]
 @dataclass
 class Chunk:
     text: str
-    source: str    # PDF filename
+    source: str  # PDF filename
     page_num: int  # 1-indexed source page
     chunk_index: int  # position within the page's chunks (0-based)
 

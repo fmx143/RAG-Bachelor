@@ -149,7 +149,9 @@ def _migrate(conn: sqlite3.Connection | psycopg.Connection[dict[str, Any]]) -> N
     conn.commit()
 
 
-def _retag_single_answer_multi(conn: sqlite3.Connection | psycopg.Connection[dict[str, Any]]) -> None:
+def _retag_single_answer_multi(
+    conn: sqlite3.Connection | psycopg.Connection[dict[str, Any]],
+) -> None:
     """Relabel `mcq_multi` rows holding a single correct answer as `mcq_single`.
 
     Generation used to accept a one-answer `mcq_multi` from the LLM (see
@@ -158,7 +160,9 @@ def _retag_single_answer_multi(conn: sqlite3.Connection | psycopg.Connection[dic
     the WHERE clause on the next run.
     """
     for table in ("cards", "question_bank"):
-        rows = conn.execute(_adapt(f"SELECT id, correct FROM {table} WHERE qtype = 'mcq_multi'")).fetchall()
+        rows = conn.execute(
+            _adapt(f"SELECT id, correct FROM {table} WHERE qtype = 'mcq_multi'")
+        ).fetchall()
         stale_ids = [row["id"] for row in rows if len(json.loads(row["correct"] or "[]")) < 2]
         for row_id in stale_ids:
             conn.execute(_adapt(f"UPDATE {table} SET qtype = 'mcq_single' WHERE id = ?"), (row_id,))
@@ -519,9 +523,7 @@ def get_bank_question(bank_id: int) -> BankQuestion | None:
 def link_bank_card(bank_id: int, card_id: int) -> None:
     """Record that a bank question was copied into the SRS deck as *card_id*."""
     conn = get_conn()
-    conn.execute(
-        _adapt("UPDATE question_bank SET card_id = ? WHERE id = ?"), (card_id, bank_id)
-    )
+    conn.execute(_adapt("UPDATE question_bank SET card_id = ? WHERE id = ?"), (card_id, bank_id))
     conn.commit()
 
 

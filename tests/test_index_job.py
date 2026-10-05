@@ -22,7 +22,9 @@ _N_CHUNKS = 40  # > _BATCH so at least one full batch plus a remainder
 
 
 def _fake_chunks(n: int) -> list[Chunk]:
-    return [Chunk(text=f"chunk {i}", source="cours.pdf", page_num=1, chunk_index=i) for i in range(n)]
+    return [
+        Chunk(text=f"chunk {i}", source="cours.pdf", page_num=1, chunk_index=i) for i in range(n)
+    ]
 
 
 @pytest.fixture
@@ -42,8 +44,14 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     monkeypatch.setattr(docs_module, "_batch_sizes", batch_sizes, raising=False)
 
     docs_module._JOB.update(
-        running=False, file_index=0, file_total=0, current="",
-        chunks_done=0, chunks_total=0, message=None, error=None,
+        running=False,
+        file_index=0,
+        file_total=0,
+        current="",
+        chunks_done=0,
+        chunks_total=0,
+        message=None,
+        error=None,
     )
 
     app = FastAPI()
@@ -68,7 +76,9 @@ def test_index_all_returns_immediately_and_reports_progress(client: TestClient) 
 def test_status_while_running_polls_via_self_reinjecting_trigger(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    docs_module._JOB.update(running=True, file_total=1, file_index=1, chunks_total=40, chunks_done=20)
+    docs_module._JOB.update(
+        running=True, file_total=1, file_index=1, chunks_total=40, chunks_done=20
+    )
     resp = client.get("/docs/index/status")
 
     assert resp.status_code == 200
@@ -89,7 +99,9 @@ def test_status_after_completion_shows_doc_list_and_stops_polling(client: TestCl
 def test_second_start_while_running_does_not_restart_the_job(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    docs_module._JOB.update(running=True, file_total=1, file_index=1, chunks_total=40, chunks_done=20)
+    docs_module._JOB.update(
+        running=True, file_total=1, file_index=1, chunks_total=40, chunks_done=20
+    )
     started = docs_module._try_start(1)
     assert started is False
     assert docs_module._JOB["chunks_done"] == 20  # untouched, not reset to 0

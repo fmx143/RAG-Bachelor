@@ -18,17 +18,22 @@ def _bq(question: str, source: str = "cours.pdf", difficulty: str = "facile") ->
 
 def test_get_due_cards_filters_by_source_difficulty_qtype() -> None:
     store.add_card("Q maths facile ?", "R.", topic="maths.pdf", difficulty="facile", qtype="free")
-    store.add_card("Q maths difficile ?", "R.", topic="maths.pdf", difficulty="difficile", qtype="free")
+    store.add_card(
+        "Q maths difficile ?", "R.", topic="maths.pdf", difficulty="difficile", qtype="free"
+    )
     store.add_card("Q info ?", "R.", topic="info.pdf", difficulty="facile", qtype="tf")
 
     assert [c.topic for c in store.get_due_cards(limit=10, source="maths.pdf")] == [
         "maths.pdf",
         "maths.pdf",
     ]
-    assert [c.difficulty for c in store.get_due_cards(limit=10, source="maths.pdf", difficulty="difficile")] == [
-        "difficile"
+    assert [
+        c.difficulty
+        for c in store.get_due_cards(limit=10, source="maths.pdf", difficulty="difficile")
+    ] == ["difficile"]
+    assert store.get_due_cards(limit=10, qtype="tf") == [
+        c for c in store.get_due_cards(limit=10) if c.qtype == "tf"
     ]
-    assert store.get_due_cards(limit=10, qtype="tf") == [c for c in store.get_due_cards(limit=10) if c.qtype == "tf"]
     assert store.get_due_cards(limit=10, source="inconnu.pdf") == []
 
 
