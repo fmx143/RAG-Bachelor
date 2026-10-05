@@ -23,9 +23,24 @@ def test_evaluate_scores_each_question_with_injected_search() -> None:
     assert metrics == {"recall@1": 0.5, "recall@3": 1.0, "mrr": 0.75}
 
 
+def test_evaluate_excludes_hors_sujet_and_by_type_breaks_down() -> None:
+    qs = [
+        EvalQuestion("q1", "alpha ?", "a.pdf", (1,), "valide", "lexical"),
+        EvalQuestion("q2", "beta ?", "a.pdf", (4,), "valide", "paraphrase"),
+        EvalQuestion("q3", "meteo ?", "a.pdf", (), "valide", "hors_sujet"),
+    ]
+    hits = {"alpha ?": [("a.pdf", 1)], "beta ?": [("a.pdf", 2)]}
+    metrics, scored = cli.evaluate(qs, lambda q, k: hits[q], k=1)  # hors_sujet never searched
+    assert metrics == {"recall@1": 0.5, "mrr": 0.5}
+    assert cli.by_type(qs, scored) == {
+        "lexical": {"n": 1, "recall@1": 1.0, "mrr": 1.0},
+        "paraphrase": {"n": 1, "recall@1": 0.0, "mrr": 0.0},
+    }
+
+
 def _write_questions(path: Path, status: str) -> Path:
     rows = [
-        {"id": "q1", "question": "alpha ?", "source": "a.pdf", "pages": [1], "status": status}
+        {"id": "q1", "question": "alpha ?", "source": "a.pdf", "pages": [1], "status": status, "type": "lexical"}
     ]
     path.write_text("\n".join(json.dumps(r) for r in rows))
     return path
