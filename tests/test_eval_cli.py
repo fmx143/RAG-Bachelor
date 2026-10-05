@@ -38,6 +38,21 @@ def test_evaluate_excludes_hors_sujet_and_by_type_breaks_down() -> None:
     }
 
 
+def test_by_category_groups_uncategorized_and_skips_hors_sujet() -> None:
+    qs = [
+        EvalQuestion("q1", "alpha ?", "a.pdf", (1,), "valide", "lexical", category="c1"),
+        EvalQuestion("q2", "beta ?", "a.pdf", (4,), "valide", "lexical", category="c1"),
+        EvalQuestion("q3", "gamma ?", "a.pdf", (5,), "valide", "lexical"),
+        EvalQuestion("q4", "meteo ?", "a.pdf", (), "valide", "hors_sujet", category="c2"),
+    ]
+    hits = {"alpha ?": [("a.pdf", 1)], "beta ?": [("a.pdf", 2)], "gamma ?": [("a.pdf", 5)]}
+    _, scored = cli.evaluate(qs, lambda q, k: hits[q], k=1)
+    assert cli.by_category(qs, scored) == {
+        "c1": {"n": 2, "recall@1": 0.5, "mrr": 0.5},
+        "non classée": {"n": 1, "recall@1": 1.0, "mrr": 1.0},
+    }
+
+
 def _write_questions(path: Path, status: str) -> Path:
     rows = [
         {
@@ -47,6 +62,7 @@ def _write_questions(path: Path, status: str) -> Path:
             "pages": [1],
             "status": status,
             "type": "lexical",
+            "category": "c1",
         }
     ]
     path.write_text("\n".join(json.dumps(r) for r in rows))
@@ -70,7 +86,10 @@ def test_main_writes_report_and_prints_delta(
     rc = cli.main(["--questions", str(questions), "--out", str(out), "--compare", str(old)])
 
     assert rc == 0
-    assert json.loads(out.read_text())["metrics"]["mrr"] == 1.0
+    report = json.loads(out.read_text())
+    assert report["metrics"]["mrr"] == 1.0
+    assert report["by_category"]["c1"]["n"] == 1
+    assert report["per_question"][0]["category"] == "c1"
     assert "+0.500 vs baseline" in capsys.readouterr().out
 
 
