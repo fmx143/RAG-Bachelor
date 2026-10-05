@@ -15,7 +15,7 @@ _FIELDS = frozenset({"id", "question", "source", "pages", "status", "type", "not
 class EvalQuestion:
     id: str
     question: str
-    source: str  # PDF filename, as stored in the index metadata
+    source: str  # PDF filename, as stored in the index metadata; "" if hors_sujet
     pages: tuple[
         int, ...
     ]  # expected 1-indexed pages (any hit on one of them counts); () if hors_sujet
@@ -35,7 +35,8 @@ def _parse(line: str, lineno: int) -> EvalQuestion:
     unknown = set(raw) - _FIELDS
     if unknown:
         raise ValueError(f"line {lineno}: unknown field(s) {sorted(unknown)}")
-    for key in ("id", "question", "source"):
+    off_topic = raw.get("type") == "hors_sujet"  # no expected document, so 'source' is optional
+    for key in ("id", "question") + (() if off_topic else ("source",)):
         if not isinstance(raw.get(key), str) or not raw[key].strip():
             raise ValueError(f"line {lineno}: '{key}' must be a non-empty string")
     status = raw.get("status", "brouillon")
@@ -65,7 +66,7 @@ def _parse(line: str, lineno: int) -> EvalQuestion:
     return EvalQuestion(
         id=raw["id"],
         question=raw["question"].strip(),
-        source=raw["source"],
+        source=raw.get("source") or "",
         pages=tuple(sorted(set(pages))),
         status=status,
         type=qtype,
