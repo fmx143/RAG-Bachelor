@@ -75,6 +75,14 @@ def test_type_and_note_are_loaded_and_hors_sujet_has_no_pages(tmp_path: Path) ->
     ]
 
 
+def test_source_is_optional_only_for_hors_sujet(tmp_path: Path) -> None:
+    off = {"id": "q1", "question": "x ?", "type": "hors_sujet"}
+    assert load_questions(_write(tmp_path / "q.jsonl", off))[0].source == ""
+    no_source = {k: v for k, v in _row(type="lexical").items() if k != "source"}
+    with pytest.raises(ValueError, match="'source'"):
+        load_questions(_write(tmp_path / "q2.jsonl", no_source))
+
+
 def test_duplicate_id_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="duplicate id"):
         load_questions(_write(tmp_path / "q.jsonl", _row(), _row()))
