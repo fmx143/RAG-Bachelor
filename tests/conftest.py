@@ -34,12 +34,13 @@ def isolated_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from rag_bachelor.ingest import index
     from rag_bachelor.study import store
 
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
     monkeypatch.setattr(settings, "db_path", tmp_path / "test_app.db")
     monkeypatch.setattr(settings, "chroma_dir", tmp_path / "chroma")
     monkeypatch.setattr(settings, "pdfs_dir", tmp_path / "pdfs")
     monkeypatch.setattr(settings, "chroma_host", "")
     monkeypatch.setattr(settings, "postgres_host", "")
-    for path in (settings.db_path, settings.chroma_dir, settings.pdfs_dir):
+    for path in (settings.data_dir, settings.db_path, settings.chroma_dir, settings.pdfs_dir):
         if path.resolve().is_relative_to(_REPO_DATA):
             pytest.exit(
                 f"Refusing to run tests: {path} is under the real data/ folder", returncode=2
