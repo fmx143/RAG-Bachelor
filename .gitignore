@@ -45,3 +45,5 @@ eval/reports/*
 data/*.db-wal
 data/*.db-shm
 data/*.db-journal
+*.db-wal
+*.db-shm
