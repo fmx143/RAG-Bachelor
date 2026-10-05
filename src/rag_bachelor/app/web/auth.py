@@ -61,7 +61,9 @@ async def login_submit(
     next: Annotated[str, Form()] = "/",
 ) -> Response:
     safe_next = _safe_next(next)
-    if auth_enabled() and secrets.compare_digest(password, settings.app_password.get_secret_value()):
+    if auth_enabled() and secrets.compare_digest(
+        password, settings.app_password.get_secret_value()
+    ):
         request.session["auth"] = True
         return RedirectResponse(url=safe_next, status_code=303)
     return templates.TemplateResponse(

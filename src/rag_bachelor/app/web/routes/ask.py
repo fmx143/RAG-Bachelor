@@ -39,11 +39,18 @@ async def ask_question(
         return templates.TemplateResponse(
             request,
             "partials/answer.html",
-            {"request": request, "error": "La question ne peut pas être vide.", "answer": None, "chunks": []},
+            {
+                "request": request,
+                "error": "La question ne peut pas être vide.",
+                "answer": None,
+                "chunks": [],
+            },
         )
 
     try:
-        answer, chunks = await asyncio.to_thread(answer_question, q, top_k=max(3, min(n_sources, 10)))
+        answer, chunks = await asyncio.to_thread(
+            answer_question, q, top_k=max(3, min(n_sources, 10))
+        )
     except Exception:
         # Never surface the raw exception: LLM SDK auth errors can echo back the API key.
         return templates.TemplateResponse(

@@ -50,7 +50,9 @@ async def set_provider(request: Request, provider: Annotated[str, Form()]) -> Re
     """Persist the active LLM provider (HTMX swaps #provider-panel)."""
     if provider not in _VALID_PROVIDERS:
         return templates.TemplateResponse(
-            request, "partials/provider_panel.html", _panel_ctx(request, error="Fournisseur invalide.")
+            request,
+            "partials/provider_panel.html",
+            _panel_ctx(request, error="Fournisseur invalide."),
         )
     if provider == "openai" and not cfg.openai_api_key.get_secret_value():
         return templates.TemplateResponse(

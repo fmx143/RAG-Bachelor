@@ -40,7 +40,14 @@ def test_evaluate_excludes_hors_sujet_and_by_type_breaks_down() -> None:
 
 def _write_questions(path: Path, status: str) -> Path:
     rows = [
-        {"id": "q1", "question": "alpha ?", "source": "a.pdf", "pages": [1], "status": status, "type": "lexical"}
+        {
+            "id": "q1",
+            "question": "alpha ?",
+            "source": "a.pdf",
+            "pages": [1],
+            "status": status,
+            "type": "lexical",
+        }
     ]
     path.write_text("\n".join(json.dumps(r) for r in rows))
     return path

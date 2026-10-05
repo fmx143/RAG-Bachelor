@@ -12,7 +12,7 @@ from rag_bachelor.ingest.index import get_collection
 class SearchResult:
     text: str
     source: str  # PDF filename
-    page: int    # 1-indexed page number
+    page: int  # 1-indexed page number
     score: float  # cosine similarity [0, 1], higher = more relevant
 
 
