@@ -24,9 +24,6 @@
 
   // Sensible defaults
   "containerEnv": {
-    // Mac: reach native Ollama running on your host machine (GPU-accelerated)
-    // Linux/WSL: change to http://localhost:11434
-    "OLLAMA_HOST": "http://host.docker.internal:11434",
     "HF_HOME": "/app/model_cache",
     "SENTENCE_TRANSFORMERS_HOME": "/app/model_cache"
   },

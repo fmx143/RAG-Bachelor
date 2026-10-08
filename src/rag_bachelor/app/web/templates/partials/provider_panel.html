@@ -2,19 +2,19 @@
   <div class="metric">
     <div class="metric-label">🧠 Fournisseur actif</div>
     <div class="metric-value" style="font-size:1rem; padding-top:.25rem;">
-      {% if active_provider == "openai" %}🤖 OpenAI (cloud){% else %}💻 Ollama (local){% endif %}
+      {% if active_provider == "openai" %}🤖 OpenAI (cloud){% else %}☁️ Ollama (cloud){% endif %}
     </div>
   </div>
   <div class="metric">
     <div class="metric-label">🤖 Modèle</div>
     <div class="metric-value" style="font-size:1rem; padding-top:.25rem;">
-      <code>{% if active_provider == "openai" %}{{ cfg.openai_model }}{% else %}{{ cfg.ollama_model }}{% endif %}</code>
+      <code>{% if active_provider == "openai" %}{{ models.openai }}{% else %}{{ models.ollama }}{% endif %}</code>
     </div>
   </div>
   <div class="metric">
-    <div class="metric-label">🔑 Clé OpenAI</div>
+    <div class="metric-label">🔑 Clés</div>
     <div class="metric-value" style="font-size:1rem; padding-top:.25rem;">
-      {% if openai_key_configured %}configurée ✅{% else %}absente ❌{% endif %}
+      Ollama {% if ollama_key_configured %}✅{% else %}❌{% endif %} · OpenAI {% if openai_key_configured %}✅{% else %}❌{% endif %}
     </div>
   </div>
 </div>
@@ -28,8 +28,13 @@
     <label>Choisir le fournisseur</label>
     <div style="display:flex; gap:1.5rem; margin-top:.25rem;">
       <label style="font-weight:400;">
-        <input type="radio" name="provider" value="ollama" {% if active_provider == "ollama" %}checked{% endif %}>
-        💻 Ollama (local)
+        <input type="radio" name="provider" value="ollama"
+               {% if active_provider == "ollama" %}checked{% endif %}
+               {% if not ollama_key_configured %}disabled{% endif %}>
+        ☁️ Ollama (cloud)
+        {% if not ollama_key_configured %}
+        <small style="color:var(--muted);">(définis OLLAMA_API_KEY)</small>
+        {% endif %}
       </label>
       <label style="font-weight:400;">
         <input type="radio" name="provider" value="openai"
@@ -43,4 +48,18 @@
     </div>
   </div>
   <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+</form>
+
+<form hx-post="/settings/models" hx-target="#provider-panel" hx-swap="innerHTML" style="margin-top:1rem;">
+  <div class="form-group">
+    <label for="ollama_model">Modèle Ollama (cloud)</label>
+    <input type="text" id="ollama_model" name="ollama_model" list="ollama-models"
+           value="{{ models.ollama }}" maxlength="100" required>
+  </div>
+  <div class="form-group">
+    <label for="openai_model">Modèle OpenAI</label>
+    <input type="text" id="openai_model" name="openai_model"
+           value="{{ models.openai }}" maxlength="100" required>
+  </div>
+  <button type="submit" class="btn btn-primary btn-sm">Enregistrer les modèles</button>
 </form>
