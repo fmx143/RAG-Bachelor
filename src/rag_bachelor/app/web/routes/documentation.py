@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import re
 import threading
 from pathlib import Path
@@ -67,14 +68,16 @@ def _try_start(file_total: int) -> bool:
         return True
 
 
-def _run_index_job(pdfs: list[Path]) -> None:
+def _run_index_job(pdfs: list[Path], notes: str = "") -> None:
     """Index every PDF in *pdfs*, updating _JOB after each chunk batch.
 
+    *notes* (e.g. files skipped as duplicates) is prefixed to the final message.
     Runs in FastAPI's BackgroundTasks threadpool — sync function, blocking
     calls are fine here (there is no event loop to block).
     """
     total_chunks = 0
     empty_pages: list[int] = []
+    no_text: list[str] = []
     caption_figures = vision_captioning_enabled()
     try:
         for i, pdf in enumerate(pdfs, start=1):
@@ -96,14 +99,19 @@ def _run_index_job(pdfs: list[Path]) -> None:
                 index_chunks(chunks[start : start + _BATCH])
                 _JOB["chunks_done"] = min(start + _BATCH, len(chunks))
             total_chunks += len(chunks)
+            if not chunks:
+                no_text.append(pdf.name)
 
         warning = (
             f" (pages vides ignorées : {', '.join(map(str, empty_pages))})" if empty_pages else ""
         )
+        if no_text:
+            warning += f" ⚠️ aucun texte extrait (PDF scanné ?) : {', '.join(no_text)}"
         if len(pdfs) == 1:
-            _JOB["message"] = f"✅ {pdfs[0].name} — {total_chunks} chunks indexés{warning}"
+            msg = f"✅ {pdfs[0].name} — {total_chunks} chunks indexés{warning}"
         else:
-            _JOB["message"] = f"✅ {len(pdfs)} document(s) indexés — {total_chunks} chunks au total"
+            msg = f"✅ {len(pdfs)} document(s) indexés — {total_chunks} chunks au total{warning}"
+        _JOB["message"] = f"{notes} · {msg}" if notes else msg
     except Exception as exc:  # noqa: BLE001 — surfaced to the user via the status partial
         _JOB["error"] = f"❌ Échec de l'indexation : {exc}"
     finally:
@@ -165,13 +173,27 @@ async def docs_page(request: Request) -> Response:
 @router.post("/docs/upload", response_class=HTMLResponse)
 async def upload_pdfs(
     request: Request,
+    background_tasks: BackgroundTasks,
     files: Annotated[list[UploadFile], File()],
 ) -> Response:
-    """Save uploaded PDFs to data/pdfs/ and return the refreshed doc-list."""
+    """Save new PDFs to data/pdfs/ and index them in the background.
+
+    A file whose name or content already exists is skipped (no duplicate, no overwrite).
+    """
     messages: list[str] = []
     errors: list[str] = []
+    new: list[Path] = []
 
     settings.pdfs_dir.mkdir(parents=True, exist_ok=True)
+
+    def _existing_hashes() -> dict[str, str]:
+        return {
+            hashlib.sha256(p.read_bytes()).hexdigest(): p.name
+            for p in settings.pdfs_dir.glob("*.pdf")
+        }
+
+    # ponytail: re-hashes the whole corpus on each upload; cache hashes if it grows large
+    known = await asyncio.to_thread(_existing_hashes)
     for f in files:
         # Strip path traversal, then allow only safe characters.
         # This also prevents quote/backslash injection into HTML attributes.
@@ -182,10 +204,29 @@ async def upload_pdfs(
         dest = settings.pdfs_dir / safe_name
         try:
             data = await f.read()
-            await asyncio.to_thread(dest.write_bytes, data)
-            messages.append(f"✅ {safe_name} sauvegardé")
+            digest = hashlib.sha256(data).hexdigest()
+            if dest.exists():
+                messages.append(f"⏭️ {safe_name} déjà présent, ignoré")
+            elif digest in known:
+                messages.append(f"⏭️ {safe_name} identique à {known[digest]}, ignoré")
+            else:
+                await asyncio.to_thread(dest.write_bytes, data)
+                known[digest] = safe_name
+                new.append(dest)
         except Exception as exc:
             errors.append(f"❌ {safe_name} : {exc}")
+
+    notes = " · ".join(messages)
+    if new:
+        if _try_start(len(new)):
+            background_tasks.add_task(_run_index_job, new, notes)
+            return templates.TemplateResponse(
+                request, "partials/index_progress.html", _progress_ctx(request)
+            )
+        messages.append(
+            f"⚠️ {', '.join(p.name for p in new)} sauvegardé(s) mais indexation déjà en cours : "
+            "clique « Indexer » une fois terminée"
+        )
 
     ctx: dict[str, object] = {
         "request": request,
