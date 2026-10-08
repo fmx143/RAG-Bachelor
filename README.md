@@ -9,13 +9,13 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 
 | | |
 |---|---|
-| 📚 **Document management** | Upload PDFs, index them into a local vector store, re-index or remove them |
+| 📚 **Document management** | Upload PDFs (auto-indexed, duplicates skipped) into a local vector store, re-index or remove them |
 | ❓ **Q&A with citations** | Ask anything in French, get a sourced answer with file name + page number |
 | 🔄 **Spaced repetition** | SM-2 algorithm (Anki-style) — review due cards, self-grade, auto-reschedule |
 | 🎯 **Question generation** | LLM-generated easy / medium / hard questions per topic, add them to your deck |
 | 🏦 **Question bank** | Generate a whole-document bank of free / QCM (single/multi) / Vrai-Faux questions, semantic near-duplicate filtering, filter by difficulty/type/result, auto-graded structured revision |
 | 📊 **Progress tracking** | Per-topic mastery bars, weak vs strong subject overview |
-| ⚙️ **Local-first** | Ollama Cloud or OpenAI for the LLM (provider and model chosen in Settings) — bge-m3 embeddings are always local |
+| ⚙️ **LLM & data** | Ollama Cloud or OpenAI for the LLM (provider and model chosen in Settings) — bge-m3 embeddings are always local |
 | 🔒 **Secrets via Doppler** | No API keys or passwords ever live in a `.env` file or the image — see [Configuration & sécurité](#configuration--sécurité-doppler) |
 
 ---
@@ -27,10 +27,7 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 | Python | ≥ 3.13 | Local dev |
 | Docker Desktop | any recent | VS Code Dev Container |
 | VS Code + Dev Containers extension | any | Container-based dev on Mac / WSL |
-| Ollama Cloud key | — | LLM (or an OpenAI key) |
-
-> **Mac users:** Install Ollama natively from [ollama.com](https://ollama.com/download) for GPU acceleration.  
-> Docker on Mac cannot pass the GPU through, so Ollama must run on the host.
+| Ollama Cloud key (`OLLAMA_API_KEY`) or OpenAI key | — | LLM — no local Ollama needed |
 
 ---
 
@@ -46,9 +43,9 @@ and mounts your local `data/` folder so everything persists across rebuilds.
 
 ### 2. Configure
 
-No `.env` file is needed. If you use the Ollama defaults, no configuration at all is
-required. If you want the optional OpenAI provider or the login gate, use Doppler —
-see [Configuration & sécurité (Doppler)](#configuration--sécurité-doppler) below.
+No `.env` file is needed. The LLM needs an API key (`OLLAMA_API_KEY` for Ollama Cloud
+and/or `OPENAI_API_KEY`), plus `APP_PASSWORD` if you want the login gate — provide them
+through Doppler, see [Configuration & sécurité (Doppler)](#configuration--sécurité-doppler) below.
 
 ### 3. Open in container
 
@@ -89,13 +86,13 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 # 2. Install dependencies  (~3 GB first time — includes PyTorch)
 pip install -e ".[dev]"
 
-# 3. Launch (Ollama defaults — no secrets needed)
+# 3. Launch without secrets (UI works, LLM calls fail until a key is set)
 uvicorn rag_bachelor.app.web.server:app --host 0.0.0.0 --port 8090
 # or: rag-web   (after pip install -e .)
-
-# 4. Or launch through Doppler, once you want OpenAI/auth (see next section)
-doppler run -- rag-web
 ```
+
+To get working answers, launch through Doppler so `OLLAMA_API_KEY` is injected — see
+[Local dev with Doppler](#local-dev-with-doppler) below.
 
 Open **http://localhost:8090**.
 
@@ -106,9 +103,9 @@ Open **http://localhost:8090**.
 This app takes **no `.env` file** — there is nothing to copy, and nothing sensitive
 ever lives on disk. Settings are read from real process environment variables
 (`pydantic-settings` in `config.py`), and [Doppler](https://doppler.com) is how those
-variables get there, both locally and on the NAS. With nothing configured, the app
-runs fully offline against Ollama with no login gate — Doppler is only needed once
-you want the optional OpenAI provider and/or the login gate.
+variables get there, both locally and on the NAS. Without an
+`OLLAMA_API_KEY` or `OPENAI_API_KEY` the app starts, but LLM calls (answers, questions)
+fail; without `APP_PASSWORD` there is no login gate.
 
 ### Secret names
 
@@ -125,15 +122,42 @@ you want the optional OpenAI provider and/or the login gate.
 | `POSTGRES_HOST` / `_PORT` / `_DB` / `_USER` / `_PASSWORD` | Isolated data tier (NAS) | Empty `POSTGRES_HOST` ⇒ falls back to local SQLite (`data/app.db`) |
 | `CHROMA_HOST` / `CHROMA_PORT` | Isolated data tier (NAS) | Empty `CHROMA_HOST` ⇒ falls back to the local embedded ChromaDB (`data/chroma`) |
 
-### Local dev
+### Local dev with Doppler
+
+`rag-web` is installed **inside the project venv**: activate it first, otherwise Doppler fails with
+`exec: "rag-web": executable file not found in $PATH`.
 
 ```bash
-doppler login                    # once per machine
+# Once per machine
+doppler login
 doppler setup                    # links this directory to a Doppler project/config
-doppler secrets set OPENAI_API_KEY APP_PASSWORD SESSION_SECRET   # only the ones you need
+doppler secrets set OLLAMA_API_KEY      # add OPENAI_API_KEY / APP_PASSWORD / SESSION_SECRET if needed
 
-doppler run -- rag-web           # or: doppler run -- uvicorn rag_bachelor.app.web.server:app --port 8090
+# Every session
+cd RAG-Bachelor
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+doppler run -- rag-web           # or: doppler run -- .venv/bin/rag-web (no activation needed)
 ```
+
+Then open **http://localhost:8090** and check ⚙️ Paramètres:
+
+1. The Ollama radio button is enabled (key detected) and the model field suggests the models
+   listed by ollama.com. If it stays greyed out, the key did not reach the app.
+2. Pick the provider and a model, click **Enregistrer** / **Enregistrer les modèles**.
+3. Ask a question in the **Question** tab (an indexed document is required). A wrong model
+   name shows up here as a generic error — pick a name from the list.
+
+**Trying the app without touching your real data.** By default the app reads and writes
+`data/` (PDFs, `data/chroma/`, `data/app.db`). To test on a throw-away copy, point the
+paths elsewhere; they are ordinary settings:
+
+```bash
+PDFS_DIR=/tmp/rag-test/pdfs CHROMA_DIR=/tmp/rag-test/chroma DB_PATH=/tmp/rag-test/app.db \
+  doppler run -- rag-web
+```
+
+Upload a small PDF in 📚 Documentation (it is indexed automatically), then ask a question about it.
+(`DB_PATH` applies only while `POSTGRES_HOST` is unset; `CHROMA_DIR` only while `CHROMA_HOST` is unset.)
 
 ### NAS / Docker
 
@@ -209,13 +233,18 @@ fetched from ollama.com. There is no local Ollama mode anymore.
 
 **Tab: 📚 Documentation**
 
-1. Drag and drop your PDFs onto the **upload area** — they are saved to `data/pdfs/`.
-2. Click **🔄 (Re)indexer tous les PDFs** to index everything at once,  
-   or click **Indexer** next to a single file.
-3. The chunk count updates after indexing. A warning appears for blank/image-only pages.
-4. To remove a document, click 🗑️ — it is deleted from disk **and** from the index.
+1. Drag and drop your PDFs onto the **upload area** — new files are saved to `data/pdfs/`
+   and **indexed automatically** (progress bar).
+2. A file whose **name or content** already exists is skipped with a message — no duplicate,
+   no overwrite. If an indexing job is already running, the file is saved and you click
+   **Indexer** next to it once the job is done.
+3. The chunk count updates after indexing. A warning appears for blank/image-only pages,
+   and for PDFs with no extractable text (scans).
+4. To force a re-index, click **🔄 (Re)indexer tous les PDFs**, or **Indexer** next to a file.
+5. To remove a document, click 🗑️ — it is deleted from disk **and** from the index.
 
-> **Re-indexing:** Replace a PDF and click **Indexer** — old chunks are removed automatically.
+> **Replacing a PDF:** upload skips an existing name, so delete the old file first (or
+> replace it in `data/pdfs/`), then upload / click **Indexer** — old chunks are removed automatically.
 
 > **⏱️ Indexing is slow.** Embedding runs locally on CPU with bge-m3 (568M params,
 > no GPU). Measured on a 10-core ARM container:
@@ -305,11 +334,13 @@ grade automatically — no self-assessment, no LLM call.
 
 **Tab: ⚙️ Paramètres**
 
-- View the active LLM provider (Ollama/OpenAI), its model, and whether an OpenAI key
+- View the active LLM provider (Ollama Cloud / OpenAI), its model, and whether each key
   is configured (never the key itself).
-- Toggle between Ollama and OpenAI — the choice persists across restarts. Switching to
-  OpenAI is blocked if no `OPENAI_API_KEY` is configured.
-- Change models via Doppler/env vars and restart — see [Configuration & sécurité](#configuration--sécurité-doppler).
+- Toggle between Ollama Cloud and OpenAI — the choice persists across restarts. Switching
+  to a provider is blocked if its key (`OLLAMA_API_KEY` / `OPENAI_API_KEY`) is missing.
+- Choose the **model** of each provider (persisted). The Ollama field suggests the models
+  listed by ollama.com. To compare answers, switch provider or model and ask the same question again.
+- API keys still come from Doppler/env vars — see [Configuration & sécurité](#configuration--sécurité-doppler).
 
 ---
 
@@ -337,7 +368,7 @@ RAG-Bachelor/
     ├── core/
     │   ├── embeddings.py         # BAAI/bge-m3 local embeddings
     │   ├── retriever.py          # Semantic search (cosine similarity)
-    │   ├── llm.py                # Ollama + OpenAI providers (toggle persisted in SQLite)
+    │   ├── llm.py                # Ollama Cloud + OpenAI providers (provider/model persisted)
     │   ├── qa.py                 # RAG Q&A with French system prompt + citations
     │   ├── questions.py          # Easy / medium / hard question generation (per-topic)
     │   ├── qtypes.py             # Question types (free/mcq_single/mcq_multi/tf), JSON parsing
@@ -373,7 +404,7 @@ mypy src/
 uvicorn rag_bachelor.app.web.server:app --port 8090 --reload
 ```
 
-**Changing the Ollama model:**  
+**Changing the LLM model:**  
 Pick it in ⚙️ Paramètres (persisted), or set `OLLAMA_MODEL` for the default.
 
 **Changing the embedding model:**  
@@ -412,7 +443,7 @@ Compatibility verified in production on 2026-10-04: client `chromadb` 1.5.9 (con
 | PDF extraction | PyMuPDF |
 | Embeddings | sentence-transformers + BAAI/bge-m3 (local, multilingual) |
 | Vector store | ChromaDB (persistent, embedded) |
-| LLM | Ollama qwen2.5:7b-instruct |
+| LLM | Ollama Cloud or OpenAI (chosen in Settings) |
 | Config | pydantic-settings |
 | Study DB | SQLite (stdlib) |
 | Spaced repetition | SM-2 (custom implementation) |
