@@ -1,7 +1,7 @@
 # 🎓 RAG-Bachelor — Assistant de révision local
 
 A local-first RAG study assistant for French bachelor PDF documents.  
-Ask questions about your courses, generate easy/medium/hard revision questions, and track your progress with spaced repetition — **fully offline-capable** via Ollama.
+Ask questions about your courses, generate easy/medium/hard revision questions, and track your progress with spaced repetition — LLM via Ollama Cloud or OpenAI.
 
 ---
 
@@ -15,7 +15,7 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 | 🎯 **Question generation** | LLM-generated easy / medium / hard questions per topic, add them to your deck |
 | 🏦 **Question bank** | Generate a whole-document bank of free / QCM (single/multi) / Vrai-Faux questions, semantic near-duplicate filtering, filter by difficulty/type/result, auto-graded structured revision |
 | 📊 **Progress tracking** | Per-topic mastery bars, weak vs strong subject overview |
-| ⚙️ **Local-first** | Ollama for LLM by default (fully offline, no API key needed); OpenAI available as an optional manual toggle in Settings — bge-m3 embeddings are always local |
+| ⚙️ **Local-first** | Ollama Cloud or OpenAI for the LLM (provider and model chosen in Settings) — bge-m3 embeddings are always local |
 | 🔒 **Secrets via Doppler** | No API keys or passwords ever live in a `.env` file or the image — see [Configuration & sécurité](#configuration--sécurité-doppler) |
 
 ---
@@ -27,7 +27,7 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 | Python | ≥ 3.13 | Local dev |
 | Docker Desktop | any recent | VS Code Dev Container |
 | VS Code + Dev Containers extension | any | Container-based dev on Mac / WSL |
-| Ollama | latest | Local LLM (required) |
+| Ollama Cloud key | — | LLM (or an OpenAI key) |
 
 > **Mac users:** Install Ollama natively from [ollama.com](https://ollama.com/download) for GPU acceleration.  
 > Docker on Mac cannot pass the GPU through, so Ollama must run on the host.
@@ -114,11 +114,11 @@ you want the optional OpenAI provider and/or the login gate.
 
 | Variable | Required for | Notes |
 |---|---|---|
-| `OLLAMA_HOST` | Ollama (default) | e.g. `http://host.docker.internal:11434` on Mac + Dev Container, `http://localhost:11434` locally |
-| `OLLAMA_MODEL` | Ollama (default) | e.g. `qwen2.5:7b-instruct` |
+| `OLLAMA_API_KEY` | Ollama Cloud provider | Sent as an explicit `Authorization` header; never logged or templated |
+| `OLLAMA_MODEL` | Ollama Cloud provider | Default model; the one chosen in ⚙️ Paramètres takes precedence |
 | `OPENAI_API_KEY` | Optional OpenAI provider | Only read at request time; never logged, templated, or echoed back on error |
 | `OPENAI_MODEL` | Optional OpenAI provider | e.g. `gpt-4o-mini` |
-| `DEFAULT_LLM_PROVIDER` | Optional | `ollama` (default) or `openai` — startup default; toggle in ⚙️ Paramètres overrides it afterwards |
+| `DEFAULT_LLM_PROVIDER` | Optional | `ollama` (cloud, default) or `openai` — startup default; toggle in ⚙️ Paramètres overrides it afterwards |
 | `APP_PASSWORD` | Login gate | Empty/unset ⇒ gate disabled (fine for local dev, **required** before exposing the app publicly) |
 | `SESSION_SECRET` | Login gate | Required whenever `APP_PASSWORD` is set — signs the session cookie; app refuses to start otherwise |
 | `SESSION_COOKIE_SECURE` | Login gate over HTTPS | Set `true` once served through the Cloudflare Tunnel (TLS terminates there) |
@@ -153,7 +153,7 @@ If the NAS is ever compromised, **revoke the Doppler token** from the Doppler
 dashboard — no key rotation is needed anywhere else.
 
 If `DOPPLER_TOKEN`/`DOPPLER_TOKEN_FILE` isn't set, the entrypoint starts the app
-directly without Doppler (Ollama-only, no login gate) — useful for a plain local
+directly without Doppler (no secrets, no login gate) — useful for a plain local
 `docker compose up` with no secrets involved.
 
 ### Defense in depth
@@ -195,31 +195,11 @@ Point `cloudflared` (run separately — it isn't part of this compose file) at
 
 ---
 
-## Setting up Ollama (offline / local LLM)
+## Setting up Ollama Cloud
 
-### macOS
-
-```bash
-# Install (or download from https://ollama.com/download)
-brew install ollama
-
-# Start the server
-ollama serve
-
-# Pull the model the app uses (~4.7 GB download)
-ollama pull qwen2.5:7b-instruct
-```
-
-Set `OLLAMA_HOST=http://host.docker.internal:11434` when running inside the Dev Container,
-or `http://localhost:11434` when running locally (via Doppler, or just export it directly).
-
-### Linux / WSL
-
-```bash
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull qwen2.5:7b-instruct  # ~4.7 GB download
-# OLLAMA_HOST=http://localhost:11434
-```
+Create an API key on [ollama.com](https://ollama.com), then expose it as `OLLAMA_API_KEY`
+(Doppler or environment). In ⚙️ Paramètres, pick "Ollama (cloud)" and a model from the list
+fetched from ollama.com. There is no local Ollama mode anymore.
 
 ---
 
@@ -394,7 +374,7 @@ uvicorn rag_bachelor.app.web.server:app --port 8090 --reload
 ```
 
 **Changing the Ollama model:**  
-Set `OLLAMA_MODEL` (via Doppler or your environment), then pull the model: `ollama pull <model-name>`.
+Pick it in ⚙️ Paramètres (persisted), or set `OLLAMA_MODEL` for the default.
 
 **Changing the embedding model:**  
 Set `EMBEDDING_MODEL`, delete `data/chroma/`, and re-index all PDFs.  
@@ -409,8 +389,7 @@ Vectors from different models are incompatible — re-indexing is required.
 | *"Aucun document indexé"* in Q&A tab | Go to 📚 Documentation → (Re)indexer |
 | Slow first container start | bge-m3 model downloading (~1.2 GB) — fast on subsequent starts |
 | Indexing progress bar runs for minutes | Expected — ~1.8 chunks/s on CPU, ~2 min per 150-page PDF. It runs in the background, no 524. See [Add and index your PDFs](#1--add-and-index-your-pdfs) |
-| Ollama error / no response | Run `ollama serve` and `ollama list` to check the model is pulled |
-| Dev Container can't reach Ollama on Mac | Set `OLLAMA_HOST=http://host.docker.internal:11434` |
+| Ollama error / no response | Check `OLLAMA_API_KEY` and that the model name exists in the ⚙️ Paramètres list |
 | Port 8090 already in use | Kill other uvicorn processes (`pkill -f uvicorn`), or change `--port` |
 | Blank pages not indexed | Expected — pages with no text layer are skipped with a warning |
 

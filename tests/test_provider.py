@@ -11,6 +11,7 @@ from rag_bachelor.core.llm import (
     PROVIDER_SETTING_KEY,
     OllamaProvider,
     OpenAIProvider,
+    active_model,
     get_provider,
 )
 from rag_bachelor.study import store
@@ -92,5 +93,37 @@ def test_ollama_provider_uses_configured_host_and_model() -> None:
 
         result = OllamaProvider().chat([{"role": "user", "content": "salut"}])
 
-    mock_client_cls.assert_called_once_with(host=settings.ollama_host)
+    mock_client_cls.assert_called_once_with(host=settings.ollama_host, headers=None)
     assert result == "réponse"
+
+
+def test_ollama_client_sends_explicit_bearer_when_key_configured() -> None:
+    fake_response = MagicMock()
+    fake_response.message.content = "ok"
+    with (
+        patch.object(settings, "ollama_api_key", SecretStr("ol-secret")),
+        patch("rag_bachelor.core.llm._ollama.Client") as mock_client_cls,
+    ):
+        mock_client_cls.return_value.chat.return_value = fake_response
+        OllamaProvider().chat([{"role": "user", "content": "salut"}])
+
+    mock_client_cls.assert_called_once_with(
+        host=settings.ollama_host, headers={"Authorization": "Bearer ol-secret"}
+    )
+
+
+def test_persisted_model_overrides_config_default_for_both_providers() -> None:
+    assert active_model("ollama") == settings.ollama_model
+    assert active_model("openai") == settings.openai_model
+
+    store.set_setting("ollama_model", "gpt-oss:120b")
+    store.set_setting("openai_model", "gpt-4o")
+    assert active_model("ollama") == "gpt-oss:120b"
+    assert active_model("openai") == "gpt-4o"
+
+    fake_response = MagicMock()
+    fake_response.message.content = "ok"
+    with patch("rag_bachelor.core.llm._ollama.Client") as mock_client_cls:
+        mock_client_cls.return_value.chat.return_value = fake_response
+        OllamaProvider().chat([{"role": "user", "content": "salut"}])
+    assert mock_client_cls.return_value.chat.call_args.kwargs["model"] == "gpt-oss:120b"

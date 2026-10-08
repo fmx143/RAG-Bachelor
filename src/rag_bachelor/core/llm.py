@@ -1,4 +1,4 @@
-"""LLM provider — local Ollama, or OpenAI if toggled on in Settings."""
+"""LLM provider — Ollama Cloud, or OpenAI if toggled on in Settings."""
 
 from __future__ import annotations
 
@@ -13,6 +13,19 @@ from rag_bachelor.study import store
 
 PROVIDER_SETTING_KEY = "llm_provider"
 VISION_SETTING_KEY = "vision_captioning_enabled"
+
+
+def active_model(name: str) -> str:
+    """Model for provider *name*: the one chosen in Settings, else the config default."""
+    default = settings.openai_model if name == "openai" else settings.ollama_model
+    return store.get_setting(f"{name}_model", default)
+
+
+def ollama_client() -> _ollama.Client:
+    """Client for Ollama Cloud with an explicit bearer (the lib would otherwise read the env)."""
+    key = settings.ollama_api_key.get_secret_value()
+    headers = {"Authorization": f"Bearer {key}"} if key else None
+    return _ollama.Client(host=settings.ollama_host, headers=headers)
 
 
 @runtime_checkable
@@ -34,18 +47,18 @@ class LLMProvider(Protocol):
 
 
 class OllamaProvider:
-    """Wrapper around the Ollama Python client."""
+    """Wrapper around the Ollama Python client, pointed at Ollama Cloud."""
 
     def chat(
         self, messages: list[dict[str, str]], model: str | None = None, json_mode: bool = False
     ) -> str:
-        m = model or settings.ollama_model
-        client = _ollama.Client(host=settings.ollama_host)
+        m = model or active_model("ollama")
+        client = ollama_client()
         response = client.chat(model=m, messages=messages, format="json" if json_mode else None)
         return response.message.content or ""
 
     def caption(self, image_png: bytes, prompt: str) -> str:
-        client = _ollama.Client(host=settings.ollama_host)
+        client = ollama_client()
         response = client.chat(
             model=settings.ollama_vision_model,
             messages=[{"role": "user", "content": prompt, "images": [image_png]}],
@@ -63,7 +76,7 @@ class OpenAIProvider:
     def chat(
         self, messages: list[dict[str, str]], model: str | None = None, json_mode: bool = False
     ) -> str:
-        m = model or settings.openai_model
+        m = model or active_model("openai")
         client = _OpenAI(api_key=settings.openai_api_key.get_secret_value())
         if json_mode:
             response = client.chat.completions.create(  # type: ignore[call-overload]
@@ -79,7 +92,7 @@ class OpenAIProvider:
         client = _OpenAI(api_key=settings.openai_api_key.get_secret_value())
         b64 = base64.b64encode(image_png).decode()
         response = client.chat.completions.create(
-            model=settings.openai_model,
+            model=active_model("openai"),
             messages=[
                 {
                     "role": "user",
