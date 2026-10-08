@@ -105,3 +105,30 @@ def test_second_start_while_running_does_not_restart_the_job(
     started = docs_module._try_start(1)
     assert started is False
     assert docs_module._JOB["chunks_done"] == 20  # untouched, not reset to 0
+
+
+def _upload(client: TestClient, name: str, content: bytes) -> str:
+    return client.post("/docs/upload", files={"files": (name, content, "application/pdf")}).text
+
+
+def test_upload_new_pdf_is_indexed_automatically(client: TestClient, tmp_path: Path) -> None:
+    _upload(client, "nouveau.pdf", b"%PDF-1.4 new")
+
+    assert (tmp_path / "nouveau.pdf").read_bytes() == b"%PDF-1.4 new"
+    assert sum(docs_module._batch_sizes) == _N_CHUNKS  # type: ignore[attr-defined]
+
+
+def test_upload_same_name_is_skipped_not_overwritten(client: TestClient, tmp_path: Path) -> None:
+    text = _upload(client, "cours.pdf", b"%PDF-1.4 other")
+
+    assert (tmp_path / "cours.pdf").read_bytes() == b"%PDF-1.4 fake"
+    assert "déjà présent" in text
+    assert docs_module._batch_sizes == []  # type: ignore[attr-defined]
+
+
+def test_upload_same_content_other_name_is_skipped(client: TestClient, tmp_path: Path) -> None:
+    text = _upload(client, "copie.pdf", b"%PDF-1.4 fake")
+
+    assert not (tmp_path / "copie.pdf").exists()
+    assert "identique à cours.pdf" in text
+    assert docs_module._batch_sizes == []  # type: ignore[attr-defined]
