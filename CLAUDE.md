@@ -5,8 +5,8 @@ This file stacks on top of the global `~/.claude/CLAUDE.md`.
 ## What this app does
 
 Local-first RAG study assistant for French bachelor PDFs.
-- LLM: Ollama (qwen2.5:7b-instruct, default for local dev) or OpenAI (toggle in ⚙️ Paramètres /
-  `DEFAULT_LLM_PROVIDER=openai`) — the NAS deployment runs OpenAI-only, no Ollama container
+- LLM: Ollama Cloud (`OLLAMA_API_KEY`, ollama.com) or OpenAI — provider and model per provider are
+  chosen in ⚙️ Paramètres (persisted); `DEFAULT_LLM_PROVIDER` is only the startup default. No local Ollama.
 - Embeddings: always local (bge-m3) regardless of LLM provider
 - UI: FastAPI + HTMX, 7 tabs (docs, ask, revision, generate, bank, progress, settings)
 - Study tracking: SM-2 spaced repetition, persisted to SQLite (local dev) or PostgreSQL
@@ -20,7 +20,7 @@ Local-first RAG study assistant for French bachelor PDFs.
 |---|---|
 | `src/rag_bachelor/` | All source code |
 | `src/rag_bachelor/config.py` | Pydantic-settings (single source of truth for all settings) |
-| `src/rag_bachelor/core/llm.py` | `get_provider()` — Ollama or OpenAI, per `DEFAULT_LLM_PROVIDER` / the Settings toggle |
+| `src/rag_bachelor/core/llm.py` | `get_provider()` — Ollama Cloud or OpenAI, per `DEFAULT_LLM_PROVIDER` / the Settings toggle |
 | `src/rag_bachelor/core/qtypes.py` | Question types (free/mcq_single/mcq_multi/tf), difficulty levels, tolerant LLM-JSON parsing |
 | `src/rag_bachelor/core/bank.py` | Whole-document question-bank generation, windowed LLM calls, semantic near-duplicate filtering |
 | `src/rag_bachelor/ingest/` | PDF → chunks → ChromaDB |
@@ -35,9 +35,7 @@ Local-first RAG study assistant for French bachelor PDFs.
 ## Run commands
 
 ```bash
-# Prerequisites — Ollama must be running with the model pulled
-ollama serve
-ollama pull qwen2.5:7b-instruct
+# Prerequisites — OLLAMA_API_KEY (and/or OPENAI_API_KEY) in the environment / Doppler
 
 # Local dev (no Docker)
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate

@@ -48,9 +48,11 @@ class Settings(BaseSettings):
     # ── Retrieval ─────────────────────────────────────────────────────────
     retrieval_top_k: int = 5
 
-    # ── Ollama ────────────────────────────────────────────────────────────
-    ollama_host: str = "http://localhost:11434"
-    ollama_model: str = "qwen2.5:7b-instruct"
+    # ── Ollama Cloud ──────────────────────────────────────────────────────
+    # Same SecretStr rule as the OpenAI key: only read at client construction.
+    ollama_host: str = "https://ollama.com"
+    ollama_api_key: SecretStr = SecretStr("")
+    ollama_model: str = "deepseek-v4.1-flash"  # unverified name — pick from Settings list
     ollama_vision_model: str = "llava:7b"
 
     # ── OpenAI (optional cloud provider, manual toggle in Settings) ────────
