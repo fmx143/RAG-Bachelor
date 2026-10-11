@@ -91,3 +91,22 @@ def test_migrate_retags_single_answer_mcq_multi_rows() -> None:
     store._migrate(conn)
     row = conn.execute("SELECT qtype FROM question_bank WHERE question = 'Q multi ?'").fetchone()
     assert row["qtype"] == "mcq_multi"
+
+
+def test_migrate_adds_passage_to_old_question_bank() -> None:
+    raw = sqlite3.connect(str(settings.db_path))
+    raw.execute(
+        "CREATE TABLE question_bank (id INTEGER PRIMARY KEY AUTOINCREMENT, question TEXT NOT NULL, "
+        "answer TEXT NOT NULL, difficulty TEXT NOT NULL, qtype TEXT NOT NULL DEFAULT 'free', "
+        "options TEXT, correct TEXT, source TEXT NOT NULL, pages TEXT NOT NULL, "
+        "chunk_ids TEXT NOT NULL)"
+    )
+    raw.execute(
+        "INSERT INTO question_bank (question, answer, difficulty, source, pages, chunk_ids) "
+        "VALUES ('Q ?','R.','facile','s','[1]','[\"c\"]')"
+    )
+    raw.commit()
+    raw.close()
+
+    conn = store.get_conn()
+    assert conn.execute("SELECT passage FROM question_bank").fetchone()["passage"] == ""

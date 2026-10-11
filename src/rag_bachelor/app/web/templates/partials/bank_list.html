@@ -93,6 +93,11 @@
           >❌ Faux</button>
         </div>
         {% endif %}
+        {% if q.passage %}
+        <blockquote style="margin:.75rem 0 0; padding-left:.75rem; border-left:3px solid var(--border); color:var(--muted); font-size:.9em;">
+          <strong>Dans le cours (p. {{ q.pages | join(', ') }}) :</strong> {{ q.passage }}
+        </blockquote>
+        {% endif %}
       </div>
     </details>
 

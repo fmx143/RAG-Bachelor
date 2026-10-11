@@ -236,3 +236,39 @@ def test_generate_bank_should_stop_halts_before_next_window() -> None:
 
     assert inserted == 0
     provider.chat.assert_not_called()
+
+
+def test_system_prompt_forbids_recall_of_whole_lists() -> None:
+    assert "énumérer" in bank._system_prompt("mcq_multi")
+
+
+def test_passage_picks_best_sentences_capped_at_five() -> None:
+    excerpt = (
+        "Intro sans rapport. "
+        "Le SWOT analyse les menaces et les opportunités. "
+        "Il ajoute le contexte économique de la solution. "
+        "Le contexte organisationnel compte aussi pour la solution. "
+        "Phrase finale hors sujet."
+    )
+    passage = bank._passage(excerpt, "Pourquoi le SWOT analyse le contexte de la solution ?")
+    assert passage.startswith("Le SWOT") and "hors sujet" not in passage
+    assert "Intro" not in passage
+    long_text = " ".join(f"Phrase{i} sur le contexte du projet." for i in range(10))
+    assert len(bank._passage(long_text, "contexte projet").split(". ")) <= 5
+
+
+def test_passage_empty_without_overlap() -> None:
+    assert bank._passage("Rien de commun ici.", "zèbre girafe") == ""
+
+
+def test_generated_question_stores_passage() -> None:
+    fake = {"ids": ["c.pdf__p1__c0"], "documents": ["Le SWOT liste menaces et opportunités."]}
+    reply = '{"items": [{"question": "Que liste le SWOT ?", "answer": "Menaces.", "difficulty": "facile"}]}'
+    with (
+        patch.object(bank, "get_collection") as coll,
+        patch.object(bank, "get_provider", return_value=(_mock_provider(reply), "ollama")),
+        patch.object(bank, "embed", return_value=[[1.0, 0.0]]),
+    ):
+        coll.return_value.get.return_value = fake
+        bank.generate_bank_for_source("c.pdf")
+    assert "menaces" in store.list_bank_questions(source="c.pdf")[0].passage

@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS question_bank (
     source      TEXT NOT NULL,
     pages       TEXT NOT NULL,
     chunk_ids   TEXT NOT NULL,
+    passage     TEXT NOT NULL DEFAULT '',
     card_id     INTEGER REFERENCES cards(id) ON DELETE SET NULL,
     embedding   TEXT,
     last_result INTEGER,
@@ -104,6 +105,7 @@ CREATE TABLE IF NOT EXISTS question_bank (
     source      TEXT NOT NULL,
     pages       TEXT NOT NULL,
     chunk_ids   TEXT NOT NULL,
+    passage     TEXT NOT NULL DEFAULT '',
     card_id     INTEGER REFERENCES cards(id) ON DELETE SET NULL,
     embedding   TEXT,
     last_result INTEGER,
@@ -115,14 +117,18 @@ CREATE TABLE IF NOT EXISTS question_bank (
 );
 """
 
-# Columns added to `cards` after the initial release. The CREATE TABLE IF NOT
+# Columns added to `cards` / `question_bank` after the initial release. The CREATE TABLE IF NOT
 # EXISTS above only affects brand-new databases, so existing ones (the local
 # SQLite file and the NAS Postgres) need an ALTER. Postgres has ADD COLUMN IF
 # NOT EXISTS; SQLite doesn't, so there we check PRAGMA table_info first.
-_CARD_COLUMNS_ADDED = {
-    "qtype": "TEXT NOT NULL DEFAULT 'free'",
-    "options": "TEXT",
-    "correct": "TEXT",
+_COLUMNS_ADDED = {
+    "cards": {
+        "qtype": "TEXT NOT NULL DEFAULT 'free'",
+        "options": "TEXT",
+        "correct": "TEXT",
+    },
+    # Same for `question_bank`: the supporting excerpt shown under each answer.
+    "question_bank": {"passage": "TEXT NOT NULL DEFAULT ''"},
 }
 
 
@@ -136,15 +142,16 @@ def _adapt(sql: str) -> str:
 
 
 def _migrate(conn: sqlite3.Connection | psycopg.Connection[dict[str, Any]]) -> None:
-    """Add any missing `cards` columns, and backfill stale data. Idempotent on both backends."""
-    if _use_postgres():
-        for name, decl in _CARD_COLUMNS_ADDED.items():
-            conn.execute(f"ALTER TABLE cards ADD COLUMN IF NOT EXISTS {name} {decl}")
-    else:
-        existing = {row["name"] for row in conn.execute("PRAGMA table_info(cards)")}
-        for name, decl in _CARD_COLUMNS_ADDED.items():
-            if name not in existing:
-                conn.execute(f"ALTER TABLE cards ADD COLUMN {name} {decl}")
+    """Add any missing columns, and backfill stale data. Idempotent on both backends."""
+    for table, columns in _COLUMNS_ADDED.items():
+        if _use_postgres():
+            for name, decl in columns.items():
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {name} {decl}")
+        else:
+            existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+            for name, decl in columns.items():
+                if name not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
     _retag_single_answer_multi(conn)
     conn.commit()
 
@@ -372,6 +379,7 @@ class BankQuestion:
     card_id: int | None = None  # set once added to the SRS deck
     embedding: list[float] | None = None  # used for semantic near-dup detection only
     last_result: int | None = None  # last self-test result: 1=juste, 0=faux, None=jamais tenté
+    passage: str = ""  # 1-5 sentences of the source text backing the answer ("" on old rows)
 
 
 def add_bank_questions(items: list[BankQuestion]) -> int:
@@ -382,8 +390,8 @@ def add_bank_questions(items: list[BankQuestion]) -> int:
     conn = get_conn()
     sql = _adapt(
         "INSERT INTO question_bank "
-        "(question, answer, difficulty, qtype, options, correct, source, pages, chunk_ids, embedding) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING"
+        "(question, answer, difficulty, qtype, options, correct, source, pages, chunk_ids, "
+        "passage, embedding) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING"
     )
     # ponytail: one round-trip per row — psycopg's Connection has no
     # executemany(), and a batch here is a handful of rows sitting behind a
@@ -403,6 +411,7 @@ def add_bank_questions(items: list[BankQuestion]) -> int:
                 q.source,
                 json.dumps(q.pages),
                 json.dumps(q.chunk_ids),
+                q.passage,
                 _dump_json(q.embedding),
             ),
         )
@@ -645,6 +654,7 @@ def _row_to_bank_question(row: sqlite3.Row | dict[str, Any]) -> BankQuestion:
         chunk_ids=json.loads(row["chunk_ids"]),
         card_id=row["card_id"],
         last_result=row["last_result"],
+        passage=row["passage"],
     )
 
 
