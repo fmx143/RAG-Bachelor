@@ -21,7 +21,7 @@ async def ask_page(request: Request) -> Response:
     ctx: dict[str, object] = {
         "request": request,
         "active_tab": "ask",
-        "no_docs": collection_count() == 0,
+        "no_docs": await asyncio.to_thread(collection_count) == 0,
         **sidebar_ctx(),
     }
     return templates.TemplateResponse(request, "ask.html", ctx)

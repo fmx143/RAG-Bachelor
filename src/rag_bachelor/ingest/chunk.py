@@ -61,6 +61,22 @@ def _split_text(text: str, separators: list[str], chunk_size: int, overlap: int)
     return result
 
 
+def _with_overlap(texts: list[str], overlap: int) -> list[str]:
+    """Prefix each piece with the last ~*overlap* chars of the previous one, cut at a word start.
+
+    ``_split_text`` only overlaps in its character-level fallback; this gives every
+    boundary the overlap, so an answer straddling two chunks stays retrievable.
+    """
+    out = texts[:1]
+    for prev, cur in zip(texts, texts[1:]):
+        tail = prev[-overlap:]
+        if len(prev) > overlap:
+            # The window may start mid-word: drop everything up to the first space.
+            tail = tail.partition(" ")[2]
+        out.append(f"{tail.strip()} {cur}" if tail.strip() else cur)
+    return out
+
+
 def chunk_pages(pages: list[Page]) -> list[Chunk]:
     """Convert non-empty pages into overlapping :class:`Chunk` objects."""
     chunks: list[Chunk] = []
@@ -69,10 +85,8 @@ def chunk_pages(pages: list[Page]) -> list[Chunk]:
         if page.is_empty:
             continue
 
-        texts = _split_text(
-            page.text,
-            _SEPARATORS,
-            settings.chunk_size,
+        texts = _with_overlap(
+            _split_text(page.text, _SEPARATORS, settings.chunk_size, settings.chunk_overlap),
             settings.chunk_overlap,
         )
 
