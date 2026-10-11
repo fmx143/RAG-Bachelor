@@ -28,7 +28,10 @@ WORKDIR /app
 COPY pyproject.toml .
 # Create a minimal package stub so hatchling can install in editable mode
 RUN mkdir -p src/rag_bachelor && touch src/rag_bachelor/__init__.py
-RUN pip install --no-cache-dir -e ".[dev]"
+# CPU-only torch first: the default PyPI wheel bundles CUDA (several GB) and the NAS has no GPU.
+# No [dev] extra — pytest/ruff/mypy run outside the image.
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -e .
 
 # Copy source (separate layer so dep installs aren't invalidated by code changes)
 COPY src/ src/

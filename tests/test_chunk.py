@@ -83,6 +83,15 @@ def test_empty_pages_not_chunked(tmp_path: Path) -> None:
     assert chunks == []
 
 
+def test_consecutive_chunks_overlap() -> None:
+    """Chunks split at a normal separator must still share text across the boundary."""
+    words = " ".join(f"mot{i}" for i in range(400))
+    chunks = chunk_pages([Page(source="a.pdf", page_num=1, text=words, is_empty=False)])
+    assert len(chunks) > 1
+    for prev, cur in zip(chunks, chunks[1:]):
+        assert set(prev.text.split()) & set(cur.text.split())
+
+
 def test_chunk_size_respected(sample_pdf: Path) -> None:
     """No chunk should exceed the configured chunk_size by more than one overlap."""
     from rag_bachelor.config import settings
