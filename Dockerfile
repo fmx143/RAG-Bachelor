@@ -24,6 +24,11 @@ RUN curl -sLf --retry 3 --tlsv1.2 --proto "=https" \
 
 WORKDIR /app
 
+# Embedding model cache — bge-m3 is ~1.2 GB; mount as a named volume so it
+# survives container rebuilds and is shared between dev containers.
+ENV HF_HOME=/app/model_cache
+ENV SENTENCE_TRANSFORMERS_HOME=/app/model_cache
+
 # Install deps first (cacheable layer — only rebuilds when pyproject.toml changes)
 COPY pyproject.toml .
 # Create a minimal package stub so hatchling can install in editable mode
@@ -33,6 +38,12 @@ RUN mkdir -p src/rag_bachelor && touch src/rag_bachelor/__init__.py
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir -e .
 
+# Bake the reranker (~2.2 GB) into the image so the first question doesn't download it.
+# Own layer right after the deps: code changes below don't re-trigger the download.
+# Caveat: a model_cache volume that already exists shadows this copy (Docker only seeds
+# an empty volume), so on an existing NAS volume it downloads once at first use instead.
+RUN python -c "from sentence_transformers import CrossEncoder; CrossEncoder('BAAI/bge-reranker-v2-m3', cache_folder='model_cache')"
+
 # Copy source (separate layer so dep installs aren't invalidated by code changes)
 COPY src/ src/
 COPY docker/entrypoint.sh docker/entrypoint.sh
@@ -40,11 +51,6 @@ RUN chmod +x docker/entrypoint.sh
 
 # Runtime directories (actual data is mounted as volumes — see docker-compose.yml)
 RUN mkdir -p data/pdfs data/chroma model_cache
-
-# Embedding model cache — bge-m3 is ~1.2 GB; mount as a named volume so it
-# survives container rebuilds and is shared between dev containers.
-ENV HF_HOME=/app/model_cache
-ENV SENTENCE_TRANSFORMERS_HOME=/app/model_cache
 
 EXPOSE 8090
 

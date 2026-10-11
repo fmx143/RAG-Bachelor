@@ -47,6 +47,9 @@ class Settings(BaseSettings):
 
     # ── Retrieval ─────────────────────────────────────────────────────────
     retrieval_top_k: int = 5
+    # Cross-encoder reranker (~2.2 GB, ~6 s/search on CPU); empty string disables it.
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    rerank_pool: int = 10  # fused candidates handed to the reranker
 
     # ── Ollama Cloud ──────────────────────────────────────────────────────
     # Same SecretStr rule as the OpenAI key: only read at client construction.

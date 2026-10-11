@@ -10,10 +10,10 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 | | |
 |---|---|
 | 📚 **Document management** | Upload PDFs (auto-indexed, duplicates skipped) into a local vector store, re-index or remove them |
-| ❓ **Q&A with citations** | Ask anything in French, get a sourced answer with file name + page number |
+| ❓ **Q&A with citations** | Ask anything in French, get a sourced answer with file name + page number. Retrieval is hybrid (dense bge-m3 + BM25 keywords, fused with RRF) then reranked by a cross-encoder |
 | 🔄 **Spaced repetition** | SM-2 algorithm (Anki-style) — review due cards, self-grade, auto-reschedule |
 | 🎯 **Question generation** | LLM-generated easy / medium / hard questions per topic, add them to your deck |
-| 🏦 **Question bank** | Generate a whole-document bank of free / QCM (single/multi) / Vrai-Faux questions, semantic near-duplicate filtering, filter by difficulty/type/result, auto-graded structured revision |
+| 🏦 **Question bank** | Generate a whole-document bank of free / QCM (single/multi) / Vrai-Faux questions, semantic near-duplicate filtering, short answers (1–5 sentences) with the supporting passage from the course, filter by difficulty/type/result, auto-graded structured revision |
 | 📊 **Progress tracking** | Per-topic mastery bars, weak vs strong subject overview |
 | ⚙️ **LLM & data** | Ollama Cloud or OpenAI for the LLM (provider and model chosen in Settings) — bge-m3 embeddings are always local |
 | 🔒 **Secrets via Doppler** | No API keys or passwords ever live in a `.env` file or the image — see [Configuration & sécurité](#configuration--sécurité-doppler) |
@@ -187,7 +187,7 @@ in front of the tunnel as a second layer on top of the app's own login gate. Sco
 policy to your exact email (not just "any Google account") — otherwise anyone with a Google
 login passes the 2FA check, not just you.
 
-> **Embeddings are always local** (BAAI/bge-m3) — no key needed for that part regardless.
+> **Embeddings and reranking are always local** (BAAI/bge-m3, BAAI/bge-reranker-v2-m3) — no key needed for that part regardless.
 
 ### NAS deployment topology (2-tier + Cloudflare edge)
 
@@ -271,6 +271,11 @@ fetched from ollama.com. There is no local Ollama mode anymore.
 3. Click **🔍 Obtenir une réponse**.
 4. The answer cites sources as `[fichier.pdf, p.X]`. Expand **📖 Sources utilisées** to see the raw passages.
 
+> **⏱️ Retrieval adds ~6 s per search.** Passages are found by meaning *and* by exact keywords, then
+> the 10 best are re-read by a cross-encoder reranker (bge-reranker-v2-m3, CPU). Measured on 10 validated
+> questions it moves the right page to rank 1 far more often (MRR 0.76 → 0.90). To trade accuracy for speed,
+> set `RERANKER_MODEL=` (empty) to disable it.
+
 ---
 
 ### 3 — Generate study questions
@@ -295,7 +300,8 @@ fetched from ollama.com. There is no local Ollama mode anymore.
    reached. A progress bar polls itself until the job finishes; click **Arrêter** to stop early.
 3. Near-duplicate questions are filtered out automatically via embedding similarity
    against everything already in the bank for that source.
-4. Filter the resulting list by **difficulty**, **type**, and **result** (correct /
+4. Each answer is 1–5 sentences, followed by a **« Dans le cours »** block quoting the few sentences of the course it comes from (questions generated before this feature have none — regenerate to get it).
+5. Filter the resulting list by **difficulty**, **type**, and **result** (correct /
    incorrect / untried), search by text, add individual questions (or **Tout ajouter**)
    to your revision deck, or delete selected ones.
 
@@ -367,12 +373,14 @@ RAG-Bachelor/
     │   └── index.py              # ChromaDB upsert / query helpers
     ├── core/
     │   ├── embeddings.py         # BAAI/bge-m3 local embeddings
-    │   ├── retriever.py          # Semantic search (cosine similarity)
+    │   ├── retriever.py          # Hybrid search: dense + BM25, RRF fusion, optional rerank
+    │   ├── rerank.py             # Cross-encoder reranker (BAAI/bge-reranker-v2-m3)
     │   ├── llm.py                # Ollama Cloud + OpenAI providers (provider/model persisted)
     │   ├── qa.py                 # RAG Q&A with French system prompt + citations
     │   ├── questions.py          # Easy / medium / hard question generation (per-topic)
     │   ├── qtypes.py             # Question types (free/mcq_single/mcq_multi/tf), JSON parsing
     │   └── bank.py               # Whole-document question-bank generation + semantic dedup
+    ├── eval/                     # rag-eval: recall@k / MRR on eval/questions.jsonl
     ├── study/
     │   ├── srs.py                # SM-2 spaced-repetition algorithm
     │   ├── store.py              # SQLite/PostgreSQL persistence (cards + reviews + question_bank)
@@ -391,8 +399,11 @@ RAG-Bachelor/
 ## Development
 
 ```bash
-# Run tests (91 tests)
+# Run tests
 pytest
+
+# Score retrieval on the validated questions (use a COPY of the index: CHROMA_DIR=/tmp/chroma-copy)
+rag-eval --out /tmp/report.json [--compare previous.json]
 
 # Lint
 ruff check src/ tests/
@@ -418,7 +429,7 @@ Vectors from different models are incompatible — re-indexing is required.
 | Symptom | Fix |
 |---|---|
 | *"Aucun document indexé"* in Q&A tab | Go to 📚 Documentation → (Re)indexer |
-| Slow first container start | bge-m3 model downloading (~1.2 GB) — fast on subsequent starts |
+| Slow first container start | bge-m3 model downloading (~1.2 GB) — fast on subsequent starts. The reranker (~2.2 GB) is baked into the image; if your `model_cache` volume already existed before it was added, it is downloaded once at first question instead |
 | Indexing progress bar runs for minutes | Expected — ~1.8 chunks/s on CPU, ~2 min per 150-page PDF. It runs in the background, no 524. See [Add and index your PDFs](#1--add-and-index-your-pdfs) |
 | Ollama error / no response | Check `OLLAMA_API_KEY` and that the model name exists in the ⚙️ Paramètres list |
 | Port 8090 already in use | Kill other uvicorn processes (`pkill -f uvicorn`), or change `--port` |
@@ -442,6 +453,7 @@ Compatibility verified in production on 2026-10-04: client `chromadb` 1.5.9 (con
 | UI | FastAPI + Jinja2 + HTMX |
 | PDF extraction | PyMuPDF |
 | Embeddings | sentence-transformers + BAAI/bge-m3 (local, multilingual) |
+| Retrieval | Dense + BM25 (in-memory) fused with RRF, then BAAI/bge-reranker-v2-m3 cross-encoder |
 | Vector store | ChromaDB (persistent, embedded) |
 | LLM | Ollama Cloud or OpenAI (chosen in Settings) |
 | Config | pydantic-settings |
