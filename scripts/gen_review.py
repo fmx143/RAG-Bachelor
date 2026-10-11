@@ -3,13 +3,15 @@
 Overlap = share of the question's content words (lowercased, French stopwords and
 1-letter tokens dropped, U+00AD removed) found in the text of its expected page(s).
 High overlap = question probably copied from the page. Read-only on data/pdfs and
-eval/questions.jsonl; run from the repo root: ``python scripts/gen_review.py``.
+eval/questions.jsonl; run from the repo root: ``python scripts/gen_review.py [CATEGORY]``.
+With CATEGORY, only questions whose ``category`` field equals it are listed.
 """
 
 from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -74,6 +76,8 @@ def main() -> None:
     qs = [
         json.loads(line) for line in Path("eval/questions.jsonl").read_text().splitlines() if line
     ]
+    if len(sys.argv) > 1:
+        qs = [q for q in qs if q.get("category") == sys.argv[1]]
     on = [q for q in qs if q.get("type") != "hors_sujet"]
     off = [q for q in qs if q.get("type") == "hors_sujet"]
     scored = sorted(
