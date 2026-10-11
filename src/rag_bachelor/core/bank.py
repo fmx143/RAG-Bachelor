@@ -48,11 +48,22 @@ def _system_prompt(qtype: str) -> str:
         f"- « moyen » : {_DIFFICULTY_BRIEF['moyen']} ;\n"
         f"- « difficile » : {_DIFFICULTY_BRIEF['difficile']}.\n"
         "Chaque question doit être entièrement justifiée par l'extrait.\n"
+        "Le champ « answer » tient en 1 à 5 phrases : uniquement ce qui répond à la question, "
+        "sans reprendre le contexte de l'extrait.\n"
+        "Ne demande jamais d'énumérer ou de citer de mémoire tous les éléments d'une liste "
+        "(« Quels sont les N… ? » en réponse libre) : en texte libre, interroge un seul "
+        "élément de la liste ; en QCM à plusieurs réponses, prends des éléments réels de la "
+        "liste comme bonnes réponses et des éléments plausibles absents de l'extrait comme "
+        "mauvaises réponses.\n"
         "Réponds UNIQUEMENT avec un JSON valide de cette forme exacte :\n"
         f'{{"items": [ {item_schema_instructions(qtype)} , ... (3 items, une par difficulté) ]}}\n'
         "N'ajoute aucun texte, commentaire ou balise Markdown en dehors du JSON."
     )
 
+
+_MAX_PASSAGE_SENTENCES = 5
+_SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
+_WORD_RE = re.compile(r"\w{4,}")  # length filter stands in for a French stopword list
 
 # Chroma IDs follow {source}__p{page}__c{index} (see ingest/index.py).
 _ID_RE = re.compile(r"__p(\d+)__c(\d+)$")
@@ -83,6 +94,32 @@ def get_source_chunks(source: str) -> list[SourceChunk]:
         chunks.append(SourceChunk(chunk_id, int(m.group(1)), int(m.group(2)), text or ""))
     chunks.sort(key=lambda c: (c.page, c.index))
     return chunks
+
+
+def _passage(excerpt: str, query: str) -> str:
+    """Return the 1-5 consecutive sentences of *excerpt* that best match *query*.
+
+    Chosen by code, never by the LLM (same rule as the page references): start from
+    the sentence sharing the most words with *query*, then grow to the neighbour
+    that still shares words, up to ``_MAX_PASSAGE_SENTENCES``. Returns ``""`` when
+    nothing overlaps.
+    """
+    sentences = _SENTENCE_RE.split(" ".join(excerpt.replace("\u00ad", "").split()))
+    wanted = set(_WORD_RE.findall(query.lower()))
+    scores = [len(wanted & set(_WORD_RE.findall(s.lower()))) for s in sentences]
+    if not any(scores):
+        return ""
+    lo = hi = scores.index(max(scores))
+    while hi - lo + 1 < _MAX_PASSAGE_SENTENCES:
+        left = scores[lo - 1] if lo > 0 else 0
+        right = scores[hi + 1] if hi + 1 < len(scores) else 0
+        if not (left or right):
+            break
+        if left >= right:
+            lo -= 1
+        else:
+            hi += 1
+    return " ".join(sentences[lo : hi + 1])
 
 
 # ── Generation ─────────────────────────────────────────────────────────────────
@@ -162,6 +199,7 @@ def generate_bank_for_source(
                     options=item["options"],
                     correct=item["correct"],
                     embedding=vec,
+                    passage=_passage(excerpt, f"{item['question']} {item['answer']}"),
                 )
             )
             existing_vecs.append(vec)
