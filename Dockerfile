@@ -38,19 +38,28 @@ RUN mkdir -p src/rag_bachelor && touch src/rag_bachelor/__init__.py
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir -e .
 
+# Non-root runtime user (fixed UID). Only the dirs the app writes to are its own;
+# created before the reranker download so the 2.2 GB layer isn't duplicated by a chown -R.
+RUN useradd --system --uid 10001 --no-create-home app \
+    && mkdir -p data/pdfs data/chroma model_cache \
+    && chown app:app data data/pdfs data/chroma model_cache
+
 # Bake the reranker (~2.2 GB) into the image so the first question doesn't download it.
 # Own layer right after the deps: code changes below don't re-trigger the download.
+# Downloaded as `app` so the HF cache stays writable for bge-m3 at first use.
 # Caveat: a model_cache volume that already exists shadows this copy (Docker only seeds
 # an empty volume), so on an existing NAS volume it downloads once at first use instead.
+USER 10001
 RUN python -c "from sentence_transformers import CrossEncoder; CrossEncoder('BAAI/bge-reranker-v2-m3', cache_folder='model_cache')"
 
-# Copy source (separate layer so dep installs aren't invalidated by code changes)
+# Copy source (separate layer so dep installs aren't invalidated by code changes).
+# Root-owned on purpose: the app can read its code but not rewrite it.
+USER root
 COPY src/ src/
 COPY docker/entrypoint.sh docker/entrypoint.sh
 RUN chmod +x docker/entrypoint.sh
 
-# Runtime directories (actual data is mounted as volumes — see docker-compose.yml)
-RUN mkdir -p data/pdfs data/chroma model_cache
+USER 10001
 
 EXPOSE 8090
 
