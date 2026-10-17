@@ -15,7 +15,7 @@ services:
   app:
     build: .
     ports:
-      - "8090:8090"
+      - "127.0.0.1:8090:8090" # localhost only: cloudflared is the sole way in (no LAN bypass of Access)
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
@@ -37,6 +37,13 @@ services:
       - default
       - data_tier
     restart: unless-stopped
+    cap_drop: [ALL] # non-root on port 8090: needs no Linux capabilities
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    deploy:
+      resources:
+        limits:
+          memory: 6G # bge-m3 + bge-reranker + torch ≈ 5 GB resident; tune to the NAS RAM
 
   postgres:
     image: postgres:16-alpine
@@ -49,6 +56,12 @@ services:
     networks:
       - data_tier
     restart: unless-stopped
+    # Entrypoint starts as root then drops to `postgres`, so no cap_drop: [ALL] without testing.
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     # No "ports:" — unreachable from the LAN or the internet, only from `app`.
 
   chroma:
@@ -62,6 +75,11 @@ services:
     networks:
       - data_tier
     restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     # No "ports:" — same isolation as postgres.
 
 networks:
