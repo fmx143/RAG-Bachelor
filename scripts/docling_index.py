@@ -23,6 +23,20 @@ _SEPARATORS = ["\n\n", "\n", ". ", " "]
 _BATCH = 64
 
 
+def _table_pieces(table: str, size: int) -> list[str]:
+    """Split a markdown table by rows into ≤ *size* pieces, each repeating the header rows."""
+    if len(table) <= size:
+        return [table]
+    lines = table.splitlines()
+    head, pieces, cur = "\n".join(lines[:2]), [], ""
+    for row in lines[2:]:
+        if cur and len(head) + len(cur) + len(row) + 2 > size:
+            pieces.append(f"{head}\n{cur}")
+            cur = ""
+        cur = f"{cur}\n{row}" if cur else row
+    return [*pieces, f"{head}\n{cur}"] if cur else pieces or [table]
+
+
 def section_chunks(items: list[Item], source: str) -> list[Chunk]:
     """Pack each section's paragraphs into ≤ chunk_size chunks prefixed by the section title.
 
@@ -32,11 +46,15 @@ def section_chunks(items: list[Item], source: str) -> list[Chunk]:
     size, overlap = settings.chunk_size, settings.chunk_overlap
     chunks: list[Chunk] = []
     title = ""
-    body: list[tuple[str, int]] = []  # (paragraph, page) of the current section
+    body: list[tuple[str, str, int]] = []  # (label, paragraph, page) of the current section
 
-    def flush() -> None:
+    def emit(text: str, page: int) -> None:
+        text = f"{title}\n{text.strip()}" if title else text.strip()
+        chunks.append(Chunk(text=text, source=source, page_num=page, chunk_index=len(chunks)))
+
+    def emit_prose(run: list[tuple[str, int]]) -> None:
         packed: list[tuple[str, int]] = []
-        for para, page in body:
+        for para, page in run:
             if packed and len(packed[-1][0]) + 2 + len(para) <= size:
                 packed[-1] = (f"{packed[-1][0]}\n\n{para}", packed[-1][1])
             elif len(para) > size:
@@ -45,8 +63,20 @@ def section_chunks(items: list[Item], source: str) -> list[Chunk]:
                 packed.append((para, page))
         pieces = _with_overlap([p for p, _ in packed], overlap)
         for piece, (_, page) in zip(pieces, packed, strict=True):
-            text = f"{title}\n{piece.strip()}" if title else piece.strip()
-            chunks.append(Chunk(text=text, source=source, page_num=page, chunk_index=len(chunks)))
+            emit(piece, page)
+
+    def flush() -> None:
+        # Tables are standalone chunks: no packing with prose, no overlap (it cuts rows).
+        run: list[tuple[str, int]] = []
+        for label, para, page in body:
+            if label == "table":
+                emit_prose(run)
+                run = []
+                for piece in _table_pieces(para, size):
+                    emit(piece, page)
+            else:
+                run.append((para, page))
+        emit_prose(run)
         body.clear()
 
     for (label, _, page), text in zip(items, texts, strict=True):
@@ -56,7 +86,7 @@ def section_chunks(items: list[Item], source: str) -> list[Chunk]:
             flush()
             title = text
         else:
-            body.append((text, page))
+            body.append((label, text, page))
     flush()
     return chunks
 
@@ -87,6 +117,7 @@ def docling_items(pdf: Path, cache: Path | None) -> list[Item]:
         if isinstance(it, TableItem):
             # Drop markdown column padding: it can triple a table past chunk_size.
             text = re.sub(r" {2,}", " ", it.export_to_markdown(doc=doc))
+            text = re.sub(r"-{4,}", "---", text)
         elif isinstance(it, TextItem):
             text = it.text
         else:  # pictures: no text layer worth indexing
