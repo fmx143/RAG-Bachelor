@@ -1,3 +1,10 @@
+// Range inputs mirror their value into the element named by data-output
+// (replaces inline oninput handlers, which the CSP forbids).
+document.addEventListener("input", (e) => {
+  const out = e.target.dataset && e.target.dataset.output;
+  if (out) document.getElementById(out).textContent = e.target.value;
+});
+
 // Mobile sidebar toggle — no framework, plain DOM (see CLAUDE.md: no CDN deps).
 (() => {
   const btn = document.getElementById("nav-toggle-btn");

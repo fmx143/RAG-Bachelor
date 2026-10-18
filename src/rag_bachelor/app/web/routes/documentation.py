@@ -34,6 +34,11 @@ router = APIRouter()
 # to lose the batching benefit in embeddings.py.
 _BATCH = 16
 
+# Course books are ~40 MB; the cap stays well under the container's 512 MB /tmp tmpfs,
+# where uploads are spooled.
+_MAX_UPLOAD_MB = 150
+_MAX_UPLOAD_BYTES = _MAX_UPLOAD_MB * 1024 * 1024
+
 # Single in-process indexing job. Safe without extra locking around field
 # reads/writes (GIL + single uvicorn worker, no --workers — see docker-compose.yml);
 # the lock only guards the check-and-set at job start so two POSTs can't both start.
@@ -212,9 +217,17 @@ async def upload_pdfs(
             safe_name += ".pdf"
         dest = settings.pdfs_dir / safe_name
         try:
+            # Size first, from the spooled file, before loading it into memory.
+            if (f.size or 0) > _MAX_UPLOAD_BYTES:
+                errors.append(f"❌ {safe_name} : fichier trop volumineux (> {_MAX_UPLOAD_MB} Mo)")
+                continue
             data = await f.read()
             digest = hashlib.sha256(data).hexdigest()
-            if dest.exists():
+            if len(data) > _MAX_UPLOAD_BYTES:
+                errors.append(f"❌ {safe_name} : fichier trop volumineux (> {_MAX_UPLOAD_MB} Mo)")
+            elif not data.startswith(b"%PDF-"):
+                errors.append(f"❌ {safe_name} : ce n'est pas un PDF")
+            elif dest.exists():
                 messages.append(f"⏭️ {safe_name} déjà présent, ignoré")
             elif digest in known:
                 messages.append(f"⏭️ {safe_name} identique à {known[digest]}, ignoré")

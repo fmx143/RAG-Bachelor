@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import logging
 import secrets
+import time
+from collections import deque
 from typing import Annotated
 
 from fastapi import APIRouter, Form, Request
@@ -24,6 +26,19 @@ logger = logging.getLogger(__name__)
 _ALLOWED_PREFIXES = ("/login", "/static")
 
 router = APIRouter()
+
+# Brute-force guard. Global, not per IP: behind cloudflared every request comes from the
+# same local address. ponytail: a flood of bad guesses also locks the owner out for up to
+# a minute — acceptable for a single-user app that sits behind Cloudflare Access.
+_MAX_FAILURES = 5
+_WINDOW_S = 60.0
+_failures: deque[float] = deque()
+
+
+def _locked_out(now: float) -> bool:
+    while _failures and now - _failures[0] > _WINDOW_S:
+        _failures.popleft()
+    return len(_failures) >= _MAX_FAILURES
 
 
 def auth_enabled() -> bool:
@@ -61,11 +76,26 @@ async def login_submit(
     next: Annotated[str, Form()] = "/",
 ) -> Response:
     safe_next = _safe_next(next)
+    now = time.monotonic()
+    if _locked_out(now):
+        logger.warning("Login bloqué : trop d'échecs récents.")
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {
+                "request": request,
+                "error": "Trop de tentatives. Réessaie dans une minute.",
+                "next": safe_next,
+            },
+            status_code=429,
+        )
     if auth_enabled() and secrets.compare_digest(
-        password, settings.app_password.get_secret_value()
+        password.encode(), settings.app_password.get_secret_value().encode()
     ):
+        request.session.clear()  # fresh session on privilege change
         request.session["auth"] = True
         return RedirectResponse(url=safe_next, status_code=303)
+    _failures.append(now)
     return templates.TemplateResponse(
         request,
         "login.html",

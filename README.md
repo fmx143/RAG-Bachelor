@@ -10,6 +10,7 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 | | |
 |---|---|
 | 📚 **Document management** | Upload PDFs (auto-indexed, duplicates skipped) into a local vector store, re-index or remove them |
+| 🧩 **Layout-aware indexing** | Docling's layout model recovers section titles and table structure: each chunk is prefixed by its section title, never spans a page break, and tables are indexed row by row with their header repeated |
 | ❓ **Q&A with citations** | Ask anything in French, get a sourced answer with file name + page number. Retrieval is hybrid (dense bge-m3 + BM25 keywords, fused with RRF) then reranked by a cross-encoder |
 | 🔄 **Spaced repetition** | SM-2 algorithm (Anki-style) — review due cards, self-grade, auto-reschedule |
 | 🎯 **Question generation** | LLM-generated easy / medium / hard questions per topic, add them to your deck |
@@ -217,6 +218,20 @@ doppler run -- docker compose up -d --build
 Point `cloudflared` (run separately — it isn't part of this compose file) at
 `http://localhost:8090`.
 
+### Container hardening
+
+- **Multi-stage build** — compilers, `gnupg` and `curl` stay in the build stage; the runtime
+  image only gets the venv and the Doppler binary. `.dockerignore` is an allow-list
+  (`pyproject.toml`, `src/`, `docker/`): `.git`, `data/`, PDFs and any local secret never
+  enter the build context.
+- **Non-root** (UID 10001), application code owned by root (readable, not writable).
+- **Read-only root filesystem**, writes only to the named volumes and a size-capped `/tmp` tmpfs.
+- **`cap_drop: [ALL]`** + `no-new-privileges` on every service (Postgres keeps only the
+  capabilities its entrypoint needs), `pids_limit` and memory limits.
+- **Port published on `127.0.0.1` only** — `cloudflared` is the sole way in, no LAN bypass
+  of Cloudflare Access.
+- Chroma server image **pinned by digest**.
+
 ---
 
 ## Setting up Ollama Cloud
@@ -246,14 +261,14 @@ fetched from ollama.com. There is no local Ollama mode anymore.
 > **Replacing a PDF:** upload skips an existing name, so delete the old file first (or
 > replace it in `data/pdfs/`), then upload / click **Indexer** — old chunks are removed automatically.
 
-> **⏱️ Indexing is slow.** Embedding runs locally on CPU with bge-m3 (568M params,
-> no GPU). Measured on a 10-core ARM container:
+> **⏱️ Indexing is slow.** Everything runs locally on CPU (no GPU): Docling's layout
+> analysis first, then bge-m3 embeddings (568M params). Measured on a 10-core ARM container:
 >
 > | | |
 > |---|---|
-> | Throughput | ~1.8 chunks/s |
-> | A 150-page PDF (~250 chunks) | ~2 min |
-> | 4 PDFs (~530 chunks total) | ~5 min |
+> | Docling layout analysis | ~6.5 min per book |
+> | Embedding throughput | ~1.8 chunks/s (~2 min for 250 chunks) |
+> | First indexing only | + download of the Docling models (~700 MB, into `model_cache/docling`) |
 >
 > Indexing runs in the background: the click returns immediately and a progress
 > bar (file N/M, chunks done/total) polls every 2 s until it finishes — safe behind
@@ -356,11 +371,16 @@ grade automatically — no self-assessment, no LLM call.
 RAG-Bachelor/
 ├── .devcontainer/
 │   └── devcontainer.json         # VS Code Dev Container (builds from Dockerfile)
-├── Dockerfile                    # App image — Python 3.13 + all deps + Doppler CLI
+├── Dockerfile                    # Multi-stage, non-root app image — Python 3.13 + deps + Doppler CLI
+├── docker-compose.yml            # NAS: app + isolated postgres/chroma data tier
 ├── docker/entrypoint.sh          # doppler run -- wrapper (falls back to no-Doppler for local dev)
 ├── pyproject.toml                # Python dependencies + tool config
+├── eval/questions.jsonl          # Retrieval eval questions (rag-eval)
+├── scripts/                      # docling_index.py (scratch index), gen_review.py (eval review)
+├── docs/                         # Specs (eval) and audit notes
+├── tests/                        # pytest suite
 │
-├── data/
+├── data/                         # Local dev only, not tracked in git
 │   ├── pdfs/                     # ← Drop your PDF files here
 │   ├── chroma/                   # Vector index (auto-created on first index)
 │   └── app.db                    # SQLite study DB (auto-created)
@@ -368,8 +388,10 @@ RAG-Bachelor/
 └── src/rag_bachelor/
     ├── config.py                 # All settings (pydantic-settings)
     ├── ingest/
-    │   ├── extract.py            # PyMuPDF → pages + empty-page detection
+    │   ├── layout.py             # Docling conversion + section-based chunks, tables split by row
+    │   ├── extract.py            # PyMuPDF → page images, empty/figure pages, text cleanup
     │   ├── chunk.py              # Recursive text splitter (~900 chars, 150 overlap)
+    │   ├── vision.py             # Optional LLM captions of figure pages (⚙️ toggle)
     │   └── index.py              # ChromaDB upsert / query helpers
     ├── core/
     │   ├── embeddings.py         # BAAI/bge-m3 local embeddings
@@ -430,7 +452,7 @@ Vectors from different models are incompatible — re-indexing is required.
 |---|---|
 | *"Aucun document indexé"* in Q&A tab | Go to 📚 Documentation → (Re)indexer |
 | Slow first container start | bge-m3 model downloading (~1.2 GB) — fast on subsequent starts. The reranker (~2.2 GB) is baked into the image; if your `model_cache` volume already existed before it was added, it is downloaded once at first question instead |
-| Indexing progress bar runs for minutes | Expected — ~1.8 chunks/s on CPU, ~2 min per 150-page PDF. It runs in the background, no 524. See [Add and index your PDFs](#1--add-and-index-your-pdfs) |
+| Indexing progress bar runs for minutes | Expected — Docling layout analysis (~6.5 min per book on CPU) then embeddings at ~1.8 chunks/s. It runs in the background, no 524. See [Add and index your PDFs](#1--add-and-index-your-pdfs) |
 | Ollama error / no response | Check `OLLAMA_API_KEY` and that the model name exists in the ⚙️ Paramètres list |
 | Port 8090 already in use | Kill other uvicorn processes (`pkill -f uvicorn`), or change `--port` |
 | Blank pages not indexed | Expected — pages with no text layer are skipped with a warning |
@@ -451,11 +473,12 @@ Compatibility verified in production on 2026-10-04: client `chromadb` 1.5.9 (con
 | Concern | Choice |
 |---|---|
 | UI | FastAPI + Jinja2 + HTMX |
-| PDF extraction | PyMuPDF |
+| PDF extraction | Docling (layout + tables, no re-OCR); PyMuPDF for page images and cleanup |
 | Embeddings | sentence-transformers + BAAI/bge-m3 (local, multilingual) |
 | Retrieval | Dense + BM25 (in-memory) fused with RRF, then BAAI/bge-reranker-v2-m3 cross-encoder |
-| Vector store | ChromaDB (persistent, embedded) |
+| Vector store | ChromaDB — embedded locally, standalone server on the NAS (`CHROMA_HOST`) |
 | LLM | Ollama Cloud or OpenAI (chosen in Settings) |
 | Config | pydantic-settings |
-| Study DB | SQLite (stdlib) |
+| Study DB | SQLite locally, PostgreSQL on the NAS (`POSTGRES_HOST`) |
+| Secrets | Doppler (no `.env`) |
 | Spaced repetition | SM-2 (custom implementation) |

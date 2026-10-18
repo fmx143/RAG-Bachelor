@@ -10,12 +10,12 @@ Or via the installed script:
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -62,8 +62,11 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
 app = FastAPI(
     title="Assistant Révision — RAG Bachelor",
     lifespan=_lifespan,
-    docs_url="/api-docs",
-    redoc_url="/api-redoc",
+    # No Swagger/ReDoc/OpenAPI schema: the HTMX UI doesn't use them, and Swagger loads
+    # from a CDN that the CSP below would block anyway.
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
 # ── Middleware (order matters: SessionMiddleware must wrap AuthMiddleware so
@@ -85,6 +88,29 @@ app.add_middleware(
     https_only=cfg.session_cookie_secure,
     same_site="lax",
 )
+
+# Added last ⇒ outermost: also covers AuthMiddleware's redirects.
+_SECURITY_HEADERS = {
+    # 'unsafe-inline' for styles only (templates use style="" attributes); no inline JS.
+    "Content-Security-Policy": (
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; "
+        "frame-ancestors 'none'"
+    ),
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "same-origin",
+}
+
+
+@app.middleware("http")
+async def _security_headers(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    response = await call_next(request)
+    response.headers.update(_SECURITY_HEADERS)
+    return response
+
 
 # ── Static files ───────────────────────────────────────────────────────────────
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")

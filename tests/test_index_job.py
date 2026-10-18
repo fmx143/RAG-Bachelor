@@ -134,3 +134,20 @@ def test_upload_same_content_other_name_is_skipped(client: TestClient, tmp_path:
     assert not (tmp_path / "copie.pdf").exists()
     assert "identique à cours.pdf" in text
     assert docs_module._batch_sizes == []  # type: ignore[attr-defined]
+
+
+def test_upload_non_pdf_content_is_rejected(client: TestClient, tmp_path: Path) -> None:
+    text = _upload(client, "piege.pdf", b"<html>not a pdf</html>")
+
+    assert not (tmp_path / "piege.pdf").exists()
+    assert "pas un PDF" in text
+
+
+def test_upload_too_large_is_rejected(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(docs_module, "_MAX_UPLOAD_BYTES", 10)
+    text = _upload(client, "gros.pdf", b"%PDF-1.4 bigger than ten bytes")
+
+    assert not (tmp_path / "gros.pdf").exists()
+    assert "trop volumineux" in text

@@ -33,6 +33,7 @@ def _build_app() -> FastAPI:
 @pytest.fixture
 def auth_enabled_client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     monkeypatch.setattr(settings, "app_password", SecretStr(_PASSWORD))
+    auth._failures.clear()
     with TestClient(_build_app()) as client:
         yield client
 
@@ -110,3 +111,16 @@ def test_protocol_relative_next_is_blocked(auth_enabled_client: TestClient) -> N
 def test_login_password_never_echoed_in_error_response(auth_enabled_client: TestClient) -> None:
     resp = auth_enabled_client.post("/login", data={"password": "some-guess", "next": "/"})
     assert "some-guess" not in resp.text
+
+
+def test_login_locks_out_after_repeated_failures(auth_enabled_client: TestClient) -> None:
+    for _ in range(auth._MAX_FAILURES):
+        auth_enabled_client.post("/login", data={"password": "wrong", "next": "/"})
+    # Even the right password is refused while locked out.
+    resp = auth_enabled_client.post("/login", data={"password": _PASSWORD, "next": "/"})
+    assert resp.status_code == 429
+
+
+def test_non_ascii_password_is_rejected_not_crashing(auth_enabled_client: TestClient) -> None:
+    resp = auth_enabled_client.post("/login", data={"password": "mötdepasse", "next": "/"})
+    assert resp.status_code == 401

@@ -49,7 +49,7 @@
         id="gen_count"
         name="count"
         min="{{ min_target }}" max="{{ max_target }}" step="5" value="{{ default_target }}"
-        oninput="document.getElementById('gen-count-val').textContent = this.value"
+        data-output="gen-count-val"
       >
     </div>
     <button type="submit" class="btn btn-primary">✨ Générer la banque complète</button>
