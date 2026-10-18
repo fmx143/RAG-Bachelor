@@ -15,7 +15,7 @@ docling_index = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(docling_index)
 
 
-def test_section_chunks_split_on_headers_and_keep_first_page() -> None:
+def test_section_chunks_split_on_headers_and_page_breaks() -> None:
     table = "| a | b |\n|---|---|\n| X |   |"
     items = [
         ("section_header", "1.1 Résultats", 10),
@@ -27,11 +27,12 @@ def test_section_chunks_split_on_headers_and_keep_first_page() -> None:
     chunks = docling_index.section_chunks(items, "livre.pdf")
 
     assert [c.text for c in chunks] == [
-        "1.1 Résultats\nLes résultats sont la finalité.\n\n• leur rentabilité.",
+        "1.1 Résultats\nLes résultats sont la finalité.",
+        "1.1 Résultats\nLes résultats sont la finalité. • leur rentabilité.",
         f"1.2 Rôles\n{table}",
     ]
-    assert [c.page_num for c in chunks] == [10, 12]
-    assert [c.chunk_index for c in chunks] == [0, 1]
+    assert [c.page_num for c in chunks] == [10, 11, 12]
+    assert [c.chunk_index for c in chunks] == [0, 1, 2]
 
 
 def test_long_table_split_by_rows_repeats_header(monkeypatch: pytest.MonkeyPatch) -> None:

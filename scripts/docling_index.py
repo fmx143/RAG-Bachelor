@@ -40,7 +40,7 @@ def _table_pieces(table: str, size: int) -> list[str]:
 def section_chunks(items: list[Item], source: str) -> list[Chunk]:
     """Pack each section's paragraphs into ≤ chunk_size chunks prefixed by the section title.
 
-    A chunk's page is the page of its first paragraph (eval scores at page granularity).
+    Prose chunks never span a page break, so each cites exactly the page it comes from.
     """
     texts = clean_pages([t.replace("\xad ", "") for _, t, _ in items])
     size, overlap = settings.chunk_size, settings.chunk_overlap
@@ -55,7 +55,8 @@ def section_chunks(items: list[Item], source: str) -> list[Chunk]:
     def emit_prose(run: list[tuple[str, int]]) -> None:
         packed: list[tuple[str, int]] = []
         for para, page in run:
-            if packed and len(packed[-1][0]) + 2 + len(para) <= size:
+            # Never pack across a page break: a chunk cites one page (eval is page-level).
+            if packed and packed[-1][1] == page and len(packed[-1][0]) + 2 + len(para) <= size:
                 packed[-1] = (f"{packed[-1][0]}\n\n{para}", packed[-1][1])
             elif len(para) > size:
                 packed.extend((p, page) for p in _split_text(para, _SEPARATORS, size, overlap))
