@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html as html_lib
+import re
 from pathlib import Path
 from urllib.parse import quote
 
@@ -16,10 +17,22 @@ _HERE = Path(__file__).parent
 templates = Jinja2Templates(directory=str(_HERE / "templates"))
 
 
+_IMG_TAG = re.compile(r"<img\b[^>]*>")
+_HREF = re.compile(r'href="([^"]*)"')
+
+
+def _safe_href(m: re.Match[str]) -> str:
+    url = m.group(1)
+    return m.group(0) if url.startswith(("http://", "https://", "#")) else 'href="#"'
+
+
 def _md_filter(text: str) -> Markup:
+    """Render LLM markdown. The text is untrusted (a PDF can inject instructions into
+    the answer): raw HTML is escaped, images are dropped (an <img> loads with no click,
+    i.e. can exfiltrate data to any URL) and links keep only http(s)/# targets."""
     escaped = html_lib.escape(text, quote=False)
     rendered = md_lib.markdown(escaped, extensions=["nl2br", "fenced_code"])
-    return Markup(rendered)
+    return Markup(_HREF.sub(_safe_href, _IMG_TAG.sub("", rendered)))
 
 
 def _url_encode_filter(value: str) -> str:
