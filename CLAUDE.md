@@ -24,6 +24,7 @@ Local-first RAG study assistant for French bachelor PDFs.
 | `src/rag_bachelor/core/qtypes.py` | Question types (free/mcq_single/mcq_multi/tf), difficulty levels, tolerant LLM-JSON parsing |
 | `src/rag_bachelor/core/bank.py` | Whole-document question-bank generation, windowed LLM calls, semantic near-duplicate filtering |
 | `src/rag_bachelor/ingest/` | PDF → chunks → ChromaDB |
+| `src/rag_bachelor/ingest/layout.py` | Docling conversion + section-based chunking (tables split by row) |
 | `src/rag_bachelor/study/store.py` | SM-2 + question-bank persistence — dual backend: SQLite (default) or PostgreSQL (`POSTGRES_HOST` set) |
 | `src/rag_bachelor/study/` | SM-2, persistence store, stats |
 | `src/rag_bachelor/app/web/` | FastAPI server, route modules, Jinja2 templates, static assets |
@@ -80,7 +81,13 @@ Default: **8090**. VS Code Dev Container forwards this port. On Windows, avoid p
 
 ## Chunking strategy
 
-Recursive splitter, separators: `["\n\n", "\n", ". ", " "]`, ~900 chars, ~150 overlap.
+Docling layout model (`ingest/layout.py`, no re-OCR; models auto-downloaded to
+`model_cache/docling` on first use, ~6.5 min/book on CPU) → section-based chunks:
+- each chunk is prefixed by its section title; prose packed to ~900 chars, ~150 overlap
+  (recursive splitter, separators `["\n\n", "\n", ". ", " "]`), never across a page break
+- tables are standalone markdown chunks, split by row with the header row repeated, no overlap
+- PyMuPDF (`ingest/extract.py`) still renders page images, flags figure/empty pages, and
+  provides `clean_pages()` (soft hyphens, running headers/footers, bullet glyphs)
 Chunks carry `source` (filename) and `page_num` for citations.
 
 ## Data safety rules

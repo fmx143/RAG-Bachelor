@@ -17,7 +17,6 @@ from starlette.responses import Response
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.app.web.routes.settings import vision_captioning_enabled
 from rag_bachelor.config import settings
-from rag_bachelor.ingest.chunk import chunk_pages
 from rag_bachelor.ingest.extract import extract_pages, render_page_png
 from rag_bachelor.ingest.index import (
     collection_count,
@@ -25,6 +24,7 @@ from rag_bachelor.ingest.index import (
     index_chunks,
     list_sources,
 )
+from rag_bachelor.ingest.layout import convert, layout_items, section_chunks
 from rag_bachelor.ingest.vision import caption_page
 
 router = APIRouter()
@@ -81,19 +81,28 @@ def _run_index_job(pdfs: list[Path], notes: str = "") -> None:
     caption_figures = vision_captioning_enabled()
     try:
         for i, pdf in enumerate(pdfs, start=1):
+            # PyMuPDF pages only flag figures and empty pages; the text comes from Docling.
             pages = extract_pages(pdf)
+            _JOB.update(
+                file_index=i,
+                current=f"{pdf.name} — analyse de la mise en page…",
+                chunks_done=0,
+                chunks_total=0,
+            )
+            items = layout_items(convert(pdf))
             if caption_figures:
                 for p in pages:
                     if not p.has_images:
                         continue
                     caption = caption_page(pdf, p.page_num)
                     if caption:
-                        p.text = f"{p.text}\n\n[Figure] {caption}".strip()
+                        items.append(("text", f"[Figure] {caption}", p.page_num))
                         p.is_empty = False
+                items.sort(key=lambda it: it[2])  # stable: each caption ends its own page
             if len(pdfs) == 1:
                 empty_pages = [p.page_num for p in pages if p.is_empty]
-            chunks = chunk_pages(pages)
-            _JOB.update(file_index=i, current=pdf.name, chunks_done=0, chunks_total=len(chunks))
+            chunks = section_chunks(items, pdf.name)
+            _JOB.update(current=pdf.name, chunks_total=len(chunks))
             delete_source(pdf.name)
             for start in range(0, len(chunks), _BATCH):
                 index_chunks(chunks[start : start + _BATCH])
