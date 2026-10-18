@@ -39,11 +39,18 @@ services:
     restart: unless-stopped
     cap_drop: [ALL] # non-root on port 8090: needs no Linux capabilities
     security_opt: ["no-new-privileges:true"]
+    # Code and libs can't be modified at runtime; writes go to the volumes above or /tmp
+    # (uploads spooled by FastAPI, HOME caches). tmpfs counts against the memory limit.
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m
     pids_limit: 256
     deploy:
       resources:
         limits:
-          memory: 6G # bge-m3 + bge-reranker + torch ≈ 5 GB resident; tune to the NAS RAM
+          # bge-m3 + bge-reranker + torch ≈ 5 GB resident, + Docling layout/table models
+          # during indexing, + the /tmp tmpfs; tune to the NAS RAM.
+          memory: 8G
 
   postgres:
     image: postgres:16-alpine
@@ -56,8 +63,16 @@ services:
     networks:
       - data_tier
     restart: unless-stopped
-    # Entrypoint starts as root then drops to `postgres`, so no cap_drop: [ALL] without testing.
+    # Entrypoint starts as root, fixes data-dir ownership, then drops to `postgres`:
+    # only the capabilities that needs.
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
     security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    pids_limit: 256
     deploy:
       resources:
         limits:
@@ -75,7 +90,9 @@ services:
     networks:
       - data_tier
     restart: unless-stopped
+    cap_drop: [ALL] # port 8000, own data dir: needs no Linux capabilities
     security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
     deploy:
       resources:
         limits:
