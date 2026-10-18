@@ -34,7 +34,9 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     (tmp_path / "cours.pdf").write_bytes(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(docs_module, "extract_pages", lambda path: [])
-    monkeypatch.setattr(docs_module, "chunk_pages", lambda pages: _fake_chunks(_N_CHUNKS))
+    monkeypatch.setattr(docs_module, "convert", lambda path: None)
+    monkeypatch.setattr(docs_module, "layout_items", lambda doc: [])
+    monkeypatch.setattr(docs_module, "section_chunks", lambda items, src: _fake_chunks(_N_CHUNKS))
     monkeypatch.setattr(docs_module, "delete_source", lambda name: None)
     monkeypatch.setattr(docs_module, "list_sources", lambda: ["cours.pdf"])
     monkeypatch.setattr(docs_module, "collection_count", lambda: _N_CHUNKS)

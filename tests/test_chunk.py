@@ -6,8 +6,8 @@ from pathlib import Path
 
 import fitz
 
-from rag_bachelor.ingest.chunk import chunk_pages
-from rag_bachelor.ingest.extract import Page, extract_pages
+from rag_bachelor.ingest.chunk import _SEPARATORS, _split_text, _with_overlap
+from rag_bachelor.ingest.extract import extract_pages
 
 # ── Extraction ────────────────────────────────────────────────────────────────
 
@@ -55,51 +55,15 @@ def test_empty_page_flagged(tmp_path: Path) -> None:
 # ── Chunking ──────────────────────────────────────────────────────────────────
 
 
-def test_chunk_pages_produces_chunks(sample_pdf: Path) -> None:
-    pages = extract_pages(sample_pdf)
-    chunks = chunk_pages(pages)
-    assert len(chunks) > 0
-
-
-def test_chunks_have_non_empty_text(sample_pdf: Path) -> None:
-    pages = extract_pages(sample_pdf)
-    chunks = chunk_pages(pages)
-    for c in chunks:
-        assert c.text.strip(), "All chunks must have non-empty text"
-
-
-def test_chunks_carry_source_and_page(sample_pdf: Path) -> None:
-    pages = extract_pages(sample_pdf)
-    chunks = chunk_pages(pages)
-    for c in chunks:
-        assert c.source == sample_pdf.name
-        assert c.page_num in (1, 2)
-
-
-def test_empty_pages_not_chunked(tmp_path: Path) -> None:
-    """Empty pages must produce zero chunks."""
-    blank = Page(source="blank.pdf", page_num=1, text="", is_empty=True)
-    chunks = chunk_pages([blank])
-    assert chunks == []
-
-
-def test_consecutive_chunks_overlap() -> None:
-    """Chunks split at a normal separator must still share text across the boundary."""
+def test_consecutive_pieces_overlap() -> None:
+    """Pieces split at a normal separator must still share text across the boundary."""
     words = " ".join(f"mot{i}" for i in range(400))
-    chunks = chunk_pages([Page(source="a.pdf", page_num=1, text=words, is_empty=False)])
-    assert len(chunks) > 1
-    for prev, cur in zip(chunks, chunks[1:]):
-        assert set(prev.text.split()) & set(cur.text.split())
+    pieces = _with_overlap(_split_text(words, _SEPARATORS, 900, 150), 150)
+    assert len(pieces) > 1
+    for prev, cur in zip(pieces, pieces[1:]):
+        assert set(prev.split()) & set(cur.split())
 
 
-def test_chunk_size_respected(sample_pdf: Path) -> None:
-    """No chunk should exceed the configured chunk_size by more than one overlap."""
-    from rag_bachelor.config import settings
-
-    pages = extract_pages(sample_pdf)
-    chunks = chunk_pages(pages)
-    for c in chunks:
-        # A small tolerance: a chunk may slightly exceed chunk_size due to separator logic
-        assert len(c.text) <= settings.chunk_size + settings.chunk_overlap, (
-            f"Chunk too large: {len(c.text)} chars"
-        )
+def test_split_respects_chunk_size(sample_pdf: Path) -> None:
+    text = "\n\n".join(p.text for p in extract_pages(sample_pdf)) * 20
+    assert all(len(piece) <= 900 for piece in _split_text(text, _SEPARATORS, 900, 150))
