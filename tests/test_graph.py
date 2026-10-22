@@ -102,3 +102,16 @@ def test_ranking_puts_the_chunk_tied_to_the_seed_entity_first(provider: FakeProv
 
 def test_ranking_is_empty_without_a_graph(provider: FakeProvider) -> None:
     assert graph.graph_ranking("pivot", [], {"a.pdf__p1__c0": 0.9}) == []
+
+
+def test_graph_is_cached_until_the_facts_change(provider: FakeProvider) -> None:
+    _index_chunks(a="tri rapide", b="dijkstra")
+    graph.build_graph("a.pdf")
+    first = graph._cached_graph()
+
+    assert graph._cached_graph() is first  # nothing changed: same object
+    graph.build_graph("a.pdf")
+    second = graph._cached_graph()
+    assert second is not first  # rebuilt facts invalidate it
+    index.delete_source("a.pdf")
+    assert graph._cached_graph().number_of_nodes() == 0  # deletion too

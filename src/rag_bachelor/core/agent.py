@@ -73,12 +73,12 @@ def answer_agentic(question: str, top_k: int = 5) -> tuple[str, list[SearchResul
             continue
 
         kw = data.get("keywords")
-        keywords = [k for k in kw if isinstance(k, str)] if isinstance(kw, list) else []
+        keywords = [k[:80] for k in kw[:10] if isinstance(k, str)] if isinstance(kw, list) else []
         src = data.get("source")
         source = src if isinstance(src, str) and src in sources else None
         new = [
             c
-            for c in retrieve(query, top_k=top_k, keywords=keywords, source=source)
+            for c in retrieve(query[:500], top_k=top_k, keywords=keywords, source=source)
             if (c.source, c.page, c.text) not in seen
         ]
         seen.update((c.source, c.page, c.text) for c in new)

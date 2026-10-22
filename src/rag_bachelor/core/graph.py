@@ -20,7 +20,12 @@ from rag_bachelor.core.embeddings import embed
 from rag_bachelor.core.llm import LLMProvider, active_model, get_provider
 from rag_bachelor.core.qtypes import loads_object
 from rag_bachelor.core.retriever import _tokens
-from rag_bachelor.ingest.index import get_collection, get_facts_collection
+from rag_bachelor.ingest.index import (
+    facts_changed,
+    facts_generation,
+    get_collection,
+    get_facts_collection,
+)
 
 _WORKERS = 4  # concurrent LLM extraction calls
 _TOP_FACTS = 10  # facts closest to the query that seed the PageRank
@@ -67,6 +72,7 @@ def build_graph(source: str, on_progress: Callable[[int, int], None] | None = No
     ids = chunks["ids"]
     docs = chunks.get("documents") or []
     get_facts_collection().delete(where={"source": source})
+    facts_changed()
 
     # Resolve provider and model here: workers must not touch the settings store from threads.
     provider, name = get_provider()
@@ -96,6 +102,7 @@ def _store_facts(source: str, chunk_id: str, triples: list[tuple[str, str, str]]
             for s, _, o in triples
         ],
     )
+    facts_changed()  # after the write: a query in between must not cache the old graph
     return len(triples)
 
 
@@ -114,14 +121,27 @@ def _graph(metas: list[Any]) -> nx.Graph:
     return g
 
 
+_cache: tuple[int, nx.Graph] | None = None  # (facts generation, graph); one process, one cache
+
+
+def _cached_graph() -> nx.Graph:
+    """The fact graph, rebuilt from the stored facts only when they changed since last time."""
+    global _cache
+    gen = facts_generation()
+    if _cache is None or _cache[0] != gen:
+        metas = get_facts_collection().get(include=["metadatas"]).get("metadatas") or []
+        _cache = (gen, _graph(metas))
+    return _cache[1]
+
+
 def graph_ranking(query: str, keywords: list[str], chunk_scores: dict[str, float]) -> list[str]:
     """Chunk ids ranked by Personalized PageRank from the facts closest to the question.
 
     *chunk_scores* are the dense similarities (chunk id → score) of the candidate chunks; they
     seed the walk too, with a low weight. Returns ``[]`` when there is no graph yet.
     """
-    # ponytail: graph rebuilt from the fact metadata on every query (no cache) — fine for a few
-    # thousand facts (tens of ms, dwarfed by the reranker); cache it beyond ~50k facts.
+    # ponytail: in-process cache — a second app process would not see this one's writes; use a
+    # shared invalidation key (e.g. a counter row in the DB) if the app ever runs several workers.
     facts = get_facts_collection()
     if facts.count() == 0:
         return []
@@ -146,7 +166,7 @@ def graph_ranking(query: str, keywords: list[str], chunk_scores: dict[str, float
         for chunk_id, score in chunk_scores.items():
             personalization[f"c:{chunk_id}"] = _PASSAGE_WEIGHT * score / dense_total
 
-    g = _graph(facts.get(include=["metadatas"]).get("metadatas") or [])
+    g = _cached_graph()
     personalization = {n: w for n, w in personalization.items() if n in g}
     if not personalization:
         return []

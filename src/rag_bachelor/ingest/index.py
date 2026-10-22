@@ -50,6 +50,20 @@ def get_facts_collection() -> chromadb.Collection:
     return _client.get_or_create_collection(name=_FACTS_NAME, metadata={"hnsw:space": "cosine"})
 
 
+# Bumped on every write to the facts collection: core/graph.py caches its graph per generation.
+_facts_generation = 0
+
+
+def facts_generation() -> int:
+    return _facts_generation
+
+
+def facts_changed() -> None:
+    """Call after any write to the facts collection, to invalidate the cached graph."""
+    global _facts_generation
+    _facts_generation += 1
+
+
 def index_chunks(chunks: list[Chunk]) -> None:
     """Embed *chunks* and upsert them into ChromaDB.
 
@@ -88,6 +102,7 @@ def delete_source(filename: str) -> None:
     collection = get_collection()
     collection.delete(where={"source": filename})
     get_facts_collection().delete(where={"source": filename})
+    facts_changed()
 
 
 def list_sources() -> list[str]:
