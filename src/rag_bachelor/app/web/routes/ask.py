@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
+from rag_bachelor.core.agent import answer_agentic
 from rag_bachelor.core.qa import answer_question
 from rag_bachelor.ingest.index import collection_count
 
@@ -32,6 +33,7 @@ async def ask_question(
     request: Request,
     question: Annotated[str, Form()],
     n_sources: Annotated[int, Form()] = 5,
+    agent: Annotated[bool, Form()] = False,
 ) -> Response:
     """Return the answer partial (swapped into #answer-area by HTMX)."""
     q = question.strip()
@@ -47,10 +49,13 @@ async def ask_question(
             },
         )
 
+    top_k = max(3, min(n_sources, 10))
     try:
-        answer, chunks = await asyncio.to_thread(
-            answer_question, q, top_k=max(3, min(n_sources, 10))
-        )
+        if agent:
+            answer, chunks, steps = await asyncio.to_thread(answer_agentic, q, top_k)
+        else:
+            answer, chunks = await asyncio.to_thread(answer_question, q, top_k=top_k)
+            steps = []
     except Exception:
         # Never surface the raw exception: LLM SDK auth errors can echo back the API key.
         return templates.TemplateResponse(
@@ -67,5 +72,5 @@ async def ask_question(
     return templates.TemplateResponse(
         request,
         "partials/answer.html",
-        {"request": request, "answer": answer, "chunks": chunks, "error": None},
+        {"request": request, "answer": answer, "chunks": chunks, "steps": steps, "error": None},
     )

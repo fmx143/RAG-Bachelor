@@ -17,6 +17,7 @@ from starlette.responses import Response
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.app.web.routes.settings import vision_captioning_enabled
 from rag_bachelor.config import settings
+from rag_bachelor.core.graph import build_graph, fact_counts
 from rag_bachelor.ingest.extract import extract_pages, render_page_png
 from rag_bachelor.ingest.index import (
     collection_count,
@@ -83,6 +84,7 @@ def _run_index_job(pdfs: list[Path], notes: str = "") -> None:
     total_chunks = 0
     empty_pages: list[int] = []
     no_text: list[str] = []
+    graph_failed: list[str] = []
     caption_figures = vision_captioning_enabled()
     try:
         for i, pdf in enumerate(pdfs, start=1):
@@ -115,12 +117,19 @@ def _run_index_job(pdfs: list[Path], notes: str = "") -> None:
             total_chunks += len(chunks)
             if not chunks:
                 no_text.append(pdf.name)
+            elif settings.graph_enabled and settings.graph_auto_build:
+                try:
+                    _build_graph_for(pdf.name)
+                except Exception as exc:  # noqa: BLE001 — indexing succeeded; only the graph failed
+                    graph_failed.append(f"{pdf.name} ({type(exc).__name__})")
 
         warning = (
             f" (pages vides ignorées : {', '.join(map(str, empty_pages))})" if empty_pages else ""
         )
         if no_text:
             warning += f" ⚠️ aucun texte extrait (PDF scanné ?) : {', '.join(no_text)}"
+        if graph_failed:
+            warning += f" ⚠️ graphe non construit : {', '.join(graph_failed)}"
         if len(pdfs) == 1:
             msg = f"✅ {pdfs[0].name} — {total_chunks} chunks indexés{warning}"
         else:
@@ -128,6 +137,27 @@ def _run_index_job(pdfs: list[Path], notes: str = "") -> None:
         _JOB["message"] = f"{notes} · {msg}" if notes else msg
     except Exception as exc:  # noqa: BLE001 — surfaced to the user via the status partial
         _JOB["error"] = f"❌ Échec de l'indexation : {exc}"
+    finally:
+        _JOB["running"] = False
+
+
+def _build_graph_for(name: str) -> int:
+    """Build *name*'s fact graph, mirroring its progress into _JOB (one LLM call per chunk)."""
+    _JOB.update(current=f"{name} — graphe de connaissances…", chunks_done=0, chunks_total=0)
+
+    def progress(done: int, total: int) -> None:
+        _JOB.update(chunks_done=done, chunks_total=total)
+
+    return build_graph(name, progress)
+
+
+def _run_graph_job(name: str) -> None:
+    """Background job: (re)build the fact graph of one already-indexed PDF."""
+    try:
+        n = _build_graph_for(name)
+        _JOB["message"] = f"✅ {name} — {n} faits dans le graphe"
+    except Exception as exc:  # noqa: BLE001 — surfaced to the user via the status partial
+        _JOB["error"] = f"❌ Échec du graphe ({type(exc).__name__})."
     finally:
         _JOB["running"] = False
 
@@ -156,7 +186,11 @@ async def _doc_list_ctx() -> dict[str, object]:
             sorted(settings.pdfs_dir.glob("*.pdf")) if settings.pdfs_dir.exists() else []
         )
         indexed: set[str] = set(list_sources())
-        pdfs = [{"name": p.name, "indexed": p.name in indexed} for p in all_pdfs]
+        facts = fact_counts()
+        pdfs = [
+            {"name": p.name, "indexed": p.name in indexed, "facts": facts.get(p.name, 0)}
+            for p in all_pdfs
+        ]
         return {"pdfs": pdfs, "chunk_count": collection_count()}
 
     return await asyncio.to_thread(_sync)
@@ -303,6 +337,26 @@ async def index_one(request: Request, name: str, background_tasks: BackgroundTas
 
     if _try_start(1):
         background_tasks.add_task(_run_index_job, [path])
+    return templates.TemplateResponse(
+        request, "partials/index_progress.html", _progress_ctx(request)
+    )
+
+
+@router.post("/docs/graph/{name}", response_class=HTMLResponse)
+async def graph_one(request: Request, name: str, background_tasks: BackgroundTasks) -> Response:
+    """Kick off building the fact graph of a single indexed PDF in the background."""
+    path = _resolve_safe(name)
+    if path is None or path.name not in await asyncio.to_thread(list_sources):
+        ctx: dict[str, object] = {
+            "request": request,
+            **(await _doc_list_ctx()),
+            "message": None,
+            "error": f"❌ Document non indexé : {name}",
+        }
+        return templates.TemplateResponse(request, "partials/doc_list.html", ctx)
+
+    if _try_start(1):
+        background_tasks.add_task(_run_graph_job, path.name)
     return templates.TemplateResponse(
         request, "partials/index_progress.html", _progress_ctx(request)
     )

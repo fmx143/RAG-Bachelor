@@ -41,6 +41,10 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     monkeypatch.setattr(docs_module, "list_sources", lambda: ["cours.pdf"])
     monkeypatch.setattr(docs_module, "collection_count", lambda: _N_CHUNKS)
 
+    graphs: list[str] = []
+    monkeypatch.setattr(docs_module, "build_graph", lambda name, progress: graphs.append(name) or 3)
+    monkeypatch.setattr(docs_module, "_graphs", graphs, raising=False)
+
     batch_sizes: list[int] = []
     monkeypatch.setattr(docs_module, "index_chunks", lambda chunks: batch_sizes.append(len(chunks)))
     monkeypatch.setattr(docs_module, "_batch_sizes", batch_sizes, raising=False)
@@ -73,6 +77,27 @@ def test_index_all_returns_immediately_and_reports_progress(client: TestClient) 
     batch_sizes: list[int] = docs_module._batch_sizes  # type: ignore[attr-defined]
     assert batch_sizes == [16, 16, 8]
     assert sum(batch_sizes) == _N_CHUNKS
+
+
+def test_indexing_builds_the_graph_unless_auto_build_is_off(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client.post("/docs/index")
+    assert docs_module._graphs == ["cours.pdf"]  # type: ignore[attr-defined]
+
+    docs_module._graphs.clear()  # type: ignore[attr-defined]
+    monkeypatch.setattr(settings, "graph_auto_build", False)
+    client.post("/docs/index")
+    assert docs_module._graphs == []  # type: ignore[attr-defined]
+
+
+def test_graph_button_builds_one_indexed_document(client: TestClient) -> None:
+    resp = client.post("/docs/graph/cours.pdf")
+
+    assert resp.status_code == 200
+    assert docs_module._graphs == ["cours.pdf"]  # type: ignore[attr-defined]
+    assert "3 faits" in docs_module._JOB["message"]  # type: ignore[operator]
+    assert "non indexé" in client.post("/docs/graph/inconnu.pdf").text
 
 
 def test_status_while_running_polls_via_self_reinjecting_trigger(

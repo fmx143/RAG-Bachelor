@@ -57,10 +57,16 @@ def _rrf(*rankings: list[str]) -> list[str]:
     return sorted(fused, key=lambda i: -fused[i])
 
 
-def retrieve(query: str, top_k: int | None = None) -> list[SearchResult]:
-    """Return the *top_k* most semantically similar chunks to *query*.
+def retrieve(
+    query: str,
+    top_k: int | None = None,
+    keywords: list[str] | None = None,
+    source: str | None = None,
+) -> list[SearchResult]:
+    """Return the *top_k* best chunks for *query*: dense + BM25 (+ fact graph), fused with RRF.
 
-    Results are ordered by descending cosine similarity.
+    *keywords* (see ``core/keywords.py``) widen the lexical and graph search; *source*
+    restricts it to one PDF filename.
     """
     k = top_k or settings.retrieval_top_k
     collection = get_collection()
@@ -75,6 +81,7 @@ def retrieve(query: str, top_k: int | None = None) -> list[SearchResult]:
     results = collection.query(
         query_embeddings=[query_vec],  # type: ignore[arg-type]  # chroma stubs reject list[list[float]]
         n_results=collection.count(),
+        where={"source": source} if source else None,
         include=["documents", "metadatas", "distances"],
     )
     ids = (results.get("ids") or [[]])[0]
@@ -82,10 +89,22 @@ def retrieve(query: str, top_k: int | None = None) -> list[SearchResult]:
     metas = (results.get("metadatas") or [[]])[0]
     dists = (results.get("distances") or [[]])[0]
 
+    if not ids:  # unknown *source*
+        return []
+
     by_id = dict(zip(ids, zip(docs, metas, dists)))
-    bm25 = _bm25(query, docs)
+    bm25 = _bm25(" ".join([query, *(keywords or [])]), docs)
     keyword_ranking = [i for _, i in sorted(zip(bm25, ids), key=lambda p: -p[0]) if _ > 0]
-    fused = _rrf(ids, keyword_ranking)[
+    graph_ranking: list[str] = []
+    if settings.graph_enabled:
+        from rag_bachelor.core.graph import graph_ranking as rank_by_graph
+
+        graph_ranking = [
+            i
+            for i in rank_by_graph(query, keywords or [], {i: 1 - d for i, d in zip(ids, dists)})
+            if i in by_id  # the walk is global; *source* may have excluded some chunks
+        ]
+    fused = _rrf(ids, keyword_ranking, graph_ranking)[
         : max(k, settings.rerank_pool) if settings.reranker_model else k
     ]
     if settings.reranker_model:

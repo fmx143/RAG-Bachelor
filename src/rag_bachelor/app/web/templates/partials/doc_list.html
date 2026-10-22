@@ -19,6 +19,16 @@
       hx-swap="innerHTML"
       class="btn btn-ghost btn-sm"
     >Indexer</button>
+    {% if pdf.indexed %}
+    <button
+      hx-post="/docs/graph/{{ pdf.name | url_encode }}"
+      hx-target="#doc-list"
+      hx-swap="innerHTML"
+      hx-confirm="Construire le graphe de {{ pdf.name }} ? Un appel LLM par chunk (payant, plusieurs minutes)."
+      class="btn btn-ghost btn-sm"
+      title="Extrait les faits du cours avec le LLM pour retrouver les notions reliées"
+    >🕸️ Graphe{% if pdf.facts %} ({{ pdf.facts }}){% endif %}</button>
+    {% endif %}
     <button
       hx-post="/docs/delete/{{ pdf.name | url_encode }}"
       hx-target="#doc-list"

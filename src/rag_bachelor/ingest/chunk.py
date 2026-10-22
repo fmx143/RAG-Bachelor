@@ -72,4 +72,3 @@ def _with_overlap(texts: list[str], overlap: int) -> list[str]:
             tail = tail.partition(" ")[2]
         out.append(f"{tail.strip()} {cur}" if tail.strip() else cur)
     return out
-
