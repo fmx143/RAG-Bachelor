@@ -179,8 +179,10 @@ If the NAS is ever compromised, **revoke the Doppler token** from the Doppler
 dashboard — no key rotation is needed anywhere else.
 
 If `DOPPLER_TOKEN`/`DOPPLER_TOKEN_FILE` isn't set, the entrypoint starts the app
-directly without Doppler (no secrets, no login gate) — useful for a plain local
-`docker compose up` with no secrets involved.
+directly without Doppler. `docker-compose.yml` sets `REQUIRE_AUTH=true`, so in that case the app
+**refuses to start** (no `APP_PASSWORD`) instead of serving your courses with no login gate. For a
+plain local run without secrets, use `rag-web` (it then listens on 127.0.0.1 only) or remove
+`REQUIRE_AUTH` from your compose override.
 
 ### Defense in depth
 

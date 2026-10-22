@@ -72,13 +72,7 @@ app = FastAPI(
 # ── Middleware (order matters: SessionMiddleware must wrap AuthMiddleware so
 #    request.session is populated before the auth check runs) ──────────────────
 _session_secret = cfg.session_secret.get_secret_value()
-if auth.auth_enabled() and not _session_secret:
-    # A fixed fallback here would let anyone reading this public source forge a
-    # valid session cookie without ever knowing APP_PASSWORD — refuse to start instead.
-    raise RuntimeError(
-        "APP_PASSWORD est défini mais SESSION_SECRET est vide. "
-        "Définis SESSION_SECRET (ex: via Doppler) avant de démarrer."
-    )
+auth.check_config()
 
 app.add_middleware(auth.AuthMiddleware)
 app.add_middleware(
@@ -87,6 +81,7 @@ app.add_middleware(
     session_cookie="rag_session",
     https_only=cfg.session_cookie_secure,
     same_site="lax",
+    max_age=12 * 3600,  # a stolen cookie stops working after half a day (default: 14 days)
 )
 
 # Added last ⇒ outermost: also covers AuthMiddleware's redirects.
@@ -100,7 +95,12 @@ _SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
 }
+if cfg.session_cookie_secure:  # served over https (Cloudflare Tunnel): pin it
+    _SECURITY_HEADERS["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
 
 @app.middleware("http")
@@ -109,6 +109,9 @@ async def _security_headers(
 ) -> Response:
     response = await call_next(request)
     response.headers.update(_SECURITY_HEADERS)
+    if not request.url.path.startswith("/static"):
+        # Pages hold course content and answers: keep them out of browser/proxy caches.
+        response.headers["Cache-Control"] = "no-store"
     return response
 
 
@@ -138,7 +141,8 @@ def main() -> None:
     """Entry point registered as `rag-web` in pyproject.toml."""
     uvicorn.run(
         "rag_bachelor.app.web.server:app",
-        host="0.0.0.0",
+        # Without a login gate, only this machine may reach it (Docker runs uvicorn directly).
+        host="0.0.0.0" if auth.auth_enabled() else "127.0.0.1",
         port=cfg.app_port,
         reload=False,
     )

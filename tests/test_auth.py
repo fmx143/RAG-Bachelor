@@ -124,3 +124,32 @@ def test_login_locks_out_after_repeated_failures(auth_enabled_client: TestClient
 def test_non_ascii_password_is_rejected_not_crashing(auth_enabled_client: TestClient) -> None:
     resp = auth_enabled_client.post("/login", data={"password": "mötdepasse", "next": "/"})
     assert resp.status_code == 401
+
+
+def test_check_config_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "app_password", SecretStr(""))
+    monkeypatch.setattr(settings, "session_secret", SecretStr(""))
+    monkeypatch.setattr(settings, "require_auth", False)
+    auth.check_config()  # local dev: open, and that is allowed
+
+    monkeypatch.setattr(settings, "require_auth", True)
+    with pytest.raises(RuntimeError, match="REQUIRE_AUTH"):
+        auth.check_config()  # e.g. the Doppler token is missing in Docker
+
+    monkeypatch.setattr(settings, "app_password", SecretStr("pw"))
+    with pytest.raises(RuntimeError, match="SESSION_SECRET"):
+        auth.check_config()  # a password with a guessable cookie-signing key
+
+    monkeypatch.setattr(settings, "session_secret", SecretStr("s"))
+    auth.check_config()
+
+
+def test_app_sends_hardening_headers_and_keeps_static_cacheable() -> None:
+    from rag_bachelor.app.web.server import app
+
+    client = TestClient(app)
+    page = client.get("/login")
+    assert page.headers["Cache-Control"] == "no-store"
+    assert page.headers["Cross-Origin-Opener-Policy"] == "same-origin"
+    assert "Permissions-Policy" in page.headers
+    assert client.get("/static/htmx.min.js").headers.get("Cache-Control") != "no-store"

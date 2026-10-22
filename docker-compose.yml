@@ -25,6 +25,9 @@ services:
       CHROMA_HOST: chroma
       CHROMA_PORT: "8000"
       DEFAULT_LLM_PROVIDER: openai
+      # Fail closed: the app refuses to start unless Doppler delivered APP_PASSWORD, instead of
+      # silently serving the course content with no login (e.g. DOPPLER_TOKEN missing).
+      REQUIRE_AUTH: "true"
       # OPENAI_API_KEY / APP_PASSWORD / SESSION_SECRET / SESSION_COOKIE_SECURE
       # come from Doppler (see docker/entrypoint.sh) — do not hardcode here.
     volumes:
@@ -37,13 +40,16 @@ services:
       - default
       - data_tier
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"} # a chatty container can't fill the NAS disk
     cap_drop: [ALL] # non-root on port 8090: needs no Linux capabilities
     security_opt: ["no-new-privileges:true"]
     # Code and libs can't be modified at runtime; writes go to the volumes above or /tmp
     # (uploads spooled by FastAPI, HOME caches). tmpfs counts against the memory limit.
     read_only: true
     tmpfs:
-      - /tmp:size=512m
+      - /tmp:size=512m,nosuid,nodev
     pids_limit: 256
     deploy:
       resources:
@@ -63,6 +69,9 @@ services:
     networks:
       - data_tier
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"} # a chatty container can't fill the NAS disk
     # Entrypoint starts as root, fixes data-dir ownership, then drops to `postgres`:
     # only the capabilities that needs.
     cap_drop: [ALL]
@@ -90,6 +99,9 @@ services:
     networks:
       - data_tier
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"} # a chatty container can't fill the NAS disk
     cap_drop: [ALL] # port 8000, own data dir: needs no Linux capabilities
     security_opt: ["no-new-privileges:true"]
     pids_limit: 256

@@ -45,6 +45,22 @@ def auth_enabled() -> bool:
     return bool(settings.app_password.get_secret_value())
 
 
+def check_config() -> None:
+    """Refuse to start with a configuration that would leave the app open or forgeable."""
+    if settings.require_auth and not auth_enabled():
+        raise RuntimeError(
+            "REQUIRE_AUTH est actif mais APP_PASSWORD est vide (token Doppler manquant ?). "
+            "Refus de démarrer sans authentification."
+        )
+    if auth_enabled() and not settings.session_secret.get_secret_value():
+        # A fixed fallback here would let anyone reading this public source forge a
+        # valid session cookie without ever knowing APP_PASSWORD.
+        raise RuntimeError(
+            "APP_PASSWORD est défini mais SESSION_SECRET est vide. "
+            "Définis SESSION_SECRET (ex: via Doppler) avant de démarrer."
+        )
+
+
 def _safe_next(next_path: str) -> str:
     """Keep the post-login redirect within this app (block open redirects)."""
     if next_path.startswith("/") and not next_path.startswith("//") and "://" not in next_path:

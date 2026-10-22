@@ -77,6 +77,9 @@ class Settings(BaseSettings):
     # False for local http:// dev; set true (via Doppler) once served over
     # https through the Cloudflare Tunnel, so the session cookie gets Secure.
     session_cookie_secure: bool = False
+    # Fail closed: refuse to start without APP_PASSWORD/SESSION_SECRET (set in the Docker deployment,
+    # where a missing Doppler token would otherwise silently serve the app with no login).
+    require_auth: bool = False
 
     # ── Server ───────────────────────────────────────────────────────────
     app_port: int = 8090
