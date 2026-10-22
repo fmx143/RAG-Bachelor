@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -54,7 +54,8 @@ class Settings(BaseSettings):
     # Building it costs one LLM call per chunk, so it is a per-document action in 📚 Documentation.
     graph_enabled: bool = True
     graph_auto_build: bool = True  # also build it right after a document is indexed
-    agent_max_steps: int = 3  # max searches per agentic answer (reranker ≈ 6 s each on CPU)
+    # max searches per agentic answer (reranker ≈ 6 s each on CPU); bounded, each costs an LLM call
+    agent_max_steps: int = Field(default=3, ge=1, le=6)
 
     # ── Ollama Cloud ──────────────────────────────────────────────────────
     # Same SecretStr rule as the OpenAI key: only read at client construction.

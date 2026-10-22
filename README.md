@@ -11,7 +11,8 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 |---|---|
 | 📚 **Document management** | Upload PDFs (auto-indexed, duplicates skipped) into a local vector store, re-index or remove them |
 | 🧩 **Layout-aware indexing** | Docling's layout model recovers section titles and table structure: each chunk is prefixed by its section title, never spans a page break, and tables are indexed row by row with their header repeated |
-| ❓ **Q&A with citations** | Ask anything in French, get a sourced answer with file name + page number. Retrieval is hybrid (dense bge-m3 + BM25 keywords, fused with RRF) then reranked by a cross-encoder |
+| ❓ **Q&A with citations** | Ask anything in French, get a sourced answer with file name + page number. Retrieval is hybrid (dense bge-m3 + BM25 keywords, fused with RRF, plus a fact-graph ranking once built) then reranked by a cross-encoder |
+| 🕸️ **Agentic search & graph** | LLM keyword extraction widens every search. Optional *deep search* agent runs up to 3 self-directed searches (query, keywords, target document) before answering. A HippoRAG-style fact graph (LLM triples per chunk → Personalized PageRank) helps multi-page questions |
 | 🔄 **Spaced repetition** | SM-2 algorithm (Anki-style) — review due cards, self-grade, auto-reschedule |
 | 🎯 **Question generation** | LLM-generated easy / medium / hard questions per topic, add them to your deck |
 | 🏦 **Question bank** | Generate a whole-document bank of free / QCM (single/multi) / Vrai-Faux questions, semantic near-duplicate filtering, short answers (1–5 sentences) with the supporting passage from the course, filter by difficulty/type/result, auto-graded structured revision |
@@ -285,6 +286,11 @@ fetched from ollama.com. There is no local Ollama mode anymore.
 2. Adjust **Sources utilisées** (3–10) to control how many passages are retrieved.
 3. Click **🔍 Obtenir une réponse**.
 4. The answer cites sources as `[fichier.pdf, p.X]`. Expand **📖 Sources utilisées** to see the raw passages.
+5. Tick **Recherche approfondie (agent)** for multi-notion or cross-document questions: the LLM chooses what to search (up to `AGENT_MAX_STEPS`, default 3) and the searches are listed under the answer. Slower: ~6 s of reranking per search.
+
+> **🕸️ Fact graph.** In 📚 Documentation, the **Graphe** button builds a document's graph (one LLM call per chunk — paid
+> on a cloud provider; it also runs automatically after indexing unless `GRAPH_AUTO_BUILD=false`). The graph ranking joins the
+> fusion when facts exist; `GRAPH_ENABLED=false` turns it off. Deleting a PDF deletes its facts.
 
 > **⏱️ Retrieval adds ~6 s per search.** Passages are found by meaning *and* by exact keywords, then
 > the 10 best are re-read by a cross-encoder reranker (bge-reranker-v2-m3, CPU). Measured on 10 validated
@@ -396,6 +402,9 @@ RAG-Bachelor/
     ├── core/
     │   ├── embeddings.py         # BAAI/bge-m3 local embeddings
     │   ├── retriever.py          # Hybrid search: dense + BM25, RRF fusion, optional rerank
+    │   ├── keywords.py           # LightRAG-style query keywords (low/high level)
+    │   ├── graph.py              # HippoRAG-style fact graph: triples + Personalized PageRank
+    │   ├── agent.py              # Agentic search loop (search / answer JSON actions)
     │   ├── rerank.py             # Cross-encoder reranker (BAAI/bge-reranker-v2-m3)
     │   ├── llm.py                # Ollama Cloud + OpenAI providers (provider/model persisted)
     │   ├── qa.py                 # RAG Q&A with French system prompt + citations
@@ -426,6 +435,7 @@ pytest
 
 # Score retrieval on the validated questions (use a COPY of the index: CHROMA_DIR=/tmp/chroma-copy)
 rag-eval --out /tmp/report.json [--compare previous.json]
+# --mode simple|keywords|agent, --no-graph to isolate the graph's contribution
 
 # Lint
 ruff check src/ tests/
@@ -475,7 +485,7 @@ Compatibility verified in production on 2026-10-04: client `chromadb` 1.5.9 (con
 | UI | FastAPI + Jinja2 + HTMX |
 | PDF extraction | Docling (layout + tables, no re-OCR); PyMuPDF for page images and cleanup |
 | Embeddings | sentence-transformers + BAAI/bge-m3 (local, multilingual) |
-| Retrieval | Dense + BM25 (in-memory) fused with RRF, then BAAI/bge-reranker-v2-m3 cross-encoder |
+| Retrieval | Dense + BM25 (in-memory) fused with RRF, + optional fact-graph ranking (networkx PageRank), then BAAI/bge-reranker-v2-m3 cross-encoder |
 | Vector store | ChromaDB — embedded locally, standalone server on the NAS (`CHROMA_HOST`) |
 | LLM | Ollama Cloud or OpenAI (chosen in Settings) |
 | Config | pydantic-settings |
