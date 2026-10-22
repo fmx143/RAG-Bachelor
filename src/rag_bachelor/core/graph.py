@@ -9,6 +9,7 @@ closest to the question; the chunk ranking it yields is one more input of the RR
 
 from __future__ import annotations
 
+import time
 from collections import Counter, defaultdict
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -30,6 +31,7 @@ from rag_bachelor.ingest.index import (
 _WORKERS = 4  # concurrent LLM extraction calls
 _TOP_FACTS = 10  # facts closest to the query that seed the PageRank
 _PASSAGE_WEIGHT = 0.05  # HippoRAG 2: dense chunk scores seed the walk, but far below the facts
+_RETRIES = 3  # attempts per chunk before it is skipped (provider rate limits, transient 5xx)
 _PPR_ALPHA = 0.5  # HippoRAG 2 damping factor (probability of following an edge)
 
 _PROMPT = (
@@ -63,10 +65,27 @@ def _extract(provider: LLMProvider, model: str, text: str) -> list[tuple[str, st
     return out
 
 
-def build_graph(source: str, on_progress: Callable[[int, int], None] | None = None) -> int:
-    """(Re)build the fact graph of *source* from its indexed chunks; returns the fact count.
+def _extract_retrying(
+    provider: LLMProvider, model: str, text: str
+) -> list[tuple[str, str, str]] | Exception:
+    """``_extract`` with backoff; the last exception is returned (not raised) once retries run out."""
+    for attempt in range(_RETRIES):
+        try:
+            return _extract(provider, model, text)
+        except Exception as exc:  # noqa: BLE001 — any provider error: retry, then report
+            if attempt == _RETRIES - 1:
+                return exc
+            time.sleep(2 ** (attempt + 1))
+    raise AssertionError("unreachable")
 
-    One LLM call per chunk. Reads the chunk collection only — nothing is re-indexed.
+
+def build_graph(
+    source: str, on_progress: Callable[[int, int], None] | None = None
+) -> tuple[int, int]:
+    """(Re)build the fact graph of *source* from its indexed chunks.
+
+    Returns ``(fact count, chunks skipped after repeated provider errors)``; raises the provider's
+    error if every chunk failed. One LLM call per chunk. Nothing is re-indexed.
     """
     chunks = get_collection().get(where={"source": source}, include=["documents"])
     ids = chunks["ids"]
@@ -77,16 +96,21 @@ def build_graph(source: str, on_progress: Callable[[int, int], None] | None = No
     # Resolve provider and model here: workers must not touch the settings store from threads.
     provider, name = get_provider()
     model = active_model(name)
-    n_facts = 0
+    n_facts, failures = 0, []
     with ThreadPoolExecutor(_WORKERS) as pool:
         # map() keeps order; consuming it lazily lets us persist and report chunk by chunk.
-        for done, (chunk_id, triples) in enumerate(
-            zip(ids, pool.map(lambda d: _extract(provider, model, d), docs)), start=1
+        for done, (chunk_id, result) in enumerate(
+            zip(ids, pool.map(lambda d: _extract_retrying(provider, model, d), docs)), start=1
         ):
-            n_facts += _store_facts(source, chunk_id, triples)
+            if isinstance(result, Exception):
+                failures.append(result)
+            else:
+                n_facts += _store_facts(source, chunk_id, result)
             if on_progress:
                 on_progress(done, len(ids))
-    return n_facts
+    if failures and len(failures) == len(ids):
+        raise failures[0]
+    return n_facts, len(failures)
 
 
 def _store_facts(source: str, chunk_id: str, triples: list[tuple[str, str, str]]) -> int:

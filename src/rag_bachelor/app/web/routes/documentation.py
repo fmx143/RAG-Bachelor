@@ -46,6 +46,7 @@ _MAX_UPLOAD_BYTES = _MAX_UPLOAD_MB * 1024 * 1024
 _JOB_LOCK = threading.Lock()
 _JOB: dict[str, object] = {
     "running": False,
+    "phase": "index",  # "index" or "graph": what the progress partial says is going on
     "file_index": 0,
     "file_total": 0,
     "current": "",
@@ -63,6 +64,7 @@ def _try_start(file_total: int) -> bool:
             return False
         _JOB.update(
             running=True,
+            phase="index",
             file_index=0,
             file_total=file_total,
             current="",
@@ -91,6 +93,7 @@ def _run_index_job(pdfs: list[Path], notes: str = "") -> None:
             # PyMuPDF pages only flag figures and empty pages; the text comes from Docling.
             pages = extract_pages(pdf)
             _JOB.update(
+                phase="index",
                 file_index=i,
                 current=f"{pdf.name} — analyse de la mise en page…",
                 chunks_done=0,
@@ -119,9 +122,11 @@ def _run_index_job(pdfs: list[Path], notes: str = "") -> None:
                 no_text.append(pdf.name)
             elif settings.graph_enabled and settings.graph_auto_build:
                 try:
-                    _build_graph_for(pdf.name)
+                    facts, skipped = _build_graph_for(pdf.name)
+                    if skipped:
+                        graph_failed.append(_graph_summary(pdf.name, facts, skipped))
                 except Exception as exc:  # noqa: BLE001 — indexing succeeded; only the graph failed
-                    graph_failed.append(f"{pdf.name} ({type(exc).__name__})")
+                    graph_failed.append(f"{pdf.name} ({_describe(exc)})")
 
         warning = (
             f" (pages vides ignorées : {', '.join(map(str, empty_pages))})" if empty_pages else ""
@@ -129,7 +134,7 @@ def _run_index_job(pdfs: list[Path], notes: str = "") -> None:
         if no_text:
             warning += f" ⚠️ aucun texte extrait (PDF scanné ?) : {', '.join(no_text)}"
         if graph_failed:
-            warning += f" ⚠️ graphe non construit : {', '.join(graph_failed)}"
+            warning += f" ⚠️ graphe incomplet ou non construit : {', '.join(graph_failed)}"
         if len(pdfs) == 1:
             msg = f"✅ {pdfs[0].name} — {total_chunks} chunks indexés{warning}"
         else:
@@ -141,9 +146,20 @@ def _run_index_job(pdfs: list[Path], notes: str = "") -> None:
         _JOB["running"] = False
 
 
-def _build_graph_for(name: str) -> int:
+def _describe(exc: Exception) -> str:
+    """Exception type plus HTTP status when there is one — never the message (may echo a key)."""
+    status = getattr(exc, "status_code", None)
+    return type(exc).__name__ + (f", HTTP {status}" if isinstance(status, int) else "")
+
+
+def _graph_summary(name: str, facts: int, skipped: int) -> str:
+    note = f" ⚠️ {skipped} passage(s) ignoré(s) (erreurs du fournisseur)" if skipped else ""
+    return f"{name} — {facts} faits dans le graphe{note}"
+
+
+def _build_graph_for(name: str) -> tuple[int, int]:
     """Build *name*'s fact graph, mirroring its progress into _JOB (one LLM call per chunk)."""
-    _JOB.update(current=f"{name} — graphe de connaissances…", chunks_done=0, chunks_total=0)
+    _JOB.update(phase="graph", current=name, chunks_done=0, chunks_total=0)
 
     def progress(done: int, total: int) -> None:
         _JOB.update(chunks_done=done, chunks_total=total)
@@ -153,11 +169,12 @@ def _build_graph_for(name: str) -> int:
 
 def _run_graph_job(name: str) -> None:
     """Background job: (re)build the fact graph of one already-indexed PDF."""
+    _JOB["file_index"] = 1
     try:
-        n = _build_graph_for(name)
-        _JOB["message"] = f"✅ {name} — {n} faits dans le graphe"
+        facts, skipped = _build_graph_for(name)
+        _JOB["message"] = ("⚠️ " if skipped else "✅ ") + _graph_summary(name, facts, skipped)
     except Exception as exc:  # noqa: BLE001 — surfaced to the user via the status partial
-        _JOB["error"] = f"❌ Échec du graphe ({type(exc).__name__})."
+        _JOB["error"] = f"❌ Échec du graphe ({_describe(exc)})."
     finally:
         _JOB["running"] = False
 

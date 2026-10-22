@@ -42,7 +42,9 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     monkeypatch.setattr(docs_module, "collection_count", lambda: _N_CHUNKS)
 
     graphs: list[str] = []
-    monkeypatch.setattr(docs_module, "build_graph", lambda name, progress: graphs.append(name) or 3)
+    monkeypatch.setattr(
+        docs_module, "build_graph", lambda name, progress: graphs.append(name) or (3, 0)
+    )
     monkeypatch.setattr(docs_module, "_graphs", graphs, raising=False)
 
     batch_sizes: list[int] = []
@@ -176,3 +178,12 @@ def test_upload_too_large_is_rejected(
 
     assert not (tmp_path / "gros.pdf").exists()
     assert "trop volumineux" in text
+
+
+def test_progress_wording_tells_graph_from_indexing(client: TestClient) -> None:
+    docs_module._JOB.update(running=True, file_total=1, file_index=1, phase="graph")
+    assert "Construction du graphe" in client.get("/docs/index/status").text
+
+    docs_module._JOB.update(phase="index")
+    text = client.get("/docs/index/status").text
+    assert "Indexation en cours" in text and "graphe" not in text

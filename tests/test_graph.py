@@ -68,9 +68,9 @@ def test_build_graph_stores_facts_and_skips_unparseable_answers(provider: FakePr
     _index_chunks(a="tri rapide", b="bruit", c="dijkstra")
     progress: list[tuple[int, int]] = []
 
-    n = graph.build_graph("a.pdf", lambda done, total: progress.append((done, total)))
+    n, skipped = graph.build_graph("a.pdf", lambda done, total: progress.append((done, total)))
 
-    assert n == 2
+    assert (n, skipped) == (2, 0)
     assert graph.fact_counts() == {"a.pdf": 2}
     assert provider.calls == 3
     assert progress == [(1, 3), (2, 3), (3, 3)]
@@ -115,3 +115,33 @@ def test_graph_is_cached_until_the_facts_change(provider: FakeProvider) -> None:
     assert second is not first  # rebuilt facts invalidate it
     index.delete_source("a.pdf")
     assert graph._cached_graph().number_of_nodes() == 0  # deletion too
+
+
+class Flaky(FakeProvider):
+    """Raises for chunks whose text is registered in *broken*, else behaves like FakeProvider."""
+
+    def __init__(self, replies: dict[str, str], broken: set[str]) -> None:
+        super().__init__(replies)
+        self.broken = broken
+
+    def chat(
+        self, messages: list[dict[str, str]], model: str | None = None, json_mode: bool = False
+    ) -> str:
+        if messages[-1]["content"] in self.broken:
+            raise RuntimeError("429")
+        return super().chat(messages, model, json_mode)
+
+
+def test_failing_chunks_are_retried_then_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = Flaky(_TRIPLES, broken={"dijkstra"})
+    monkeypatch.setattr(graph, "get_provider", lambda: (fake, "ollama"))
+    monkeypatch.setattr(graph, "active_model", lambda name: "m")
+    monkeypatch.setattr(graph, "embed", fake_embed)
+    monkeypatch.setattr(graph.time, "sleep", lambda s: None)
+    _index_chunks(a="tri rapide", b="dijkstra")
+
+    assert graph.build_graph("a.pdf") == (1, 1)  # one chunk kept, one skipped after retries
+
+    _index_chunks(a="dijkstra")
+    with pytest.raises(RuntimeError):  # every chunk failing is an error, not an empty graph
+        graph.build_graph("a.pdf")
