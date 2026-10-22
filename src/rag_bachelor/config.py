@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     # Cross-encoder reranker (~2.2 GB, ~6 s/search on CPU); empty string disables it.
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
     rerank_pool: int = 10  # fused candidates handed to the reranker
+    # HippoRAG-style fact graph (core/graph.py): a 3rd ranking in the retrieval fusion.
+    # Building it costs one LLM call per chunk, so it is a per-document action in 📚 Documentation.
+    graph_enabled: bool = True
+    graph_auto_build: bool = True  # also build it right after a document is indexed
+    agent_max_steps: int = 3  # max searches per agentic answer (reranker ≈ 6 s each on CPU)
 
     # ── Ollama Cloud ──────────────────────────────────────────────────────
     # Same SecretStr rule as the OpenAI key: only read at client construction.

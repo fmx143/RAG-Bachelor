@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections import defaultdict
 from collections.abc import Callable, Sequence
@@ -58,6 +59,37 @@ def _search(query: str, k: int) -> list[Hit]:
     return [(r.source, r.page) for r in retrieve(query, top_k=k)]
 
 
+def _search_keywords(query: str, k: int) -> list[Hit]:
+    from rag_bachelor.core.keywords import extract_keywords
+    from rag_bachelor.core.retriever import retrieve
+
+    return [(r.source, r.page) for r in retrieve(query, top_k=k, keywords=extract_keywords(query))]
+
+
+def _search_agent(query: str, k: int) -> list[Hit]:
+    """Every distinct chunk the agent retrieved, first found first."""
+    from rag_bachelor.core.agent import answer_agentic
+
+    _, chunks, _ = answer_agentic(query, top_k=k)
+    return [(c.source, c.page) for c in chunks]
+
+
+# Approximate: French phrasings by which the agent says the course does not cover the question.
+_REFUSAL = re.compile(
+    r"ne (?:se )?(?:trouve|figure|contient|mentionne|traite)|aucune? (?:information|mention|extrait)"
+    r"|pas (?:dans|abordé)|je n'ai pas trouvé",
+    re.IGNORECASE,
+)
+
+
+def _refusal_rate(questions: Sequence[EvalQuestion]) -> float:
+    """Share of ``hors_sujet`` questions the agent declines to answer from the course."""
+    from rag_bachelor.core.agent import answer_agentic
+
+    off = [q for q in questions if q.type == "hors_sujet"]
+    return sum(bool(_REFUSAL.search(answer_agentic(q.question)[0])) for q in off) / len(off)
+
+
 def _print_metrics(metrics: dict[str, float], baseline: dict[str, float] | None) -> None:
     for name, value in metrics.items():
         delta = (
@@ -74,7 +106,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--k", type=int, default=10, help="retrieval depth (default 10)")
     ap.add_argument("--out", type=Path, help="report path (default eval/reports/<timestamp>.json)")
     ap.add_argument("--compare", type=Path, help="earlier report JSON to diff against")
+    ap.add_argument(
+        "--mode",
+        choices=("simple", "keywords", "agent"),
+        default="simple",
+        help="retrieval to score: plain, with LLM keywords, or the agent's searches",
+    )
+    ap.add_argument("--no-graph", action="store_true", help="leave the fact graph out of retrieval")
     args = ap.parse_args(argv)
+    if args.no_graph:
+        settings.graph_enabled = False
 
     # Safety: never evaluate against whatever index the defaults happen to point at.
     if not {"chroma_dir", "chroma_host"} & settings.model_fields_set:
@@ -86,7 +127,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("No question with status 'valide' — validate the drafts first.", file=sys.stderr)
         return 1
 
-    metrics, scored = evaluate(questions, _search, args.k)
+    search = {"simple": _search, "keywords": _search_keywords, "agent": _search_agent}[args.mode]
+    metrics, scored = evaluate(questions, search, args.k)
     baseline = json.loads(args.compare.read_text())["metrics"] if args.compare else None
     kinds = by_type(questions, scored)
     cats = by_category(questions, scored)
@@ -94,6 +136,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     n_off = len(questions) - len(scored)
     print(f"{len(scored)} questions (+{n_off} hors_sujet, excluded from recall), k={args.k}")
     _print_metrics(metrics, baseline)
+    refusal = _refusal_rate(questions) if args.mode == "agent" and n_off else None
+    if refusal is not None:
+        print(f"hors_sujet refusés : {refusal:.0%}")
     for group in (kinds, cats):
         for name, m in group.items():
             print(
@@ -107,6 +152,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         "k": args.k,
         "n": len(scored),
         "n_hors_sujet": n_off,
+        "mode": args.mode,
+        "graph": settings.graph_enabled,
+        "refusal_rate": refusal,
         "metrics": metrics,
         "by_type": kinds,
         "by_category": cats,

@@ -106,3 +106,39 @@ def test_main_refuses_without_explicit_chroma_dir(
     monkeypatch.setattr(settings, "__pydantic_fields_set__", set())
     questions = _write_questions(tmp_path / "q.jsonl", "valide")
     assert cli.main(["--questions", str(questions)]) == 2
+
+
+def test_mode_picks_the_searcher_and_no_graph_turns_the_graph_off(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _explicit_chroma(monkeypatch)
+    monkeypatch.setattr(settings, "graph_enabled", True)  # restored on teardown
+    monkeypatch.setattr(cli, "_search", lambda q, k: [])
+    monkeypatch.setattr(cli, "_search_keywords", lambda q, k: [("a.pdf", 1)])
+    questions = _write_questions(tmp_path / "q.jsonl", "valide")
+    out = tmp_path / "r.json"
+
+    rc = cli.main(
+        ["--questions", str(questions), "--out", str(out), "--mode", "keywords", "--no-graph"]
+    )
+
+    report = json.loads(out.read_text())
+    assert rc == 0 and report["metrics"]["mrr"] == 1.0
+    assert report["mode"] == "keywords" and report["graph"] is False
+
+
+def test_refusal_rate_counts_hors_sujet_answers_that_decline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from rag_bachelor.core import agent
+
+    answers = iter(["Cela ne se trouve pas dans les extraits.", "Voici la recette : …"])
+    monkeypatch.setattr(agent, "answer_agentic", lambda q, top_k=5: (next(answers), [], []))
+    off = [
+        EvalQuestion(
+            id=str(i), question="q", source="", pages=(), status="valide", type="hors_sujet"
+        )
+        for i in range(2)
+    ]
+
+    assert cli._refusal_rate(off) == 0.5

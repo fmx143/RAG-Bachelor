@@ -10,6 +10,24 @@
   </div>
 </div>
 
+{% if steps %}
+<div class="card">
+  <details>
+    <summary>🧭 Recherches de l'agent ({{ steps | length }})</summary>
+    <ol style="margin-top:.75rem;">
+      {% for step in steps %}
+      <li>
+        « {{ step.query }} »
+        {% if step.source %}dans <code>{{ step.source }}</code>{% endif %}
+        {% if step.keywords %}· mots-clés : {{ step.keywords | join(", ") }}{% endif %}
+        · {{ step.found }} nouveau(x) passage(s)
+      </li>
+      {% endfor %}
+    </ol>
+  </details>
+</div>
+{% endif %}
+
 {% if chunks %}
 <div class="card">
   <details>

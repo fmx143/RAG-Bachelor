@@ -9,6 +9,7 @@ from rag_bachelor.config import settings
 from rag_bachelor.ingest.chunk import Chunk
 
 _COLLECTION_NAME = "bachelor_docs"
+_FACTS_NAME = "bachelor_facts"
 
 # Module-level singleton client & collection
 _client: ClientAPI | None = None
@@ -40,6 +41,13 @@ def get_collection() -> chromadb.Collection:
             metadata={"hnsw:space": "cosine"},
         )
     return _collection
+
+
+def get_facts_collection() -> chromadb.Collection:
+    """Collection of knowledge-graph facts (see ``core/graph.py``), next to the chunks."""
+    get_collection()  # makes sure the client exists
+    assert _client is not None
+    return _client.get_or_create_collection(name=_FACTS_NAME, metadata={"hnsw:space": "cosine"})
 
 
 def index_chunks(chunks: list[Chunk]) -> None:
@@ -74,10 +82,12 @@ def index_chunks(chunks: list[Chunk]) -> None:
 def delete_source(filename: str) -> None:
     """Remove every chunk that originates from *filename*.
 
-    Call this before re-indexing a PDF to avoid stale duplicates.
+    Call this before re-indexing a PDF to avoid stale duplicates. The graph facts extracted
+    from those chunks go too, so they never point at chunks that no longer exist.
     """
     collection = get_collection()
     collection.delete(where={"source": filename})
+    get_facts_collection().delete(where={"source": filename})
 
 
 def list_sources() -> list[str]:
