@@ -110,3 +110,9 @@ def test_parse_structured_items_drops_non_dict_entries() -> None:
             "correct": [0],
         }
     ]
+
+
+def test_loads_object_accepts_raw_newlines_inside_strings() -> None:
+    raw = '{"action": "answer", "text": "1. un\n2. deux\tfin"}'  # what a Markdown answer looks like
+
+    assert qtypes.loads_object(raw) == {"action": "answer", "text": "1. un\n2. deux\tfin"}

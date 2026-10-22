@@ -87,16 +87,20 @@ def item_schema_instructions(qtype: str) -> str:
 
 
 def loads_object(raw: str) -> dict[str, object] | None:
-    """Parse *raw* into a JSON object, tolerating Markdown fences and noise."""
+    """Parse *raw* into a JSON object, tolerating Markdown fences and noise.
+
+    Non-strict: models routinely put raw newlines/tabs inside string values (a Markdown answer),
+    which strict JSON rejects.
+    """
     cleaned = re.sub(r"```(?:json)?", "", raw).strip().strip("`").strip()
     try:
-        data = json.loads(cleaned)
+        data = json.loads(cleaned, strict=False)
     except json.JSONDecodeError:
         match = _JSON_RE.search(cleaned)
         if not match:
             return None
         try:
-            data = json.loads(match.group())
+            data = json.loads(match.group(), strict=False)
         except json.JSONDecodeError:
             return None
     return data if isinstance(data, dict) else None

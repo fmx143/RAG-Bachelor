@@ -25,7 +25,7 @@ Local-first RAG study assistant for French bachelor PDFs.
 | `src/rag_bachelor/core/bank.py` | Whole-document question-bank generation, windowed LLM calls, semantic near-duplicate filtering |
 | `src/rag_bachelor/core/keywords.py` | LightRAG-style query keywords (one LLM call) feeding BM25 and the graph |
 | `src/rag_bachelor/core/graph.py` | HippoRAG-style fact graph: triples in Chroma `bachelor_facts`, Personalized PageRank → 3rd RRF ranking (`graph_enabled`, `graph_auto_build`) |
-| `src/rag_bachelor/core/agent.py` | Agentic Ask: JSON `search`/`answer` loop, max `agent_max_steps` searches |
+| `src/rag_bachelor/core/agent.py` | Agentic Ask: question searched as asked first, then a JSON `search`/`answer` loop; `agent_max_steps` searches in total |
 | `src/rag_bachelor/ingest/` | PDF → chunks → ChromaDB |
 | `src/rag_bachelor/ingest/layout.py` | Docling conversion + section-based chunking (tables split by row) |
 | `src/rag_bachelor/study/store.py` | SM-2 + question-bank persistence — dual backend: SQLite (default) or PostgreSQL (`POSTGRES_HOST` set) |
