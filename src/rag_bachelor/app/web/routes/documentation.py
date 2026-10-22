@@ -141,7 +141,7 @@ def _run_index_job(pdfs: list[Path], notes: str = "") -> None:
             msg = f"✅ {len(pdfs)} document(s) indexés — {total_chunks} chunks au total{warning}"
         _JOB["message"] = f"{notes} · {msg}" if notes else msg
     except Exception as exc:  # noqa: BLE001 — surfaced to the user via the status partial
-        _JOB["error"] = f"❌ Échec de l'indexation : {exc}"
+        _JOB["error"] = f"❌ Échec de l'indexation ({_describe(exc)})."
     finally:
         _JOB["running"] = False
 
@@ -287,7 +287,7 @@ async def upload_pdfs(
                 known[digest] = safe_name
                 new.append(dest)
         except Exception as exc:
-            errors.append(f"❌ {safe_name} : {exc}")
+            errors.append(f"❌ {safe_name} : échec de l'enregistrement ({_describe(exc)})")
 
     notes = " · ".join(messages)
     if new:
