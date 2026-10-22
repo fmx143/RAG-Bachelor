@@ -52,30 +52,32 @@ def setup(monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
         return [_chunk(p) for p in sorted({1, len(seen)})]  # page 1 comes back every time
 
     monkeypatch.setattr(agent, "retrieve", fake_retrieve)
+    monkeypatch.setattr(agent, "extract_keywords", lambda q: ["kw"])
     monkeypatch.setattr(agent, "collection_count", lambda: 10)
     monkeypatch.setattr(agent, "list_sources", lambda: ["a.pdf", "b.pdf"])
     return install, seen
 
 
-def test_search_then_answer_returns_deduplicated_chunks_and_steps(setup) -> None:  # type: ignore[no-untyped-def]
+def test_question_is_searched_first_as_asked_then_the_agent_adds_searches(setup) -> None:  # type: ignore[no-untyped-def]
     install, seen = setup
-    llm = install(_search("tri rapide"), _search("dijkstra"), _answer("Voilà [a.pdf, p.1]"))
+    llm = install(_search("dijkstra"), _answer("Voilà [a.pdf, p.1]"))
 
     answer, chunks, steps = agent.answer_agentic("Compare les deux")
 
     assert answer == "Voilà [a.pdf, p.1]"
+    assert seen[0] == {"query": "Compare les deux", "source": None, "keywords": ["kw"]}
     assert [c.page for c in chunks] == [1, 2]  # page 1 found twice, kept once
-    assert [(s.query, s.found) for s in steps] == [("tri rapide", 1), ("dijkstra", 1)]
-    assert llm.calls == 3
+    assert [(s.query, s.found) for s in steps] == [("Compare les deux", 1), ("dijkstra", 1)]
+    assert llm.calls == 2
 
 
-def test_answering_before_any_search_is_refused(setup) -> None:  # type: ignore[no-untyped-def]
+def test_agent_can_answer_straight_from_the_first_search(setup) -> None:  # type: ignore[no-untyped-def]
     install, seen = setup
-    install(_answer("de tête"), _search("q"), _answer("ok"))
+    llm = install(_answer("ok"))
 
-    answer, _, steps = agent.answer_agentic("Une question de cours")
+    answer, chunks, steps = agent.answer_agentic("q")
 
-    assert answer == "ok" and len(steps) == 1
+    assert answer == "ok" and len(steps) == 1 and chunks and llm.calls == 1
 
 
 def test_search_budget_is_capped_then_answer_is_forced(
@@ -83,12 +85,12 @@ def test_search_budget_is_capped_then_answer_is_forced(
     monkeypatch: pytest.MonkeyPatch,  # type: ignore[no-untyped-def]
 ) -> None:
     install, seen = setup
-    monkeypatch.setattr(settings, "agent_max_steps", 2)
-    llm = install(_search("a"), _search("b"), _answer("réponse forcée"))
+    monkeypatch.setattr(settings, "agent_max_steps", 2)  # the first search counts
+    llm = install(_search("a"), _answer("réponse forcée"))
 
     answer, _, steps = agent.answer_agentic("q")
 
-    assert answer == "réponse forcée" and len(steps) == 2 and llm.calls == 3
+    assert answer == "réponse forcée" and len(steps) == 2 and llm.calls == 2
 
 
 def test_source_must_be_an_indexed_document(setup) -> None:  # type: ignore[no-untyped-def]
@@ -97,7 +99,16 @@ def test_source_must_be_an_indexed_document(setup) -> None:  # type: ignore[no-u
 
     agent.answer_agentic("q")
 
-    assert [s["source"] for s in seen] == ["b.pdf", None]
+    assert [s["source"] for s in seen] == [None, "b.pdf", None]
+
+
+def test_broken_json_action_is_retried_not_returned_as_the_answer(setup) -> None:  # type: ignore[no-untyped-def]
+    install, seen = setup
+    install('{"action": "search", "query": "q", "keywords": ["a"', _search("q"), _answer("ok"))
+
+    answer, chunks, steps = agent.answer_agentic("q")
+
+    assert answer == "ok" and len(steps) == 2 and chunks
 
 
 def test_plain_text_reply_is_taken_as_the_answer(setup) -> None:  # type: ignore[no-untyped-def]

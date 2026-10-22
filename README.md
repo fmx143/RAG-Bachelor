@@ -12,7 +12,7 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 | 📚 **Document management** | Upload PDFs (auto-indexed, duplicates skipped) into a local vector store, re-index or remove them |
 | 🧩 **Layout-aware indexing** | Docling's layout model recovers section titles and table structure: each chunk is prefixed by its section title, never spans a page break, and tables are indexed row by row with their header repeated |
 | ❓ **Q&A with citations** | Ask anything in French, get a sourced answer with file name + page number. Retrieval is hybrid (dense bge-m3 + BM25 keywords, fused with RRF, plus a fact-graph ranking once built) then reranked by a cross-encoder |
-| 🕸️ **Agentic search & graph** | LLM keyword extraction widens every search. Optional *deep search* agent runs up to 3 self-directed searches (query, keywords, target document) before answering. A HippoRAG-style fact graph (LLM triples per chunk → Personalized PageRank) helps multi-page questions |
+| 🕸️ **Agentic search & graph** | LLM keyword extraction widens every search. Optional *deep search* agent searches the question as asked, then runs up to 2 more self-directed searches (query, keywords, target document) before answering. A HippoRAG-style fact graph (LLM triples per chunk → Personalized PageRank) helps multi-page questions |
 | 🔄 **Spaced repetition** | SM-2 algorithm (Anki-style) — review due cards, self-grade, auto-reschedule |
 | 🎯 **Question generation** | LLM-generated easy / medium / hard questions per topic, add them to your deck |
 | 🏦 **Question bank** | Generate a whole-document bank of free / QCM (single/multi) / Vrai-Faux questions, semantic near-duplicate filtering, short answers (1–5 sentences) with the supporting passage from the course, filter by difficulty/type/result, auto-graded structured revision |
@@ -286,7 +286,7 @@ fetched from ollama.com. There is no local Ollama mode anymore.
 2. Adjust **Sources utilisées** (3–10) to control how many passages are retrieved.
 3. Click **🔍 Obtenir une réponse**.
 4. The answer cites sources as `[fichier.pdf, p.X]`. Expand **📖 Sources utilisées** to see the raw passages.
-5. Tick **Recherche approfondie (agent)** for multi-notion or cross-document questions: the LLM chooses what to search (up to `AGENT_MAX_STEPS`, default 3) and the searches are listed under the answer. Slower: ~6 s of reranking per search.
+5. Tick **Recherche approfondie (agent)** for multi-notion or cross-document questions: the question is searched as asked, then the LLM chooses what else to search (`AGENT_MAX_STEPS` searches in total, default 3, first one included) and the searches are listed under the answer. Slower: ~6 s of reranking per search.
 
 > **🕸️ Fact graph.** In 📚 Documentation, the **Graphe** button builds a document's graph (one LLM call per chunk — paid
 > on a cloud provider; it also runs automatically after indexing unless `GRAPH_AUTO_BUILD=false`). The graph ranking joins the
