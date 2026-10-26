@@ -43,6 +43,13 @@ def get_collection() -> chromadb.Collection:
     return _collection
 
 
+def heartbeat() -> None:
+    """Raise if the Chroma server (or embedded client) does not answer."""
+    get_collection()
+    assert _client is not None
+    _client.heartbeat()
+
+
 def get_facts_collection() -> chromadb.Collection:
     """Collection of knowledge-graph facts (see ``core/graph.py``), next to the chunks."""
     get_collection()  # makes sure the client exists

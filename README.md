@@ -475,8 +475,16 @@ The Chroma server image (pinned by digest in `docker-compose.yml`) and the `chro
 (pinned in `pyproject.toml`) must be upgraded **together**. Back up the `chroma_data` volume
 first, and test the new versions on a copy of it before touching production.
 
-Compatibility verified in production on 2026-10-04: client `chromadb` 1.5.9 (container
-`rag-bachelor-app-1`) against the server image pinned by digest.
+Every image in `docker-compose.yml` must be `tag@sha256:digest`: official tags are rebuilt in
+place, and a changed digest makes an auto-updater recreate the container. `GET /healthz`
+(Postgres `SELECT 1` + Chroma heartbeat, 200/503, no detail, no login) backs the Dockerfile
+`HEALTHCHECK`; the app waits ~30 s for both at startup, then exits with an explicit error.
+
+**Technical debt — client/server gap.** The rule above is the target; today it is not met: the
+pinned server is `chromadb/chroma:1.4.4` while the client is `chromadb==1.5.9`. This pairing is
+validated in production (2026-10-04), so both are left as is. To close the gap, upgrade the
+server as a **separate change**: back up the `chroma_data` volume first, test the new image on a
+copy of it, and never bump the server image as a side effect of another change.
 
 ---
 

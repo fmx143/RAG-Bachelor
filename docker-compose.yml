@@ -33,9 +33,12 @@ services:
     volumes:
       - pdfs:/app/data/pdfs
       - model_cache:/app/model_cache
+    # Health of the app itself comes from the Dockerfile HEALTHCHECK (/healthz).
     depends_on:
-      - postgres
-      - chroma
+      postgres:
+        condition: service_healthy
+      chroma:
+        condition: service_healthy
     networks:
       - default
       - data_tier
@@ -59,13 +62,22 @@ services:
           memory: 8G
 
   postgres:
-    image: postgres:16-alpine
+    # Pinned by tag AND digest: official tags are rebuilt in place, and a digest change makes
+    # an auto-updater recreate the container.
+    image: postgres:16.15-alpine@sha256:0cefaabd882e42bcb2a2f3dc56d3ce4770560ba62fd7f197f1a2e008fd5731ab
     environment:
       POSTGRES_DB: rag_bachelor
       POSTGRES_USER: rag_bachelor
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set via Doppler}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # $$ : compose leaves it to the container shell, which reads the container's own env.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - data_tier
     restart: unless-stopped
@@ -89,13 +101,27 @@ services:
     # No "ports:" — unreachable from the LAN or the internet, only from `app`.
 
   chroma:
-    # image en production depuis le 23.08.2026, construite le 2026-05-05 ; version exacte non
-    # identifiée ; épinglée par digest pour garder chroma_data lisible.
-    # Compatibilité vérifiée en production le 2026-10-04 : client chromadb 1.5.9
-    # (rag-bachelor-app-1) contre ce serveur.
-    image: chromadb/chroma@sha256:1e0b73a187a28757c572acba508c46f48c9e8b0acaf5c20e6d95cdedce1acdf6
+    # Tag AND digest (see postgres). Server 1.4.4 vs client chromadb==1.5.9 (pyproject.toml):
+    # validated in production, tracked as technical debt in the README ("Upgrading Chroma").
+    image: chromadb/chroma:1.4.4@sha256:1e0b73a187a28757c572acba508c46f48c9e8b0acaf5c20e6d95cdedce1acdf6
     volumes:
       - chroma_data:/chroma/chroma
+    # The image has neither curl nor python, only bash: plain HTTP over bash's /dev/tcp.
+    # $$ : left to the container shell instead of being interpolated by compose.
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - |
+          exec 3<>/dev/tcp/127.0.0.1/8000
+          printf 'GET /api/v2/heartbeat HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3
+          read -r line <&3
+          [[ $$line == *" 200 "* ]]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - data_tier
     restart: unless-stopped
