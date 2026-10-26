@@ -24,6 +24,8 @@ from rag_bachelor.config import settings
 logger = logging.getLogger(__name__)
 
 _ALLOWED_PREFIXES = ("/login", "/static")
+# Exact match, not a prefix: the Docker healthcheck calls it without a session.
+_ALLOWED_PATHS = frozenset({"/healthz"})
 
 router = APIRouter()
 
@@ -73,7 +75,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not auth_enabled():
             return await call_next(request)
         path = request.url.path
-        if path.startswith(_ALLOWED_PREFIXES) or request.session.get("auth"):
+        if (
+            path in _ALLOWED_PATHS
+            or path.startswith(_ALLOWED_PREFIXES)
+            or request.session.get("auth")
+        ):
             return await call_next(request)
         return RedirectResponse(url=f"/login?next={_safe_next(path)}", status_code=303)
 
@@ -106,7 +112,7 @@ async def login_submit(
             status_code=429,
         )
     if auth_enabled() and secrets.compare_digest(
-        password.encode(), settings.app_password.get_secret_value().encode()
+        password.encode("utf-8"), settings.app_password.get_secret_value().encode("utf-8")
     ):
         request.session.clear()  # fresh session on privilege change
         request.session["auth"] = True

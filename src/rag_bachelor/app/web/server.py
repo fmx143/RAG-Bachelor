@@ -10,13 +10,14 @@ Or via the installed script:
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -40,13 +41,38 @@ logger = logging.getLogger(__name__)
 _STATIC_DIR = Path(__file__).parent / "static"
 
 
+_STARTUP_ATTEMPTS = 6  # backoff 1+2+4+8+16 s ≈ 30 s for Postgres/Chroma to come up
+
+
+def _retry(what: str, fn: Callable[[], object]) -> None:
+    """Call *fn* with bounded exponential backoff; log and re-raise the last failure."""
+    for attempt in range(1, _STARTUP_ATTEMPTS + 1):
+        try:
+            fn()
+            return
+        except Exception as exc:
+            if attempt == _STARTUP_ATTEMPTS:
+                logger.error("%s indisponible après %d tentatives : %s", what, attempt, exc)
+                raise
+            delay = 2 ** (attempt - 1)
+            logger.warning("%s pas prêt (%s), nouvel essai dans %d s", what, exc, delay)
+            time.sleep(delay)  # runs in a worker thread (asyncio.to_thread)
+
+
+def _wait_for_backends() -> None:
+    from rag_bachelor.ingest.index import get_collection
+    from rag_bachelor.study.store import get_conn
+
+    _retry("PostgreSQL / base d'étude", get_conn)
+    _retry("ChromaDB", get_collection)
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Pre-warm the embedding model and ChromaDB so the first request doesn't stall."""
     import asyncio
 
     from rag_bachelor.core.embeddings import get_model
-    from rag_bachelor.ingest.index import get_collection
 
     if not auth.auth_enabled():
         logger.warning(
@@ -55,7 +81,7 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
         )
 
     await asyncio.to_thread(get_model)
-    await asyncio.to_thread(get_collection)
+    await asyncio.to_thread(_wait_for_backends)
     yield
 
 
@@ -127,6 +153,21 @@ app.include_router(generate.router)
 app.include_router(bank.router)
 app.include_router(progress.router)
 app.include_router(settings.router)
+
+
+@app.get("/healthz", include_in_schema=False)
+def healthz() -> JSONResponse:
+    """Liveness of the data tier. Public (tunnel): no detail in the body, causes go to the log."""
+    from rag_bachelor.ingest.index import heartbeat
+    from rag_bachelor.study.store import get_conn
+
+    try:
+        get_conn().execute("SELECT 1")
+        heartbeat()
+    except Exception:
+        logger.exception("healthz : dépendance indisponible")
+        return JSONResponse({"status": "unavailable"}, status_code=503)
+    return JSONResponse({"status": "ok"})
 
 
 @app.get("/", include_in_schema=False)

@@ -9,7 +9,9 @@ surface below, so callers never need to know which one is active.
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
+import threading
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
@@ -20,7 +22,10 @@ from psycopg.rows import dict_row
 from rag_bachelor.config import settings
 from rag_bachelor.study.srs import Card
 
+logger = logging.getLogger(__name__)
+
 _conn: sqlite3.Connection | psycopg.Connection[dict[str, Any]] | None = None
+_conn_lock = threading.Lock()  # background jobs share the connection: one reconnect at a time
 
 _SQLITE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS cards (
@@ -175,34 +180,64 @@ def _retag_single_answer_multi(
             conn.execute(_adapt(f"UPDATE {table} SET qtype = 'mcq_single' WHERE id = ?"), (row_id,))
 
 
+def _usable(conn: sqlite3.Connection | psycopg.Connection[dict[str, Any]]) -> bool:
+    """Ping a Postgres connection before use (the ``pool_pre_ping`` of this singleton).
+
+    A recreated Postgres container leaves the old socket dead; without this check the app
+    would answer 503 until restarted. SQLite is a local file and cannot go stale.
+    """
+    if isinstance(conn, sqlite3.Connection):
+        return True
+    try:
+        if conn.closed or conn.broken:
+            return False
+        if conn.info.transaction_status == psycopg.pq.TransactionStatus.INERROR:
+            conn.rollback()  # an aborted transaction would reject the ping and every query
+        conn.execute("SELECT 1")
+    except psycopg.Error:
+        return False
+    return True
+
+
 def get_conn() -> sqlite3.Connection | psycopg.Connection[dict[str, Any]]:
-    """Return (and lazily open) the singleton database connection."""
+    """Return the singleton database connection, (re)opening it when missing or dead."""
     global _conn
-    if _conn is None:
-        if _use_postgres():
-            _conn = psycopg.connect(
-                host=settings.postgres_host,
-                port=settings.postgres_port,
-                dbname=settings.postgres_db,
-                user=settings.postgres_user,
-                password=settings.postgres_password.get_secret_value(),
-                row_factory=dict_row,
-                autocommit=False,
-            )
-            _conn.execute(_POSTGRES_SCHEMA)
-            _conn.commit()
-        else:
-            settings.db_path.parent.mkdir(parents=True, exist_ok=True)
-            # timeout=30: the bank-generation background job holds writes open for
-            # minutes while foreground requests share this same connection; the
-            # sqlite3 default (5s) was tuned for short-lived request-only writes.
-            _conn = sqlite3.connect(str(settings.db_path), check_same_thread=False, timeout=30)
-            _conn.row_factory = sqlite3.Row
-            _conn.execute("PRAGMA journal_mode=WAL;")
-            _conn.executescript(_SQLITE_SCHEMA)
-            _conn.commit()
-        _migrate(_conn)
-    return _conn
+    with _conn_lock:
+        if _conn is not None and not _usable(_conn):
+            logger.warning("Connexion PostgreSQL perdue : reconnexion.")
+            try:
+                _conn.close()
+            except psycopg.Error:
+                pass
+            _conn = None
+        if _conn is None:
+            conn: sqlite3.Connection | psycopg.Connection[dict[str, Any]]
+            if _use_postgres():
+                conn = psycopg.connect(
+                    host=settings.postgres_host,
+                    port=settings.postgres_port,
+                    dbname=settings.postgres_db,
+                    user=settings.postgres_user,
+                    password=settings.postgres_password.get_secret_value(),
+                    row_factory=dict_row,
+                    autocommit=False,
+                )
+                # Idempotent (CREATE ... IF NOT EXISTS, ADD COLUMN IF NOT EXISTS): safe to replay.
+                conn.execute(_POSTGRES_SCHEMA)
+                conn.commit()
+            else:
+                settings.db_path.parent.mkdir(parents=True, exist_ok=True)
+                # timeout=30: the bank-generation background job holds writes open for
+                # minutes while foreground requests share this same connection; the
+                # sqlite3 default (5s) was tuned for short-lived request-only writes.
+                conn = sqlite3.connect(str(settings.db_path), check_same_thread=False, timeout=30)
+                conn.row_factory = sqlite3.Row
+                conn.execute("PRAGMA journal_mode=WAL;")
+                conn.executescript(_SQLITE_SCHEMA)
+                conn.commit()
+            _migrate(conn)
+            _conn = conn  # published only once fully initialised
+        return _conn
 
 
 # ── App settings (persisted key/value, e.g. active LLM provider toggle) ────────

@@ -153,3 +153,25 @@ def test_app_sends_hardening_headers_and_keeps_static_cacheable() -> None:
     assert page.headers["Cross-Origin-Opener-Policy"] == "same-origin"
     assert "Permissions-Policy" in page.headers
     assert client.get("/static/htmx.min.js").headers.get("Cache-Control") != "no-store"
+
+
+# ── non-ASCII passwords ──────────────────────────────────────────────────────
+
+
+def test_non_ascii_wrong_password_is_401_not_500(auth_enabled_client: TestClient) -> None:
+    resp = auth_enabled_client.post("/login", data={"password": "é€✓"}, follow_redirects=False)
+    assert resp.status_code == 401
+    assert "Mot de passe incorrect." in resp.text
+
+
+def test_non_ascii_correct_password_logs_in(
+    auth_enabled_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "app_password", SecretStr("mdp-é€✓"))
+    resp = auth_enabled_client.post("/login", data={"password": "mdp-é€✓"}, follow_redirects=False)
+    assert resp.status_code == 303
+
+
+def test_healthz_is_public_but_nothing_else_is(auth_enabled_client: TestClient) -> None:
+    assert auth_enabled_client.get("/healthz", follow_redirects=False).status_code != 303
+    assert auth_enabled_client.get("/healthzx", follow_redirects=False).status_code == 303

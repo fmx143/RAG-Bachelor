@@ -76,9 +76,11 @@ USER 10001
 
 EXPOSE 8090
 
-# Python instead of curl: no extra package in the runtime image.
+# Single source of truth for the container's health (docker-compose.yml does not redefine it).
+# /healthz checks Postgres + Chroma, so a dead data tier turns the container unhealthy.
+# Python instead of curl: no extra package in the runtime image. urlopen raises on a 503.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/', timeout=5)"]
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/healthz', timeout=5)"]
 
 ENTRYPOINT ["docker/entrypoint.sh"]
 CMD ["uvicorn", "rag_bachelor.app.web.server:app", \
