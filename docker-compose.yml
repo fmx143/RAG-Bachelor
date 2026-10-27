@@ -53,10 +53,10 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=512m,nosuid,nodev
-    pids_limit: 256
     deploy:
       resources:
         limits:
+          pids: 256
           # bge-m3 + bge-reranker + torch ≈ 5 GB resident, + Docling layout/table models
           # during indexing, + the /tmp tmpfs; tune to the NAS RAM.
           memory: 8G
@@ -93,10 +93,10 @@ services:
     tmpfs:
       - /tmp
       - /var/run/postgresql
-    pids_limit: 256
     deploy:
       resources:
         limits:
+          pids: 256
           memory: 1G
     # No "ports:" — unreachable from the LAN or the internet, only from `app`.
 
@@ -105,7 +105,7 @@ services:
     # validated in production, tracked as technical debt in the README ("Upgrading Chroma").
     image: chromadb/chroma:1.4.4@sha256:1e0b73a187a28757c572acba508c46f48c9e8b0acaf5c20e6d95cdedce1acdf6
     volumes:
-      - chroma_data:/chroma/chroma
+      - chroma_data:/data
     # The image has neither curl nor python, only bash: plain HTTP over bash's /dev/tcp.
     # $$ : left to the container shell instead of being interpolated by compose.
     healthcheck:
@@ -130,10 +130,10 @@ services:
       options: {max-size: "10m", max-file: "3"} # a chatty container can't fill the NAS disk
     cap_drop: [ALL] # port 8000, own data dir: needs no Linux capabilities
     security_opt: ["no-new-privileges:true"]
-    pids_limit: 256
     deploy:
       resources:
         limits:
+          pids: 256
           memory: 2G
     # No "ports:" — same isolation as postgres.
 
