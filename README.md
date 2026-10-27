@@ -230,7 +230,7 @@ Point `cloudflared` (run separately — it isn't part of this compose file) at
 - **Non-root** (UID 10001), application code owned by root (readable, not writable).
 - **Read-only root filesystem**, writes only to the named volumes and a size-capped `/tmp` tmpfs.
 - **`cap_drop: [ALL]`** + `no-new-privileges` on every service (Postgres keeps only the
-  capabilities its entrypoint needs), `pids_limit` and memory limits.
+  capabilities its entrypoint needs), PID and memory limits (`deploy.resources.limits`).
 - **Port published on `127.0.0.1` only** — `cloudflared` is the sole way in, no LAN bypass
   of Cloudflare Access.
 - Chroma server image **pinned by digest**.
