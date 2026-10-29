@@ -1,22 +1,15 @@
 {% extends "base.html" %}
-{% block decor %}
-<svg aria-hidden="true" class="sky" viewBox="0 0 1360 700" preserveAspectRatio="xMidYMin slice">
-  <g stroke="#F2B66D" stroke-opacity=".35" fill="none"><line class="edge" x1="1010" y1="120" x2="1150" y2="230"/><line class="edge" x1="1150" y1="230" x2="1260" y2="150"/><line class="edge" x1="1150" y1="230" x2="1080" y2="360"/><line class="edge" x1="1080" y1="360" x2="1240" y2="420"/><line class="edge" x1="1010" y1="120" x2="900" y2="210"/><line class="edge" x1="900" y1="210" x2="1080" y2="360"/><line class="edge" x1="1240" y1="420" x2="1300" y2="330"/></g>
-  <g fill="#F2B66D"><circle class="node" cx="1010" cy="120" r="4"/><circle class="node" style="animation-delay:-1s" cx="1150" cy="230" r="6"/><circle class="node" style="animation-delay:-2s" cx="1260" cy="150" r="3"/><circle class="node" style="animation-delay:-3s" cx="1080" cy="360" r="5"/><circle class="node" style="animation-delay:-1.5s" cx="1240" cy="420" r="4"/><circle class="node" style="animation-delay:-2.5s" cx="900" cy="210" r="3"/><circle class="node" style="animation-delay:-.5s" cx="1300" cy="330" r="3"/></g>
-  <g fill="#7FD1C7"><circle class="node" style="animation-delay:-2s" cx="760" cy="90" r="2"/><circle class="node" cx="1330" cy="60" r="2"/><circle class="node" style="animation-delay:-3s" cx="980" cy="470" r="2"/></g>
-</svg>
-{% endblock %}
 {% block content %}
 <div class="page-header ask-hero" style="max-width:760px;">
-  <span class="eyebrow">Tes cours, interrogeables</span>
+  <span class="eyebrow">Poser une question</span>
   <h1>Pose ta question,<br><em>on fouille</em> tes PDF.</h1>
   <p class="lede">Chaque réponse cite le fichier et la page d'où elle vient.</p>
 </div>
 
 {% if no_docs %}
 <div class="alert alert-warning">
-  ⚠️ Aucun document indexé. Va dans
-  <a href="/docs" style="color:inherit;font-weight:600;">📚 Documentation</a>
+  Aucun document indexé. Va dans
+  <a href="/docs">Sources</a>
   pour indexer tes cours.
 </div>
 {% endif %}
@@ -41,16 +34,17 @@
       <label for="n_sources">Sources : <span id="n-val" aria-live="polite">5</span></label>
       <input type="range" id="n_sources" name="n_sources" min="3" max="10" value="5"
              data-output="n-val" style="width:140px;">
-      <label>
-        <input type="checkbox" name="agent" value="true">
-        Recherche approfondie (agent, plusieurs étapes)
-      </label>
+      <div class="chipgroup" role="radiogroup" aria-label="Mode de recherche">
+        <label class="chip-f"><input type="radio" name="agent" value="false" checked><span>Rapide</span></label>
+        <label class="chip-f" title="Plusieurs étapes de recherche"><input type="radio" name="agent" value="true"><span>Agent</span></label>
+      </div>
       <button
         type="submit"
         class="btn btn-primary"
         style="margin-left:auto; min-height:48px; padding:0 28px;"
         {% if no_docs %}disabled{% endif %}
       >Demander →</button>
+      <small class="ask-hint"><kbd>Ctrl</kbd> + <kbd>Entrée</kbd></small>
     </div>
   </form>
 </div>

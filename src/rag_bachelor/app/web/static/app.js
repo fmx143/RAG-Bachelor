@@ -216,3 +216,11 @@ document.addEventListener("keydown", (e) => {
     document.querySelector(`#revision-content .gradebar .g${+e.key - 1}`)?.click();
   }
 });
+
+// Ask: Ctrl/Cmd+Enter in the question box submits the form.
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && e.target.id === "question") {
+    e.preventDefault();
+    e.target.form?.requestSubmit();
+  }
+});
