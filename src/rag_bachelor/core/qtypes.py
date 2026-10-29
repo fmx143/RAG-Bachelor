@@ -1,9 +1,10 @@
 """Shared question-type definitions, prompt fragments, and LLM-output parsing.
 
-Four question types are supported end to end (generation, storage, revision):
-``free`` (texte libre, auto-évalué), ``mcq_single`` (QCM une réponse),
-``mcq_multi`` (QCM plusieurs réponses) et ``tf`` (Vrai/Faux). The three
-structured types are auto-graded — no LLM call needed at review time.
+Five question types are supported end to end (generation, storage, revision):
+``free`` (texte libre, auto-évalué), ``cloze`` (texte à trous, auto-évalué),
+``mcq_single`` (QCM une réponse), ``mcq_multi`` (QCM plusieurs réponses) et
+``tf`` (Vrai/Faux). The three structured types are auto-graded — no LLM call
+needed at review time; ``free`` and ``cloze`` are self-graded after the answer is shown.
 
 This module centralizes what used to be duplicated between
 ``core/questions.py`` and ``core/bank.py``: the fence-strip + regex JSON
@@ -16,10 +17,14 @@ import json
 import re
 from typing import TypedDict
 
-QTYPES: tuple[str, ...] = ("free", "mcq_single", "mcq_multi", "tf")
+QTYPES: tuple[str, ...] = ("free", "cloze", "mcq_single", "mcq_multi", "tf")
+
+# Types without options: the learner reveals the answer, then grades themselves.
+SELF_GRADED: tuple[str, ...] = ("free", "cloze")
 
 QTYPE_LABELS: dict[str, str] = {
     "free": "Texte libre",
+    "cloze": "Texte à trous",
     "mcq_single": "QCM — une réponse",
     "mcq_multi": "QCM — plusieurs réponses",
     "tf": "Vrai / Faux",
@@ -52,6 +57,13 @@ _ITEM_SCHEMAS: dict[str, str] = {
     "free": (
         '{"question": "...", "answer": "...", "difficulty": "facile|moyen|difficile"}\n'
         '"answer" est la réponse modèle, complète et exacte.'
+    ),
+    "cloze": (
+        '{"question": "phrase du cours avec ____ à la place des mots à retrouver", '
+        '"answer": "mot1 ; mot2", "difficulty": "facile|moyen|difficile"}\n'
+        'Masque 1 à 3 termes clés (notions, valeurs, noms) par un trou « ____ ». "answer" '
+        "contient exactement les termes masqués, dans l'ordre, séparés par « ; », un par "
+        "trou. N'écris jamais un terme masqué ailleurs dans la phrase."
     ),
     "mcq_single": (
         '{"question": "...", "options": ["...", "...", "...", "..."], '
@@ -175,6 +187,27 @@ def _validate_tf(entry: dict[str, object]) -> QuestionItem | None:
     }
 
 
+_BLANK_RE = re.compile(r"_{2,}|\[\.{3}\]|…+")
+
+
+def _validate_cloze(entry: dict[str, object]) -> QuestionItem | None:
+    question = _BLANK_RE.sub("____", str(entry.get("question", "")).strip())
+    terms = [t.strip() for t in str(entry.get("answer", "")).split(";") if t.strip()]
+    # One term per blank, and no masked term left readable in the sentence.
+    if not terms or question.count("____") != len(terms):
+        return None
+    if any(len(t) >= 3 and re.search(rf"\b{re.escape(t)}\b", question, re.I) for t in terms):
+        return None
+    return {
+        "question": question,
+        "answer": " ; ".join(terms),
+        "difficulty": _normalize_difficulty(entry.get("difficulty")),
+        "qtype": "cloze",
+        "options": None,
+        "correct": None,
+    }
+
+
 def _validate_free(entry: dict[str, object]) -> QuestionItem | None:
     question = str(entry.get("question", "")).strip()
     answer = str(entry.get("answer", "")).strip()
@@ -202,6 +235,8 @@ def validate_item(entry: object, qtype: str) -> QuestionItem | None:
         return _validate_mcq(entry, qtype)
     if qtype == "tf":
         return _validate_tf(entry)
+    if qtype == "cloze":
+        return _validate_cloze(entry)
     return _validate_free(entry)
 
 

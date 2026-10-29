@@ -153,3 +153,26 @@ def test_add_all_links_every_unlinked_matching_question(client: TestClient) -> N
     assert "5 carte(s) ajoutée(s)" in resp.text
     assert all(q.card_id is not None for q in store.list_bank_questions())
     assert len(store.get_all_cards()) == 5
+
+
+def test_cloze_is_self_graded(client: TestClient) -> None:
+    store.add_bank_questions(
+        [
+            store.BankQuestion(
+                question="Le protocole ____ est fiable.",
+                answer="TCP",
+                difficulty="facile",
+                source="cours.pdf",
+                pages=[1],
+                chunk_ids=["cours.pdf__p1__c0"],
+                qtype="cloze",
+            )
+        ]
+    )
+    q = store.list_bank_questions()[0]
+    assert q.id is not None
+
+    resp = client.post(f"/bank/{q.id}/answer", data={"self_grade": "incorrect"})
+
+    assert "Mauvaise réponse" in resp.text and "Ajoutée à la révision" in resp.text
+    assert store.get_all_cards()[0].qtype == "cloze"

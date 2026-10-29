@@ -25,7 +25,7 @@
 
   <h2>❓ {{ card.question }}</h2>
 
-  {% if card.qtype != "free" %}
+  {% if card.qtype not in self_graded %}
   <!-- Structured type (QCM/Vrai-Faux): auto-graded, no LLM call -->
   <form hx-post="/revision/answer/{{ card.id }}" hx-include="#revision-filter-form" hx-target="#revision-content" hx-swap="innerHTML" style="margin-top:1rem;">
     {% for opt in card.options %}

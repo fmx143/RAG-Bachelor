@@ -45,7 +45,7 @@
       </span>
     </div>
 
-    {% if q.qtype != "free" %}
+    {% if q.qtype not in self_graded %}
     <div id="attempt-{{ q.id }}" style="margin-top:.5rem;">
       <form hx-post="/bank/{{ q.id }}/answer" hx-target="#attempt-{{ q.id }}" hx-swap="outerHTML">
         {% for opt in q.options %}
@@ -62,7 +62,7 @@
     <details style="margin-top:.5rem;">
       <summary>❓ {{ q.question }}</summary>
       <div class="card-answer">
-        {% if q.qtype != "free" %}
+        {% if q.qtype not in self_graded %}
         <ul style="padding-left:1.2rem;">
           {% for opt in q.options %}
           <li{% if loop.index0 in q.correct %} style="font-weight:600; color:var(--success);"{% endif %}>

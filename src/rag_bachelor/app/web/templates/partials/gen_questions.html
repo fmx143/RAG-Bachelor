@@ -26,7 +26,7 @@
     </div>
     <p style="font-size:.93rem;">{{ q.question }}</p>
 
-    {% if q.qtype != "free" %}
+    {% if q.qtype not in self_graded %}
     <ul style="font-size:.9rem; padding-left:1.2rem;">
       {% for opt in q.options %}
       <li{% if loop.index0 in q.correct %} style="font-weight:600; color:var(--success);"{% endif %}>
@@ -37,6 +37,8 @@
     {% if q.answer %}
     <p style="font-size:.85rem; color:var(--muted);"><em>{{ q.answer }}</em></p>
     {% endif %}
+    {% elif q.qtype == "cloze" %}
+    <p style="font-size:.85rem; color:var(--muted);"><em>Réponse : {{ q.answer }}</em></p>
     {% endif %}
 
     <!-- Each question has its own add-to-deck mini-form -->
@@ -65,8 +67,10 @@
       </div>
       {% else %}
       <input type="hidden" name="answer"   value="{{ q.answer | e }}">
+      {% if q.qtype not in self_graded %}
       <input type="hidden" name="options"  value='{{ q.options | tojson }}'>
       <input type="hidden" name="correct"  value='{{ q.correct | tojson }}'>
+      {% endif %}
       {% endif %}
 
       <button

@@ -12,7 +12,7 @@ from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.core.qtypes import DIFFICULTIES as _DIFFICULTIES
-from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES
+from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES, SELF_GRADED
 from rag_bachelor.core.questions import generate_questions
 from rag_bachelor.ingest.index import list_sources
 from rag_bachelor.study.store import add_card
@@ -137,8 +137,8 @@ async def add_to_deck(
     qt = qtype if qtype in QTYPES else "free"
     ans = answer.strip() or "(pas de réponse modèle)"
 
-    opts_list = _safe_json_list(options) if qt != "free" else None
-    correct_list = _safe_json_list(correct) if qt != "free" else None
+    opts_list = _safe_json_list(options) if qt not in SELF_GRADED else None
+    correct_list = _safe_json_list(correct) if qt not in SELF_GRADED else None
 
     card_id = add_card(
         question=question.strip(),
@@ -188,8 +188,8 @@ async def add_all_to_deck(
                 topic=topic.strip(),
                 difficulty=diff,
                 qtype=qt,
-                options=_safe_list(item.get("options")) if qt != "free" else None,
-                correct=_safe_list(item.get("correct")) if qt != "free" else None,
+                options=_safe_list(item.get("options")) if qt not in SELF_GRADED else None,
+                correct=_safe_list(item.get("correct")) if qt not in SELF_GRADED else None,
             )
             added += 1
         return added
