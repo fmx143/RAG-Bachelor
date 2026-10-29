@@ -47,7 +47,13 @@ def setup(monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
         monkeypatch.setattr(agent, "get_provider", lambda: (llm, "ollama"))
         return llm
 
-    def fake_retrieve(query: str, top_k: int, keywords: list[str], source: str | None):  # type: ignore[no-untyped-def]
+    def fake_retrieve(  # type: ignore[no-untyped-def]
+        query: str,
+        top_k: int,
+        keywords: list[str],
+        source: str | None,
+        sources: list[str] | None = None,
+    ):
         seen.append({"query": query, "source": source, "keywords": keywords})
         return [_chunk(p) for p in sorted({1, len(seen)})]  # page 1 comes back every time
 
@@ -136,3 +142,39 @@ def test_keywords_merge_both_lists_and_tolerate_garbage(monkeypatch: pytest.Monk
     bad = Scripted("pas du json")
     monkeypatch.setattr(keywords, "get_provider", lambda: (bad, "ollama"))
     assert keywords.extract_keywords("q") == []
+
+
+def test_sources_scope_every_search_and_the_prompt(
+    setup,
+    monkeypatch: pytest.MonkeyPatch,  # type: ignore[no-untyped-def]
+) -> None:
+    install, _ = setup
+    scopes: list[list[str] | None] = []
+
+    def retrieve(query: str, top_k: int, keywords: list[str], source: str | None, sources=None):  # type: ignore[no-untyped-def]
+        scopes.append(sources)
+        return [_chunk(1)]
+
+    monkeypatch.setattr(agent, "retrieve", retrieve)
+    prompts: list[str] = []
+
+    class Spy(Scripted):
+        def chat(self, messages, model=None, json_mode=False):  # type: ignore[no-untyped-def]
+            prompts.append(messages[0]["content"])
+            return super().chat(messages, model, json_mode)
+
+    llm = Spy(_search("x", "b.pdf"), _answer("ok"))
+    monkeypatch.setattr(agent, "get_provider", lambda: (llm, "ollama"))
+
+    agent.answer_agentic("q", sources=["a.pdf"])
+
+    assert scopes == [["a.pdf"], ["a.pdf"]]
+    assert prompts[0].endswith("a.pdf")  # b.pdf (other subject) is not offered to the agent
+
+
+def test_empty_sources_means_no_documents_and_no_llm_call(setup) -> None:  # type: ignore[no-untyped-def]
+    install, seen = setup
+    llm = install()
+
+    assert agent.answer_agentic("q", sources=[]) == (NO_DOC_MSG, [], [])
+    assert llm.calls == 0 and not seen

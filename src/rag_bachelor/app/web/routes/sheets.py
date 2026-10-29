@@ -15,8 +15,8 @@ from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.core.sheet import generate_sheet
-from rag_bachelor.ingest.index import list_sources
 from rag_bachelor.study.store import delete_sheet, get_sheet, list_sheets
+from rag_bachelor.study.subjects import active_sources, active_subject
 
 router = APIRouter()
 
@@ -106,8 +106,8 @@ async def sheets_page(request: Request) -> Response:
     ctx: dict[str, object] = {
         "request": request,
         "active_tab": "sheets",
-        "sources": await asyncio.to_thread(list_sources),
-        "sheets": await asyncio.to_thread(list_sheets),
+        "sources": await asyncio.to_thread(active_sources),
+        "sheets": await asyncio.to_thread(list_sheets, active_subject()),
         "max_pages": _MAX_PAGES,
         **sidebar_ctx(),
         **_status_ctx(),

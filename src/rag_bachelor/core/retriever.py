@@ -62,16 +62,17 @@ def retrieve(
     top_k: int | None = None,
     keywords: list[str] | None = None,
     source: str | None = None,
+    sources: list[str] | None = None,
 ) -> list[SearchResult]:
     """Return the *top_k* best chunks for *query*: dense + BM25 (+ fact graph), fused with RRF.
 
     *keywords* (see ``core/keywords.py``) widen the lexical and graph search; *source*
-    restricts it to one PDF filename.
+    restricts it to one PDF path, *sources* to a set of them (a subject), *source* winning.
     """
     k = top_k or settings.retrieval_top_k
     collection = get_collection()
 
-    if collection.count() == 0:
+    if collection.count() == 0 or (sources is not None and not sources and not source):
         return []
 
     query_vec = embed([query])[0]
@@ -81,7 +82,11 @@ def retrieve(
     results = collection.query(
         query_embeddings=[query_vec],  # type: ignore[arg-type]  # chroma stubs reject list[list[float]]
         n_results=collection.count(),
-        where={"source": source} if source else None,
+        where={"source": source}
+        if source
+        else {"source": {"$in": sources}}  # type: ignore[dict-item]  # chroma stubs type $in as list[scalar]
+        if sources is not None
+        else None,
         include=["documents", "metadatas", "distances"],
     )
     ids = (results.get("ids") or [[]])[0]

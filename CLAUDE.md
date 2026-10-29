@@ -35,7 +35,8 @@ Local-first RAG study assistant for French bachelor PDFs.
 | `src/rag_bachelor/study/` | SM-2, persistence store, stats |
 | `src/rag_bachelor/app/web/` | FastAPI server, route modules, Jinja2 templates, static assets |
 | `docker-compose.yml` | NAS deployment: `app` + isolated `postgres`/`chroma` data tier (no Ollama) |
-| `data/pdfs/` | User-supplied PDFs (not tracked in git) |
+| `src/rag_bachelor/study/subjects.py` | Subjects = top-level folders of `data/pdfs/`; the active one (`app_settings.active_subject`) scopes every tab, Ask retrieval and progress |
+| `data/pdfs/` | User-supplied PDFs, `data/pdfs/<Subject>/…` (root-level PDFs are moved into `Bachelor/` on the first sync; not tracked in git) |
 | `data/chroma/` | Local embedded vector index, used only when `CHROMA_HOST` is unset (not tracked in git) |
 | `data/app.db` | Local SQLite study DB, used only when `POSTGRES_HOST` is unset (not tracked in git) |
 

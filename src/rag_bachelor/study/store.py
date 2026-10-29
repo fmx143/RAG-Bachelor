@@ -214,6 +214,12 @@ def _adapt(sql: str) -> str:
     return sql.replace("?", "%s") if _use_postgres() else sql
 
 
+def _in_subject(column: str, subject: str) -> tuple[str, str]:
+    """SQL clause + parameter keeping rows whose *column* starts with ``subject/``."""
+    prefix = subject + "/"
+    return f"substr({column}, 1, {len(prefix)}) = ?", prefix
+
+
 def _migrate(conn: sqlite3.Connection | psycopg.Connection[dict[str, Any]]) -> None:
     """Add any missing columns, and backfill stale data. Idempotent on both backends."""
     for table, columns in _COLUMNS_ADDED.items():
@@ -430,11 +436,13 @@ def get_due_cards(
     source: str | None = None,
     difficulty: str | None = None,
     qtype: str | None = None,
+    subject: str | None = None,
 ) -> list[Card]:
     """Return cards whose due_date ≤ today, ordered by due_date ASC.
 
-    ``source`` filters on ``topic`` — the PDF filename a bank-derived card was
-    stamped with at materialization time (see :func:`materialize_bank_question`).
+    ``source`` filters on ``topic`` — the PDF path a bank-derived card was
+    stamped with at materialization time (see :func:`materialize_bank_question`);
+    ``subject`` keeps the topics under that top-level folder.
     """
     conn = get_conn()
     today = date.today().isoformat()
@@ -443,6 +451,10 @@ def get_due_cards(
     if source:
         clauses.append("topic = ?")
         params.append(source)
+    if subject:
+        clause, prefix = _in_subject("topic", subject)
+        clauses.append(clause)
+        params.append(prefix)
     if difficulty:
         clauses.append("difficulty = ?")
         params.append(difficulty)
@@ -465,11 +477,16 @@ def get_card(card_id: int) -> Card | None:
     return _row_to_card(row) if row else None
 
 
-def get_all_cards(topic: str | None = None) -> list[Card]:
-    """Return all cards, optionally filtered by *topic*."""
+def get_all_cards(topic: str | None = None, subject: str | None = None) -> list[Card]:
+    """Return all cards, optionally filtered by *topic* or by *subject* (top-level folder)."""
     conn = get_conn()
     if topic:
         rows = conn.execute(_adapt("SELECT * FROM cards WHERE topic = ?"), (topic,)).fetchall()
+    elif subject:
+        clause, prefix = _in_subject("topic", subject)
+        rows = conn.execute(
+            _adapt(f"SELECT * FROM cards WHERE {clause} ORDER BY topic, id"), (prefix,)
+        ).fetchall()
     else:
         rows = conn.execute("SELECT * FROM cards ORDER BY topic, id").fetchall()
     return [_row_to_card(r) for r in rows]
@@ -592,12 +609,17 @@ def _bank_where(
     qtype: str | None = None,
     result: str | None = None,
     deck: str | None = None,
+    subject: str | None = None,
 ) -> tuple[str, list[Any]]:
     clauses: list[str] = []
     params: list[Any] = []
     if source:
         clauses.append("source = ?")
         params.append(source)
+    if subject:
+        clause, prefix = _in_subject("source", subject)
+        clauses.append(clause)
+        params.append(prefix)
     if difficulty:
         clauses.append("difficulty = ?")
         params.append(difficulty)
@@ -634,6 +656,7 @@ def list_bank_questions(
     limit: int = 20,
     offset: int = 0,
     order_asc: bool = False,
+    subject: str | None = None,
 ) -> list[BankQuestion]:
     """Return bank questions, optionally filtered.
 
@@ -641,7 +664,7 @@ def list_bank_questions(
     document order instead — used by revision to work through a PDF front-to-back.
     """
     conn = get_conn()
-    where, params = _bank_where(source, difficulty, search, qtype, result, deck)
+    where, params = _bank_where(source, difficulty, search, qtype, result, deck, subject)
     order = "ASC" if order_asc else "DESC"
     rows = conn.execute(
         _adapt(f"SELECT * FROM question_bank{where} ORDER BY id {order} LIMIT ? OFFSET ?"),
@@ -657,19 +680,27 @@ def count_bank_questions(
     qtype: str | None = None,
     result: str | None = None,
     deck: str | None = None,
+    subject: str | None = None,
 ) -> int:
     """Return how many bank questions match the filters."""
     conn = get_conn()
-    where, params = _bank_where(source, difficulty, search, qtype, result, deck)
+    where, params = _bank_where(source, difficulty, search, qtype, result, deck, subject)
     row = conn.execute(_adapt(f"SELECT COUNT(*) AS n FROM question_bank{where}"), params).fetchone()
     assert row is not None
     return int(row["n"])
 
 
-def bank_sources() -> list[str]:
-    """Return sorted distinct source filenames present in the bank."""
+def bank_sources(subject: str | None = None) -> list[str]:
+    """Return sorted distinct source paths present in the bank (of one subject, if given)."""
     conn = get_conn()
-    rows = conn.execute("SELECT DISTINCT source FROM question_bank ORDER BY source").fetchall()
+    clause = ""
+    params: tuple[str, ...] = ()
+    if subject:
+        cond, prefix = _in_subject("source", subject)
+        clause, params = f" WHERE {cond}", (prefix,)
+    rows = conn.execute(
+        _adapt(f"SELECT DISTINCT source FROM question_bank{clause} ORDER BY source"), params
+    ).fetchall()
     return [r["source"] for r in rows]
 
 
@@ -783,13 +814,21 @@ def _sheet(row: Any) -> Sheet:
     )
 
 
-def list_sheets() -> list[Sheet]:
-    """Every sheet, newest first, without its (large) content."""
+def list_sheets(subject: str | None = None) -> list[Sheet]:
+    """Every sheet, newest first, without its (large) content (of one subject, if given)."""
+    clause = ""
+    params: tuple[str, ...] = ()
+    if subject:
+        cond, prefix = _in_subject("source", subject)
+        clause, params = f" WHERE {cond}", (prefix,)
     rows = (
         get_conn()
         .execute(
-            "SELECT id, source, page_from, page_to, '' AS content, created_at "
-            "FROM revision_sheets ORDER BY id DESC"
+            _adapt(
+                "SELECT id, source, page_from, page_to, '' AS content, created_at "
+                f"FROM revision_sheets{clause} ORDER BY id DESC"
+            ),
+            params,
         )
         .fetchall()
     )
@@ -832,13 +871,21 @@ def add_map(source: str, page_from: int, page_to: int, content: str) -> int:
     return int(new_id)
 
 
-def list_maps() -> list[Sheet]:
-    """Every mind map, newest first, without its content."""
+def list_maps(subject: str | None = None) -> list[Sheet]:
+    """Every mind map, newest first, without its content (of one subject, if given)."""
+    clause = ""
+    params: tuple[str, ...] = ()
+    if subject:
+        cond, prefix = _in_subject("source", subject)
+        clause, params = f" WHERE {cond}", (prefix,)
     rows = (
         get_conn()
         .execute(
-            "SELECT id, source, page_from, page_to, '' AS content, created_at "
-            "FROM mind_maps ORDER BY id DESC"
+            _adapt(
+                "SELECT id, source, page_from, page_to, '' AS content, created_at "
+                f"FROM mind_maps{clause} ORDER BY id DESC"
+            ),
+            params,
         )
         .fetchall()
     )
@@ -905,13 +952,21 @@ def _podcast(row: Any) -> Podcast:
     )
 
 
-def list_podcasts() -> list[Podcast]:
-    """Every podcast, newest first, without script or audio."""
+def list_podcasts(subject: str | None = None) -> list[Podcast]:
+    """Every podcast, newest first, without script or audio (of one subject, if given)."""
+    clause = ""
+    params: tuple[str, ...] = ()
+    if subject:
+        cond, prefix = _in_subject("source", subject)
+        clause, params = f" WHERE {cond}", (prefix,)
     rows = (
         get_conn()
         .execute(
-            "SELECT id, source, page_from, page_to, '' AS script, duration, created_at "
-            "FROM podcasts ORDER BY id DESC"
+            _adapt(
+                "SELECT id, source, page_from, page_to, '' AS script, duration, created_at "
+                f"FROM podcasts{clause} ORDER BY id DESC"
+            ),
+            params,
         )
         .fetchall()
     )
@@ -952,13 +1007,14 @@ def delete_podcast(podcast_id: int) -> None:
 # ── Stats (used by rag_bachelor.study.stats) ────────────────────────────────
 
 
-def get_topic_stats_rows() -> list[dict[str, Any]]:
+def get_topic_stats_rows(subject: str | None = None) -> list[dict[str, Any]]:
     """Return one raw row per topic with the aggregates :mod:`study.stats` needs."""
     conn = get_conn()
     today = date.today().isoformat()
+    clause, prefix = _in_subject("topic", subject) if subject else ("1 = 1", None)
     rows = conn.execute(
         _adapt(
-            """
+            f"""
             SELECT
                 topic,
                 COUNT(*)                                          AS total,
@@ -966,11 +1022,12 @@ def get_topic_stats_rows() -> list[dict[str, Any]]:
                 AVG(ease_factor)                                   AS avg_ease,
                 AVG(interval)                                      AS avg_interval
             FROM cards
+            WHERE {clause}
             GROUP BY topic
             ORDER BY topic
             """
         ),
-        (today,),
+        (today, prefix) if prefix else (today,),
     ).fetchall()
     return [
         {

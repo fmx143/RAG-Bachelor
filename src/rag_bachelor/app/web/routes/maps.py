@@ -13,8 +13,8 @@ from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.core.mindmap import BadTree, generate_map
-from rag_bachelor.ingest.index import list_sources
 from rag_bachelor.study.store import delete_map, get_map, list_maps
+from rag_bachelor.study.subjects import active_sources, active_subject
 
 router = APIRouter()
 
@@ -88,8 +88,8 @@ async def maps_page(request: Request) -> Response:
     ctx: dict[str, object] = {
         "request": request,
         "active_tab": "maps",
-        "sources": await asyncio.to_thread(list_sources),
-        "maps": await asyncio.to_thread(list_maps),
+        "sources": await asyncio.to_thread(active_sources),
+        "maps": await asyncio.to_thread(list_maps, active_subject()),
         "max_pages": _MAX_PAGES,
         **sidebar_ctx(),
         **_status_ctx(),

@@ -24,7 +24,7 @@ _MAP_PROMPT = (
     "Tu analyses un extrait de cours (chaque passage est précédé de sa page entre crochets).\n"
     "Écris un plan hiérarchique en Markdown (listes à puces imbriquées) des notions "
     "importantes et de leurs sous-notions, en quelques mots chacune. Base-toi UNIQUEMENT "
-    "sur l'extrait. Réponds en français, sans introduction ni conclusion."
+    "sur l'extrait. Réponds dans la langue de l'extrait, sans introduction ni conclusion."
 )
 
 _TREE_PROMPT = (
@@ -32,7 +32,7 @@ _TREE_PROMPT = (
     "donnés dans l'ordre du cours. Fusionne-les en UN arbre JSON :\n"
     '{"title": "thème central", "children": [{"title": "...", "children": [...]}]}\n'
     f"Au plus {_MAX_DEPTH} niveaux, {_MAX_CHILDREN} enfants par nœud, titres de moins de "
-    "8 mots, en français. Regroupe les notions voisines, supprime les doublons, "
+    "8 mots, dans la langue de l'extrait. Regroupe les notions voisines, supprime les doublons, "
     "n'invente rien. Réponds uniquement avec le JSON."
 )
 

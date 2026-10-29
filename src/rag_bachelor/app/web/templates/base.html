@@ -19,6 +19,16 @@
       Bachelor
       <span class="provider-badge">{{ provider_label }}</span>
     </a>
+    {% if subjects %}
+    <form method="post" action="/subjects" class="subject-picker">
+      <select name="subject" data-subject-select data-current="{{ subject }}" aria-label="Sujet actif">
+        {% for s in subjects %}<option value="{{ s }}"{% if s == subject %} selected{% endif %}>{{ s }}</option>{% endfor %}
+        <option value="">+ Nouveau sujet…</option>
+      </select>
+      <input type="hidden" name="name" value="">
+      <noscript><button type="submit" class="btn btn-ghost btn-sm">OK</button></noscript>
+    </form>
+    {% endif %}
     <nav class="nav" aria-label="Navigation principale">
       <a href="/docs"     class="nav-link {% if active_tab == 'docs'     %}active{% endif %}">Documents</a>
       <a href="/ask"      class="nav-link {% if active_tab == 'ask'      %}active{% endif %}">Demander</a>

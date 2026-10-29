@@ -1,4 +1,4 @@
-"""RAG question-answering: retrieve relevant chunks then generate a French answer."""
+"""RAG question-answering: retrieve relevant chunks then answer in their language."""
 
 from rag_bachelor.core.keywords import extract_keywords
 from rag_bachelor.core.llm import get_provider
@@ -7,7 +7,7 @@ from rag_bachelor.core.retriever import SearchResult, retrieve
 # System prompt in French — instructs the model to cite sources and stay grounded.
 SYSTEM_PROMPT = (
     "Tu es un assistant pédagogique expert qui aide un étudiant à comprendre ses cours "
-    "universitaires. Tu réponds en français, de manière claire, précise et structurée.\n"
+    "universitaires. Tu réponds dans la langue des extraits fournis, de manière claire, précise et structurée.\n"
     "Lorsque tu cites tes sources, indique le document et la page entre crochets, "
     "par exemple [cours.pdf, p.3].\n"
     "Si l'information ne se trouve pas dans les extraits fournis, dis-le clairement "
@@ -22,14 +22,15 @@ NO_DOC_MSG = (
 def answer_question(
     question: str,
     top_k: int = 5,
+    sources: list[str] | None = None,
 ) -> tuple[str, list[SearchResult]]:
-    """Answer *question* using RAG.
+    """Answer *question* using RAG, optionally restricted to the document paths *sources*.
 
     Returns:
         A tuple ``(answer, source_chunks)`` where *answer* is the LLM reply
         and *source_chunks* are the retrieved passages used as context.
     """
-    chunks = retrieve(question, top_k=top_k, keywords=extract_keywords(question))
+    chunks = retrieve(question, top_k=top_k, keywords=extract_keywords(question), sources=sources)
 
     if not chunks:
         return NO_DOC_MSG, []

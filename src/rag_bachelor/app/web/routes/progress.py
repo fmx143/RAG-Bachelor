@@ -9,15 +9,17 @@ from starlette.responses import Response
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.study.stats import get_topic_stats
 from rag_bachelor.study.store import get_all_cards, get_due_cards
+from rag_bachelor.study.subjects import active_subject
 
 router = APIRouter()
 
 
 @router.get("/progress", response_class=HTMLResponse)
 async def progress_page(request: Request) -> Response:
-    all_cards = get_all_cards()
-    due_cards = get_due_cards(limit=200)
-    stats = get_topic_stats()
+    subject = active_subject()
+    all_cards = get_all_cards(subject=subject)
+    due_cards = get_due_cards(limit=200, subject=subject)
+    stats = get_topic_stats(subject)
 
     avg_ease = sum(c.ease_factor for c in all_cards) / len(all_cards) if all_cards else None
 

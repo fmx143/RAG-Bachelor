@@ -38,6 +38,7 @@ from rag_bachelor.study.store import (
     document_paths,
     rename_document,
 )
+from rag_bachelor.study.subjects import DEFAULT_SUBJECT, active_subject, subject_of
 
 router = APIRouter()
 
@@ -292,10 +293,10 @@ def _hash_file(path: Path) -> str:
 
 
 def _prune_empty_dirs(start: Path) -> None:
-    """Remove *start* and its parents while they are empty, never pdfs_dir itself."""
+    """Remove *start* and its parents while they are empty, never pdfs_dir or a subject folder."""
     root = settings.pdfs_dir.resolve()
     d = start
-    while d != root and d.is_relative_to(root):
+    while d != root and d.parent != root and d.is_relative_to(root):
         try:
             d.rmdir()
         except OSError:
@@ -303,12 +304,47 @@ def _prune_empty_dirs(start: Path) -> None:
         d = d.parent
 
 
+def _move_doc(old: str, new: str) -> None:
+    """Move a PDF and everything that names it (Chroma tags, SQL rows); no re-indexing.
+
+    The caller has checked that *new* is free: ``os.replace`` would overwrite it.
+    """
+    src, dest = _resolve(old), _resolve(new)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    # ponytail: file → Chroma → SQL with best-effort rollback; a crash in between is not
+    # repaired (the next upload of the file retries from whichever side moved).
+    os.replace(src, dest)
+    try:
+        rename_source(old, new)
+        try:
+            rename_document(old, new)
+        except Exception:
+            rename_source(new, old)
+            raise
+    except Exception:
+        os.replace(dest, src)
+        raise
+    _prune_empty_dirs(src.parent)
+
+
+def _adopt_root_pdfs() -> None:
+    """Move PDFs lying directly in pdfs_dir (the layout before subjects) into the default subject."""
+    root = settings.pdfs_dir
+    if not root.exists():
+        return
+    for pdf in sorted(root.glob("*.pdf")):
+        new = f"{DEFAULT_SUBJECT}/{pdf.name}"
+        if pdf.is_file() and not _resolve(new).exists() and not _busy(pdf.name):
+            _move_doc(pdf.name, new)
+
+
 def _sync_documents() -> list[str]:
     """Sorted relative paths of the PDFs on disk; keeps the ``documents`` table in step.
 
     Files without a row are hashed once (catches up PDFs that predate the table); rows whose
-    file is gone are dropped.
+    file is gone are dropped. Root-level PDFs are first moved into the default subject.
     """
+    _adopt_root_pdfs()
     root = settings.pdfs_dir
     on_disk = (
         {p.relative_to(root).as_posix(): p for p in root.rglob("*.pdf") if p.is_file()}
@@ -385,15 +421,28 @@ async def _doc_list_ctx(q: str = "", open_path: str = "") -> dict[str, object]:
     """Build the context needed to render the doc-list partial (non-blocking)."""
 
     def _sync() -> dict[str, object]:
-        rels = _sync_documents()
+        subject = active_subject()
+        rels = [r for r in _sync_documents() if subject_of(r) == subject]
         indexed: set[str] = set(list_sources())
         facts = fact_counts()
         docs = [_Doc(r, r.rsplit("/", 1)[-1], r in indexed, facts.get(r, 0)) for r in rels]
+        root = settings.pdfs_dir
+        folders = sorted(
+            (
+                p.relative_to(root).as_posix()
+                for p in root.rglob("*")
+                if p.is_dir() and not any(s.startswith(".") for s in p.relative_to(root).parts)
+            ),
+            key=str.casefold,
+        )
         return {
-            "tree": _build_tree(docs, q, open_path),
+            "tree": _build_tree(docs, q, open_path).subdirs.get(subject)
+            or _Folder(subject, subject),
             "total": len(docs),
             "q": q,
             "chunk_count": collection_count(),
+            "subject": subject,
+            "folders": folders,
         }
 
     return await asyncio.to_thread(_sync)
@@ -479,22 +528,7 @@ def _store_upload(rel: str, sha: str, data: bytes) -> tuple[int, str, bool]:
             return 409, f"⚠️ {busy} est en cours d'indexation, réessaie ensuite", False
         if dest.exists() or rel in document_paths():
             return 409, f"❌ {rel} : ce chemin est déjà occupé par un autre document", False
-        old = _resolve(known)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        # ponytail: file → Chroma → SQL with best-effort rollback; a crash in between is not
-        # repaired (the next upload of the file retries from whichever side moved).
-        os.replace(old, dest)
-        try:
-            rename_source(known, rel)
-            try:
-                rename_document(known, rel)
-            except Exception:
-                rename_source(rel, known)
-                raise
-        except Exception:
-            os.replace(dest, old)
-            raise
-        _prune_empty_dirs(old.parent)
+        _move_doc(known, rel)
         return 200, f"📦 {known} → {rel} (déplacé, sans réindexation)", False
     if dest.exists() or rel in document_paths():
         return 409, f"❌ {rel} : un autre document occupe déjà ce chemin, ignoré", False
@@ -511,17 +545,20 @@ async def upload_pdf(
     background_tasks: BackgroundTasks,
     file: Annotated[UploadFile, File()],
     relpath: Annotated[str, Form()] = "",
+    index: Annotated[bool, Form()] = True,
 ) -> Response:
-    """Save one PDF under its relative path and queue it for indexing.
+    """Save one PDF under its relative path and queue it for indexing (unless ``index`` is off).
 
-    ``relpath`` is the browser's ``webkitRelativePath`` (or the bare file name). A file whose
-    content is already known is moved to the new path instead of re-indexed. Replies with one
-    line of plain text, shown by the page's upload loop.
+    ``relpath`` starts with a subject (the page prefixes the active one) followed by the folders
+    chosen at import. A file whose content is already known is moved to the new path instead of
+    re-indexed. Replies with one line of plain text, shown by the page's upload loop.
     """
     try:
         rel = _safe_relpath(relpath or file.filename or "")
     except ValueError as exc:
         return PlainTextResponse(f"❌ {relpath or file.filename} : chemin refusé ({exc})", 400)
+    if "/" not in rel or subject_of(rel) != await asyncio.to_thread(active_subject):
+        return PlainTextResponse(f"❌ {rel} : hors du sujet actif", 400)
     if (file.size or 0) > _MAX_UPLOAD_BYTES:
         return PlainTextResponse(f"❌ {rel} : fichier trop volumineux (> {_MAX_UPLOAD_MB} Mo)", 413)
     data = await file.read()
@@ -534,7 +571,7 @@ async def upload_pdf(
         status, message, needs_index = await asyncio.to_thread(_store_upload, rel, sha, data)
     except Exception as exc:  # noqa: BLE001 — reported to the upload loop, never echoing the message
         return PlainTextResponse(f"❌ {rel} : échec de l'enregistrement ({_describe(exc)})", 500)
-    if needs_index and _enqueue([rel]):
+    if needs_index and index and _enqueue([rel]):
         background_tasks.add_task(_run_queue)
     return PlainTextResponse(message, status)
 
@@ -544,10 +581,11 @@ async def upload_pdf(
 
 @router.post("/docs/index", response_class=HTMLResponse)
 async def index_all(request: Request, background_tasks: BackgroundTasks) -> Response:
-    """Kick off re-indexing every PDF under data/pdfs/ in the background."""
-    rels = await asyncio.to_thread(_sync_documents)
+    """Kick off re-indexing every PDF of the active subject in the background."""
+    subject = await asyncio.to_thread(active_subject)
+    rels = [r for r in await asyncio.to_thread(_sync_documents) if subject_of(r) == subject]
     if not rels:
-        return await _list_response(request, error="⚠️ Aucun PDF trouvé dans data/pdfs/.")
+        return await _list_response(request, error=f"⚠️ Aucun PDF trouvé dans {subject}.")
     return await _start_indexing(request, background_tasks, rels)
 
 
@@ -646,6 +684,58 @@ async def delete_folder(request: Request, path: Annotated[str, Form()]) -> Respo
     return await _list_response(
         request, f"🗑️ Dossier {folder} supprimé ({len(rels)} document(s))", open_path=folder
     )
+
+
+def _move_paths(old: str, new: str, *, folder: bool) -> tuple[str, str]:
+    """Move a document, or every document under a folder. Returns ``(message, error)``.
+
+    All targets are checked before anything moves, so a conflict leaves the library untouched.
+    """
+    rels = _sync_documents()
+    if folder:
+        if new == old or new.startswith(old + "/"):
+            return "", f"❌ Impossible de déplacer {old} dans lui-même"
+        pairs = [(r, new + r[len(old) :]) for r in rels if r.startswith(old + "/")]
+    else:
+        pairs = [(old, new)] if old in rels else []
+    if not pairs:
+        return "", f"❌ Introuvable : {old}"
+    if new == old:
+        return f"⏭️ {old} n'a pas changé", ""
+    if busy := _busy(*(o for o, _ in pairs)):
+        return "", f"⚠️ {busy} est en cours d'indexation"
+    taken = set(rels)
+    if clash := next((n for _, n in pairs if n in taken or _resolve(n).exists()), None):
+        return "", f"❌ {clash} existe déjà"
+    for o, n in pairs:
+        _move_doc(o, n)
+    return f"📦 {len(pairs)} document(s) déplacé(s) vers {new}", ""
+
+
+@router.post("/docs/move", response_class=HTMLResponse)
+async def move_path(
+    request: Request,
+    path: Annotated[str, Form()],
+    dest: Annotated[str, Form()],
+    name: Annotated[str, Form()],
+    folder: Annotated[bool, Form()] = False,
+) -> Response:
+    """Move and/or rename a document or a folder: *dest* is the parent folder (created if
+    missing, may be another subject), *name* the new last segment."""
+    try:
+        old = _safe_relpath(path, file=not folder)
+        if "/" in name.strip():
+            raise ValueError("nom invalide")
+        new = _safe_relpath(f"{dest.strip()}/{name.strip()}", file=not folder)
+        if dest.strip() == "" or "/" not in new:
+            raise ValueError("dossier de destination manquant")
+    except ValueError as exc:
+        return await _list_response(request, error=f"❌ Déplacement refusé ({exc})")
+    try:
+        message, error = await asyncio.to_thread(_move_paths, old, new, folder=folder)
+    except Exception as exc:  # noqa: BLE001 — shown in the list, never echoing the message
+        return await _list_response(request, error=f"❌ Échec du déplacement ({_describe(exc)})")
+    return await _list_response(request, message or None, error or None, open_path=new)
 
 
 # ── Form helper — chunk count via GET (for the counter badge) ─────────────────

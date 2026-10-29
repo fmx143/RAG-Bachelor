@@ -21,13 +21,13 @@ class TopicStats:
     mastery_pct: float  # 0–100; higher = more mastered
 
 
-def get_topic_stats() -> list[TopicStats]:
+def get_topic_stats(subject: str | None = None) -> list[TopicStats]:
     """Return one :class:`TopicStats` per topic, sorted by mastery ascending.
 
     Topics with lower mastery are listed first so weak subjects are prominent
     in the UI.
     """
-    rows = get_topic_stats_rows()
+    rows = get_topic_stats_rows(subject)
 
     stats: list[TopicStats] = []
     for r in rows:

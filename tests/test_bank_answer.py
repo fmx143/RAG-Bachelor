@@ -17,7 +17,7 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-def _mcq(question: str = "2 + 2 = ?", source: str = "cours.pdf") -> store.BankQuestion:
+def _mcq(question: str = "2 + 2 = ?", source: str = "Bachelor/cours.pdf") -> store.BankQuestion:
     return store.BankQuestion(
         question=question,
         answer="4 est la bonne réponse.",
@@ -32,7 +32,7 @@ def _mcq(question: str = "2 + 2 = ?", source: str = "cours.pdf") -> store.BankQu
 
 
 def _free(
-    question: str = "Qu'est-ce qu'un algorithme ?", source: str = "cours.pdf"
+    question: str = "Qu'est-ce qu'un algorithme ?", source: str = "Bachelor/cours.pdf"
 ) -> store.BankQuestion:
     return store.BankQuestion(
         question=question,
@@ -162,9 +162,9 @@ def test_cloze_is_self_graded(client: TestClient) -> None:
                 question="Le protocole ____ est fiable.",
                 answer="TCP",
                 difficulty="facile",
-                source="cours.pdf",
+                source="Bachelor/cours.pdf",
                 pages=[1],
-                chunk_ids=["cours.pdf__p1__c0"],
+                chunk_ids=["Bachelor/cours.pdf__p1__c0"],
                 qtype="cloze",
             )
         ]

@@ -12,7 +12,7 @@ from starlette.responses import Response
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.core.agent import answer_agentic
 from rag_bachelor.core.qa import answer_question
-from rag_bachelor.ingest.index import collection_count
+from rag_bachelor.study.subjects import active_sources
 
 router = APIRouter()
 
@@ -22,7 +22,7 @@ async def ask_page(request: Request) -> Response:
     ctx: dict[str, object] = {
         "request": request,
         "active_tab": "ask",
-        "no_docs": await asyncio.to_thread(collection_count) == 0,
+        "no_docs": not await asyncio.to_thread(active_sources),
         **sidebar_ctx(),
     }
     return templates.TemplateResponse(request, "ask.html", ctx)
@@ -51,10 +51,13 @@ async def ask_question(
 
     top_k = max(3, min(n_sources, 10))
     try:
+        sources = await asyncio.to_thread(active_sources)
         if agent:
-            answer, chunks, steps = await asyncio.to_thread(answer_agentic, q, top_k)
+            answer, chunks, steps = await asyncio.to_thread(answer_agentic, q, top_k, sources)
         else:
-            answer, chunks = await asyncio.to_thread(answer_question, q, top_k=top_k)
+            answer, chunks = await asyncio.to_thread(
+                answer_question, q, top_k=top_k, sources=sources
+            )
             steps = []
     except Exception:
         # Never surface the raw exception: LLM SDK auth errors can echo back the API key.
