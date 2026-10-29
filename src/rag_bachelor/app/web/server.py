@@ -31,6 +31,7 @@ from rag_bachelor.app.web.routes import (
     progress,
     revision,
     settings,
+    sheets,
 )
 from rag_bachelor.config import settings as cfg
 
@@ -151,6 +152,7 @@ app.include_router(ask.router)
 app.include_router(revision.router)
 app.include_router(generate.router)
 app.include_router(bank.router)
+app.include_router(sheets.router)
 app.include_router(progress.router)
 app.include_router(settings.router)
 

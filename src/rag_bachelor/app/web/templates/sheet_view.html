@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header no-print">
+  <span class="eyebrow">Fiche de révision</span>
+  <h1>{{ sheet.source }} <em>p.{{ sheet.page_from }}–{{ sheet.page_to }}</em></h1>
+</div>
+
+<div class="no-print" style="display:flex; gap:.5rem; margin-bottom:.75rem;">
+  <a href="/sheets" class="btn btn-ghost btn-sm">← Fiches</a>
+  <button type="button" class="btn btn-primary btn-sm" data-print>🖨️ Imprimer / PDF</button>
+</div>
+
+<div class="card sheet-content">
+  <h2 class="print-only">{{ sheet.source }} — p.{{ sheet.page_from }}–{{ sheet.page_to }}</h2>
+  {{ html }}
+</div>
+{% endblock %}

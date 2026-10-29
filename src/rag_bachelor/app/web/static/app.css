@@ -421,3 +421,12 @@ blockquote { border-left: 2px solid var(--border-3) !important; }
      those inline styles with a .form-group--grow class and drop this rule. */
   .form-group[style] { min-width: 0 !important; width: 100%; }
 }
+
+/* ── Revision sheet print ───────────────────────────────────────────────── */
+.print-only { display: none; }
+@media print {
+  .site-header, .skip-link, .no-print { display: none !important; }
+  .print-only { display: block; }
+  body, .card { background: #fff !important; color: #000 !important; box-shadow: none !important; }
+  .sheet-content a { color: inherit; text-decoration: none; }
+}
