@@ -416,16 +416,16 @@ blockquote { border-left: 2px solid var(--border-3) !important; }
 .heat.l3 { background: color-mix(in srgb, var(--teal) 80%, var(--border)); }
 .heat.l4 { background: var(--teal); }
 
-.donut-wrap { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
-.donut {
-  --size: 140px; width: var(--size); height: var(--size); border-radius: 50%; flex: none;
-  background: conic-gradient(var(--border-3) 0 var(--a), var(--primary) var(--a) var(--b), var(--teal) var(--b) 100%);
-  display: grid; place-items: center; position: relative;
+.rings { display: flex; gap: 20px; flex-wrap: wrap; }
+.ring { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: 1 1 90px; min-width: 0; }
+.ring-dial {
+  width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; position: relative;
+  background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--hair) 0);
 }
-.donut::before { content: ""; position: absolute; inset: 22px; border-radius: 50%; background: var(--card-bg); }
-.donut span { position: relative; font-family: var(--serif); font-size: 1.8rem; }
-.legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.legend .dot { margin-left: 0; }
+.ring-dial::before { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: var(--card); }
+.ring-dial span { position: relative; font-weight: 750; font-size: 18px; letter-spacing: -.02em; }
+.ring-name { font-size: 12.5px; color: var(--muted); text-align: center; max-width: 100%; overflow-wrap: anywhere; }
+.reading { margin: 0; padding-left: 1.2rem; line-height: 1.7; color: var(--text-2); }
 
 .bars { display: flex; align-items: flex-end; gap: 3px; height: 140px; }
 .bar-col { flex: 1; height: 100%; display: flex; align-items: flex-end; min-width: 0; }

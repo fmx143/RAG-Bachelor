@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
-from rag_bachelor.study.stats import get_topic_stats
+from rag_bachelor.study.stats import get_activity, get_topic_stats, reading
 from rag_bachelor.study.store import get_all_cards, get_due_cards
 from rag_bachelor.study.subjects import active_subject
 
@@ -30,8 +30,9 @@ async def progress_page(request: Request) -> Response:
         "due_count": len(due_cards),
         "avg_ease": round(avg_ease, 2) if avg_ease is not None else None,
         "stats": stats,
-        "weak": [s for s in stats if s.mastery_pct < 40],
-        "strong": [s for s in stats if s.mastery_pct >= 70],
+        "activity": get_activity(all_cards, subject),
+        "rings": stats[:3],
+        "reading": reading(stats),
         **sidebar_ctx(),
     }
     return templates.TemplateResponse(request, "progress.html", ctx)
