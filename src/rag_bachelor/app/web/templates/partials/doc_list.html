@@ -14,9 +14,10 @@
 {% endmacro %}
 
 {% macro doc_row(d) %}
-<div class="file-row">
-  <span class="badge {% if d.indexed %}badge-green{% else %}badge-yellow{% endif %}">{% if d.indexed %}Indexé{% else %}Non indexé{% endif %}</span>
+<div class="file-row" style="--h:{{ d.name | hue }}">
+  <span class="pdf">PDF</span>
   <span class="file-name">{{ d.name }}</span>
+  <span class="badge {% if d.indexed %}badge-green{% else %}badge-yellow{% endif %}">{% if d.indexed %}Indexé{% else %}Non indexé{% endif %}</span>
   {% if d.facts %}<span class="badge badge-gray" title="Faits extraits dans le graphe">{{ d.facts }} faits</span>{% endif %}
   <details class="more">
   <summary class="btn btn-ghost btn-sm" aria-label="Actions pour {{ d.name }}">⋯</summary>
@@ -55,7 +56,7 @@
 
 {% macro folder(f) %}
 <details class="tree-folder"{% if f.open %} open{% endif %}>
-  <summary>{{ f.name }} <span class="tree-count">{{ f.count }}</span></summary>
+  <summary style="--h:{{ f.name | hue }}"><span class="chev">›</span><svg viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.6l2 2.2h8.4A1.5 1.5 0 0 1 21 8.7v9.8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/></svg><b>{{ f.name }}</b> <span class="tree-count">{{ f.count }}</span></summary>
   <div class="tree-actions">
     <button
       hx-post="/docs/index/folder"
@@ -97,7 +98,7 @@
 <div class="tree">
   {% if tree.docs %}
   <details class="tree-folder"{% if q %} open{% endif %}>
-    <summary>Non classés <span class="tree-count">{{ tree.docs | length }}</span></summary>
+    <summary style="--h:75"><span class="chev">›</span><svg viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.6l2 2.2h8.4A1.5 1.5 0 0 1 21 8.7v9.8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/></svg><b>Non classés</b> <span class="tree-count">{{ tree.docs | length }}</span></summary>
     {% for d in tree.docs %}{{ doc_row(d) }}{% endfor %}
   </details>
   {% endif %}

@@ -26,7 +26,8 @@
   <div class="times"><span data-cur>0:00</span><span data-dur>{{ (podcast.duration // 60) | int }}:{{ '%02d' | format((podcast.duration % 60) | int) }}</span></div>
 </div>
 
-<div class="card">
+<div class="o-row">
+<div class="card" style="flex:1.6 1 460px;min-width:0;margin:0">
   <div class="subheader">Transcription</div>
   {% for l in lines %}
   <div class="o-line">
@@ -34,5 +35,15 @@
     <div><div class="who">{{ "Expert" if l.speaker == "A" else "Podcasteuse" }}</div>{{ l.text }}</div>
   </div>
   {% endfor %}
+</div>
+<div class="card" style="flex:1 1 260px;min-width:0;margin:0">
+  <div class="subheader">Leçons enregistrées</div>
+  <div class="o-lessons">
+  {% for pd in podcasts %}
+  <a href="/podcasts/{{ pd.id }}" class="{{ 'on' if pd.id == podcast.id }}" style="--h:{{ pd.source | hue }}" title="{{ pd.source }}"><i></i>
+    <div><div class="t">{{ pd.source | label }}</div><div class="m">p.{{ pd.page_from }}–{{ pd.page_to }} · {{ (pd.duration // 60) | int }}:{{ '%02d' | format((pd.duration % 60) | int) }}</div></div></a>
+  {% endfor %}
+  </div>
+</div>
 </div>
 {% endblock %}

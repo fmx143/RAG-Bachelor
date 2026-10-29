@@ -23,7 +23,7 @@ from rag_bachelor.study.subjects import active_sources, active_subject
 
 router = APIRouter()
 
-_MAX_PAGES = 20  # bounds LLM calls, TTS time (CPU) and the stored audio size (~3 MB/min)
+_MAX_PAGES = 40  # bounds LLM calls, TTS time (CPU) and the stored audio size (~3 MB/min)
 
 # Single in-process generation job, same pattern as routes/bank.py.
 _JOB_LOCK = threading.Lock()
@@ -153,6 +153,7 @@ async def podcast_view(request: Request, podcast_id: int) -> Response:
         "active_tab": "podcasts",
         "podcast": item,
         "lines": json.loads(item.script),
+        "podcasts": await asyncio.to_thread(list_podcasts, active_subject()),
         **sidebar_ctx(),
     }
     return templates.TemplateResponse(request, "podcast_view.html", ctx)

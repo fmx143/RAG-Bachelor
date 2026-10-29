@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import Counter
+
 import chromadb
 from chromadb.api import ClientAPI
 
@@ -139,6 +141,12 @@ def list_sources() -> list[str]:
     metas = result.get("metadatas") or []
     sources = {str(m["source"]) for m in metas if m and "source" in m}
     return sorted(sources)
+
+
+def source_counts() -> dict[str, int]:
+    """Return the number of chunks per source filename."""
+    metas = get_collection().get(include=["metadatas"]).get("metadatas") or []
+    return dict(Counter(str(m["source"]) for m in metas if m and "source" in m))
 
 
 def collection_count() -> int:

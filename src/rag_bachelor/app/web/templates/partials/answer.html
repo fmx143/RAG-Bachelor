@@ -18,7 +18,7 @@
     </div>
     {% endif %}
     <div class="card answer-card">
-      <h2 class="lab">Réponse{% if chunks %} · {{ chunks | length }} passage(s) trouvé(s){% endif %}</h2>
+      <h2 class="lab">Réponse{% if chunks %} · {{ chunks | length }} passage{{ 's' if chunks | length > 1 }} trouvé{{ 's' if chunks | length > 1 }}{% endif %}</h2>
       <div class="answer-body answer-reveal">
         {{ answer | md_cite }}
       </div>
