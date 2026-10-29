@@ -17,9 +17,8 @@
   <input type="hidden" name="deck" value="{{ filter_deck | e }}">
 
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; margin-bottom:.75rem;">
-    <div style="font-size:.8rem; color:var(--muted);">
-      {{ list_total }} question(s) au total
-    </div>
+    <span class="o-mono" style="margin:0">{{ list_total }} question(s) · <span style="color:var(--ok)">{{ by_result.correct }} justes</span> · <span style="color:var(--bad)">{{ by_result.incorrect }} fausses</span> · {{ by_result.untried }} non tentées</span>
+    <div class="o-prog"><span style="flex:{{ by_result.correct }};background:var(--ok)"></span><span style="flex:{{ by_result.incorrect }};background:var(--bad)"></span><span style="flex:{{ by_result.untried }};background:var(--hair)"></span></div>
     <button type="submit" class="btn btn-danger btn-sm">Supprimer la sélection</button>
   </div>
 
@@ -29,6 +28,7 @@
     <input type="checkbox" name="ids" value="{{ q.id }}" aria-label="Sélectionner">
     <details class="qd">
       <summary>
+        <span class="qdot" style="background:{% if q.last_result == 1 %}var(--ok){% elif q.last_result == 0 %}var(--bad){% else %}var(--dim){% endif %}"></span>
         <span class="qt">{{ q.question }}</span>
         <span class="qm">
           <span class="badge badge-gray">{{ qtype_labels.get(q.qtype, q.qtype) }}</span>
@@ -39,7 +39,7 @@
         </span>
       </summary>
       <div class="qbody">
-        <div class="qsrc">{{ q.source }} · p. {{ q.pages | join(', ') }}</div>
+        <div class="qsrc">{{ q.source | label }} · p. {{ q.pages | join(', ') }}</div>
 
         {% if q.qtype not in self_graded %}
         <div id="attempt-{{ q.id }}">

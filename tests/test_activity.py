@@ -56,7 +56,7 @@ def test_progress_page_renders_charts() -> None:
 
     html = TestClient(app).get("/progress").text
 
-    assert 'class="heatmap"' in html and 'class="ring-dial"' in html and "7 derniers jours" in html
+    assert 'class="o-heat"' in html and 'class="o-ring"' in html and "7 derniers jours" in html
 
 
 def test_reading_picks_best_stuck_and_busiest_topics() -> None:

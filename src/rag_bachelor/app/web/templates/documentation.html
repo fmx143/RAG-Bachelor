@@ -57,19 +57,23 @@
 <aside class="rise d4" style="flex:1 1 300px; min-width:0;">
   <div class="card">
     <div class="lab">Index</div>
-    <div class="stat-pair">
-      <div><div class="stat-big">{{ chunk_count }}</div><div class="stat-cap">passages</div></div>
-    </div>
+    <div style="font-family:var(--disp);font-weight:var(--hw);font-size:52px;letter-spacing:-.04em;line-height:1;margin:12px 0 4px">{{ chunk_count }}</div>
+    <div class="stat-cap" style="margin-bottom:0">passages indexés</div>
   </div>
   <div class="card">
-    <div class="lab">Indexation</div>
-    <p style="font-size:15px; line-height:1.6; color:var(--muted);">Relance la lecture et l'indexation de tous les PDF du sujet. Les fichiers déjà connus ne sont pas retraités à l'import.</p>
+    <div class="lab" style="margin-bottom:16px">Chaîne de recherche</div>
+    {% for t, d in [("Docling", "mise en page, titres, tableaux"), ("bge-m3", "embeddings locaux"), ("BM25", "mots-clés exacts, fusion RRF"), ("Graphe de faits", "triplets LLM · PageRank personnalisé"), ("Reranker", "bge-reranker-v2-m3")] %}
+    <div class="o-step">
+      <div class="rail"><span class="n sq">{{ loop.index }}</span>{% if not loop.last %}<span class="ln"></span>{% endif %}</div>
+      <div class="bd"><div style="font-weight:700;font-size:14px">{{ t }}</div><div class="meta">{{ d }}</div></div>
+    </div>
+    {% endfor %}
     <button
       hx-post="/docs/index"
       hx-target="#doc-list"
       hx-swap="innerHTML"
       class="btn btn-primary"
-      style="margin-top:18px;"
+      style="margin-top:4px;width:100%;"
     >(Ré)indexer tout le sujet</button>
   </div>
 </aside>

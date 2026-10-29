@@ -54,21 +54,16 @@
   {% if not maps %}
   <small style="color:var(--muted);">Aucune carte pour l'instant.</small>
   {% endif %}
+  <div class="o-saved">
   {% for mp in maps %}
-  <div class="map-item" style="display:flex; justify-content:space-between; align-items:center; gap:.5rem; padding:.4rem 0;">
-    <a href="/maps/{{ mp.id }}" style="color:inherit;">
-      <strong>{{ mp.source }}</strong> — p.{{ mp.page_from }}–{{ mp.page_to }}
-      <small style="color:var(--muted);"> · {{ mp.created_at }}</small>
+  <div class="map-item o-saved-item" style="--h:{{ mp.source | hue }}">
+    <a href="/maps/{{ mp.id }}" title="{{ mp.source }}">
+      <div class="t"><i></i>{{ mp.source | label }}</div>
+      <div class="m">p.{{ mp.page_from }}–{{ mp.page_to }} · {{ mp.created_at }}</div>
     </a>
-    <button
-      type="button"
-      hx-post="/maps/{{ mp.id }}/delete"
-      hx-target="closest .map-item"
-      hx-swap="outerHTML"
-      hx-confirm="Supprimer cette carte ?"
-      class="btn btn-danger btn-sm"
-    >🗑️</button>
+    <button type="button" hx-post="/maps/{{ mp.id }}/delete" hx-target="closest .map-item" hx-swap="outerHTML" hx-confirm="Supprimer cette carte ?" class="x" aria-label="Supprimer">✕</button>
   </div>
   {% endfor %}
+  </div>
 </div>
 {% endblock %}

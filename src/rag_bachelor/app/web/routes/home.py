@@ -45,6 +45,7 @@ async def home_page(request: Request) -> Response:
             "activity": get_activity(cards, subject),
             "total_cards": len(cards),
             "weak": weak,
+            "topics": [t for t in topics if t.total_cards],
             "n_docs": sum(1 for p in document_paths() if subject_of(p) == subject),
         }
 

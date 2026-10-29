@@ -39,7 +39,7 @@
       {% for label, g in [("Raté", 0), ("Difficile", 3), ("Bien", 4), ("Parfait", 5)] %}
       <button type="button" class="g{{ loop.index0 }}"
         hx-post="/revision/grade/{{ card.id }}" hx-include="#revision-filter-form"
-        hx-vals='{"grade": "{{ g }}"}' hx-target="#revision-content" hx-swap="innerHTML">{{ label }}</button>
+        hx-vals='{"grade": "{{ g }}"}' hx-target="#revision-content" hx-swap="innerHTML">{{ label }}<small>touche {{ loop.index }}</small></button>
       {% endfor %}
     </div>
   </details>

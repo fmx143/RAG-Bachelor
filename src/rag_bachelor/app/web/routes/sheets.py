@@ -92,7 +92,7 @@ def _render_sheet(content: str, source: str) -> Markup:
     def link(m: re.Match[str]) -> str:
         return (
             f'<a href="/docs/page.png?path={path}&amp;page={m.group(1)}" '
-            f'target="_blank" rel="noopener">[p.{m.group(1)}]</a>'
+            f'class="cite" data-page="{m.group(1)}" target="_blank" rel="noopener">p.{m.group(1)}</a>'
         )
 
     # Only touch text nodes: the md filter escapes < and > inside attribute values, so

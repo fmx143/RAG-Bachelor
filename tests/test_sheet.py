@@ -90,5 +90,5 @@ def test_citation_inside_link_title_is_not_rewritten() -> None:
     from rag_bachelor.app.web.routes.sheets import _render_sheet
 
     html = str(_render_sheet('Vu [p.2] et [x](http://a.fr "t [p.3]")', "a.pdf"))
-    assert 'page=2" target="_blank"' in html
+    assert 'data-page="2"' in html and 'page=2"' in html
     assert 'title="t [p.3]"' in html and html.count("<a ") == 2

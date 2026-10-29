@@ -129,7 +129,7 @@ async def _list_ctx(
     res = result if result in _RESULTS else None
     dk = deck if deck in _DECKS else None
 
-    def _sync() -> tuple[list[BankQuestion], int]:
+    def _sync() -> tuple[list[BankQuestion], int, dict[str, int]]:
         subject = active_subject()
         items = list_bank_questions(
             source=src,
@@ -144,9 +144,15 @@ async def _list_ctx(
         total = count_bank_questions(
             source=src, difficulty=diff, search=q, qtype=qt, result=res, deck=dk, subject=subject
         )
-        return list(items), total
+        by_result = {
+            r: count_bank_questions(
+                source=src, difficulty=diff, search=q, qtype=qt, result=r, deck=dk, subject=subject
+            )
+            for r in ("correct", "incorrect", "untried")
+        }
+        return list(items), total, by_result
 
-    items, total = await asyncio.to_thread(_sync)
+    items, total, by_result = await asyncio.to_thread(_sync)
     return {
         "items": items,
         "diff_labels": _DIFF_LABELS,
@@ -161,6 +167,7 @@ async def _list_ctx(
         "filter_result": result,
         "filter_deck": deck,
         "list_total": total,
+        "by_result": by_result,
         "has_more": limit < total,
         "next_limit": limit + _PAGE_SIZE,
     }

@@ -54,21 +54,16 @@
   {% if not podcasts %}
   <small style="color:var(--muted);">Aucun podcast pour l'instant.</small>
   {% endif %}
+  <div class="o-saved">
   {% for pd in podcasts %}
-  <div class="podcast-item" style="display:flex; justify-content:space-between; align-items:center; gap:.5rem; padding:.4rem 0;">
-    <a href="/podcasts/{{ pd.id }}" style="color:inherit;">
-      <strong>{{ pd.source }}</strong> — p.{{ pd.page_from }}–{{ pd.page_to }}
-      <small style="color:var(--muted);"> · {{ (pd.duration // 60) | int }} min {{ (pd.duration % 60) | int }} s · {{ pd.created_at }}</small>
+  <div class="podcast-item o-saved-item" style="--h:{{ pd.source | hue }}">
+    <a href="/podcasts/{{ pd.id }}" title="{{ pd.source }}">
+      <div class="t"><i></i>{{ pd.source | label }}</div>
+      <div class="m">p.{{ pd.page_from }}–{{ pd.page_to }} · {{ (pd.duration // 60) | int }} min {{ (pd.duration % 60) | int }} s · {{ pd.created_at }}</div>
     </a>
-    <button
-      type="button"
-      hx-post="/podcasts/{{ pd.id }}/delete"
-      hx-target="closest .podcast-item"
-      hx-swap="outerHTML"
-      hx-confirm="Supprimer ce podcast ?"
-      class="btn btn-danger btn-sm"
-    >🗑️</button>
+    <button type="button" hx-post="/podcasts/{{ pd.id }}/delete" hx-target="closest .podcast-item" hx-swap="outerHTML" hx-confirm="Supprimer ce podcast ?" class="x" aria-label="Supprimer">✕</button>
   </div>
   {% endfor %}
+  </div>
 </div>
 {% endblock %}

@@ -2,21 +2,37 @@
 {% block content %}
 <div class="page-header">
   <span class="eyebrow">Cours audio</span>
-  <h1>{{ podcast.source }} <em>p.{{ podcast.page_from }}–{{ podcast.page_to }}</em></h1>
+  <h1>{{ podcast.source | label }} <em>p.{{ podcast.page_from }}–{{ podcast.page_to }}</em></h1>
 </div>
 
 <div style="margin-bottom:.75rem;">
   <a href="/podcasts" class="btn btn-ghost btn-sm">← Podcasts</a>
 </div>
 
-<div class="card">
-  <audio controls preload="metadata" src="/podcasts/{{ podcast.id }}/audio.wav" style="width:100%;"></audio>
+<div class="o-card o-player" data-player>
+  <audio preload="metadata" src="/podcasts/{{ podcast.id }}/audio.wav" data-audio></audio>
+  <div class="row">
+    <button type="button" class="play" data-play aria-label="Lecture / pause"><svg viewBox="0 0 24 24"><path data-icon d="M8 5v14l11-7z"/></svg></button>
+    <div style="flex:1;min-width:200px">
+      <div class="ttl">{{ podcast.source | label }}, à deux voix</div>
+      <div class="voices">
+        <span><i style="--h:235">E</i>Expert</span>
+        <span><i style="--h:305">P</i>Podcasteuse</span>
+      </div>
+    </div>
+    <div class="speeds">{% for sp in ["0.75", "1", "1.25", "1.5"] %}<button type="button" data-speed="{{ sp }}"{% if sp == "1" %} class="on"{% endif %}>{{ sp }}×</button>{% endfor %}</div>
+  </div>
+  <div class="wave" data-wave>{% for i in range(96) %}<span style="height:{{ 18 + ((i * 37 + (i * i) % 23 * 11) % 70) }}%"></span>{% endfor %}</div>
+  <div class="times"><span data-cur>0:00</span><span data-dur>{{ (podcast.duration // 60) | int }}:{{ '%02d' | format((podcast.duration % 60) | int) }}</span></div>
 </div>
 
 <div class="card">
   <div class="subheader">Transcription</div>
   {% for l in lines %}
-  <p><strong>{{ "Expert" if l.speaker == "A" else "Podcasteuse" }} :</strong> {{ l.text }}</p>
+  <div class="o-line">
+    <span class="av" style="--h:{{ 235 if l.speaker == 'A' else 305 }}">{{ "E" if l.speaker == "A" else "P" }}</span>
+    <div><div class="who">{{ "Expert" if l.speaker == "A" else "Podcasteuse" }}</div>{{ l.text }}</div>
+  </div>
   {% endfor %}
 </div>
 {% endblock %}
