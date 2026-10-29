@@ -17,7 +17,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -28,6 +28,7 @@ from rag_bachelor.app.web.routes import (
     bank,
     documentation,
     generate,
+    home,
     maps,
     podcasts,
     progress,
@@ -150,6 +151,7 @@ app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 # ── Routers ────────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
+app.include_router(home.router)
 app.include_router(documentation.router)
 app.include_router(subjects.router)
 app.include_router(ask.router)
@@ -176,11 +178,6 @@ def healthz() -> JSONResponse:
         logger.exception("healthz : dépendance indisponible")
         return JSONResponse({"status": "unavailable"}, status_code=503)
     return JSONResponse({"status": "ok"})
-
-
-@app.get("/", include_in_schema=False)
-async def root() -> RedirectResponse:
-    return RedirectResponse(url="/docs")  # app's documentation tab, not Swagger UI
 
 
 # ── CLI entry point ────────────────────────────────────────────────────────────
