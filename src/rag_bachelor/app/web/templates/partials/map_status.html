@@ -1,0 +1,43 @@
+{% if gen_error %}
+<div class="alert alert-error">{{ gen_error }}</div>
+
+{% elif running %}
+<div
+  hx-get="/maps/status"
+  hx-trigger="load delay:1200ms"
+  hx-target="this"
+  hx-swap="outerHTML"
+>
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:.5rem; flex-wrap:wrap;">
+    <div style="font-weight:600;">
+      <div class="spinner" style="display:inline-block; vertical-align:middle;"></div>
+      {% if gen_cancelling %}
+      Arrêt en cours pour <em>{{ gen_source }}</em>…
+      {% else %}
+      Construction de la carte pour <em>{{ gen_source }}</em>… ({{ gen_pct }} %)
+      {% endif %}
+    </div>
+    {% if not gen_cancelling %}
+    <button
+      type="button"
+      hx-post="/maps/cancel"
+      hx-target="#map-status"
+      hx-swap="innerHTML"
+      class="btn btn-danger btn-sm"
+    >⏹ Arrêter</button>
+    {% endif %}
+  </div>
+  <div class="progress-wrap" style="margin-top:.4rem;">
+    <div class="progress-fill green" style="--pct:{{ gen_pct / 100 }};"></div>
+  </div>
+</div>
+
+{% elif gen_map_id %}
+<div class="alert alert-success">
+  ✅ Carte prête pour <strong>{{ gen_source }}</strong> —
+  <a href="/maps/{{ gen_map_id }}" style="color:inherit;font-weight:600;">l'ouvrir</a>
+</div>
+
+{% elif gen_source %}
+<div class="alert alert-warning">Génération arrêtée.</div>
+{% endif %}
