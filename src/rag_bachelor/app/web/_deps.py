@@ -13,6 +13,7 @@ from markupsafe import Markup
 
 from rag_bachelor.core.llm import active_model, get_provider
 from rag_bachelor.core.qtypes import SELF_GRADED
+from rag_bachelor.study.store import get_due_cards
 from rag_bachelor.study.subjects import active_subject, list_subjects
 
 _HERE = Path(__file__).parent
@@ -61,9 +62,11 @@ templates.env.globals["self_graded"] = SELF_GRADED
 def sidebar_ctx() -> dict[str, object]:
     """Return sidebar context consumed by base.html, reflecting the active LLM provider."""
     _provider, name = get_provider()
+    subject = active_subject()
     return {
         "provider_label": active_model(name),
         "provider_icon": "☁️",
-        "subject": active_subject(),
+        "subject": subject,
         "subjects": list_subjects(),
+        "nav_due": len(get_due_cards(limit=99, subject=subject)),  # sidebar badge
     }
