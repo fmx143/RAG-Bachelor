@@ -3,9 +3,9 @@
   <div class="alert alert-error">{{ error }}</div>
 </div>
 {% else %}
-<div class="card">
-  <h2 class="subheader">Réponse</h2>
-  <div class="answer-body" style="margin-top:.75rem;">
+<div class="card answer-card">
+  <h2 class="lab">Réponse{% if chunks %} · {{ chunks | length }} passage(s) trouvé(s){% endif %}</h2>
+  <div class="answer-body answer-reveal">
     {{ answer | md }}
   </div>
 </div>
@@ -41,7 +41,7 @@
         </div>
         <img
           loading="lazy"
-          src="/docs/page/{{ chunk.source }}/{{ chunk.page }}.png"
+          src="/docs/page.png?path={{ chunk.source | url_encode }}&page={{ chunk.page }}"
           alt="Page {{ chunk.page }} de {{ chunk.source }}"
           style="max-width:100%; margin-top:.5rem; border-radius:6px; border:1px solid var(--border);"
         >

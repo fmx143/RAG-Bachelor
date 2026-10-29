@@ -1,55 +1,73 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page-header">
-  <h1>📚 Gestion des documents</h1>
+  <span class="eyebrow">Bibliothèque</span>
+  <h1>Tes <em>documents</em></h1>
+  <p class="lede">Dépose tes PDF de cours, ou un dossier entier : l'arborescence est conservée. Ils sont lus, découpés par section et indexés en local.</p>
 </div>
 
-<!-- ── Upload ──────────────────────────────────────────────────────────── -->
-<div class="card">
-  <h2 class="subheader">Ajouter des PDFs</h2>
-  <form
-    hx-post="/docs/upload"
-    hx-target="#doc-list"
-    hx-swap="innerHTML"
-    hx-encoding="multipart/form-data"
-    hx-indicator="#upload-spinner"
-    style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap;"
-  >
-    <div class="form-group" style="flex:1; min-width:240px; margin-bottom:0;">
-      <label for="files">Dépose tes PDFs ici (plusieurs fichiers acceptés)</label>
-      <input type="file" id="files" name="files" accept=".pdf" multiple
-             style="padding:.4rem .5rem;">
+<div style="display:flex; flex-wrap:wrap; gap:28px; align-items:flex-start;">
+
+<div style="flex:999 1 620px; min-width:0;">
+
+  <!-- ── Upload ────────────────────────────────────────────────────────── -->
+  <div class="card rise d2">
+    <label for="upload-files" class="drop" id="drop-zone">
+      <svg aria-hidden="true" width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="#F2B66D" stroke-width="1.6" stroke-linecap="round"><path d="M18 24V8M11 14l7-7 7 7M6 26v2a2 2 0 002 2h20a2 2 0 002-2v-2"/></svg>
+      <span class="drop-title">Glisse des PDF ici</span>
+      <span>ou clique pour parcourir · plusieurs fichiers possibles</span>
+    </label>
+    <div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-top:20px;">
+      <div class="form-group" style="flex:1; min-width:240px; margin-bottom:0;">
+        <label for="upload-files">Des fichiers PDF</label>
+        <input type="file" id="upload-files" accept=".pdf" multiple>
+      </div>
+      <div class="form-group" style="flex:1; min-width:240px; margin-bottom:0;">
+        <label for="upload-folder">…ou un dossier entier</label>
+        <input type="file" id="upload-folder" webkitdirectory>
+      </div>
+      <button type="button" id="upload-btn" class="btn btn-primary">Sauvegarder</button>
     </div>
-    <button type="submit" class="btn btn-primary">📥 Sauvegarder</button>
-  </form>
-  <div id="upload-spinner" class="htmx-indicator" style="margin-top:.5rem;">
-    <div class="spinner"></div> Sauvegarde en cours…
+    <progress id="upload-progress" value="0" max="1" hidden style="width:100%; margin-top:16px;"></progress>
+    <div id="upload-status" aria-live="polite" style="margin-top:10px; font-size:14px; color:var(--muted);"></div>
+    <ul id="upload-log" class="upload-log"></ul>
+  </div>
+
+  <!-- ── Document tree (HTMX target) ───────────────────────────────────── -->
+  <div class="card rise d3">
+    <h2 class="subheader">Fichiers</h2>
+    <input type="search" name="q" placeholder="Filtrer par nom…" aria-label="Filtrer les documents"
+           hx-get="/docs/list" hx-trigger="input changed delay:300ms" hx-target="#doc-list"
+           hx-swap="innerHTML" style="margin-bottom:16px;">
+    <div id="doc-list">
+      {% if job_running %}
+        {% include "partials/index_progress.html" %}
+      {% else %}
+        {% include "partials/doc_list.html" %}
+      {% endif %}
+    </div>
   </div>
 </div>
 
-<!-- ── Re-index all ─────────────────────────────────────────────────────── -->
-<div class="card" style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
-  <button
-    hx-post="/docs/index"
-    hx-target="#doc-list"
-    hx-swap="innerHTML"
-    class="btn btn-primary"
-  >🔄 (Re)indexer tous les PDFs</button>
-
-  <span>
-    <strong>{{ chunk_count }}</strong> chunk(s) indexé(s) au total
-  </span>
-</div>
-
-<!-- ── Document list (HTMX target) ─────────────────────────────────────── -->
-<div class="card">
-  <h2 class="subheader">Documents</h2>
-  <div id="doc-list">
-    {% if job_running %}
-      {% include "partials/index_progress.html" %}
-    {% else %}
-      {% include "partials/doc_list.html" %}
-    {% endif %}
+<aside class="rise d4" style="flex:1 1 300px; min-width:0;">
+  <div class="card">
+    <div class="lab">Index</div>
+    <div class="stat-pair">
+      <div><div class="stat-big">{{ chunk_count }}</div><div class="stat-cap">passages</div></div>
+    </div>
   </div>
+  <div class="card">
+    <div class="lab">Indexation</div>
+    <p style="font-size:15px; line-height:1.6; color:var(--muted);">Relance la lecture et l'indexation de tous les PDF. Les fichiers déjà connus ne sont pas retraités à l'import.</p>
+    <button
+      hx-post="/docs/index"
+      hx-target="#doc-list"
+      hx-swap="innerHTML"
+      class="btn btn-primary"
+      style="margin-top:18px;"
+    >(Ré)indexer tous les PDFs</button>
+  </div>
+</aside>
+
 </div>
 {% endblock %}

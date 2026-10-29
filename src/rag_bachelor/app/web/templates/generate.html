@@ -2,7 +2,8 @@
 {% block content %}
 <div class="page-header">
   <span class="eyebrow">Génération IA</span>
-  <h1>🎯 Générer des questions</h1>
+  <h1>Génère des <em>questions</em></h1>
+  <p class="lede">Choisis un document, un type et une difficulté. Les doublons trop proches sont filtrés.</p>
 </div>
 
 {% if not sources %}
@@ -79,7 +80,7 @@
       </div>
     </div>
 
-    <button type="submit" class="btn btn-primary">✨ Générer des questions</button>
+    <button type="submit" class="btn btn-primary">Générer des questions →</button>
   </form>
 
   <div id="gen-spinner" class="htmx-indicator" style="margin-top:.75rem;">

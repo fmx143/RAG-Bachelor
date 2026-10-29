@@ -1,21 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page-header">
-  <h1>📊 Progrès &amp; Sujets</h1>
+  <span class="eyebrow">Statistiques d'étude</span>
+  <h1>Ta <em>progression</em></h1>
 </div>
 
 <!-- ── Summary metrics ──────────────────────────────────────────────────── -->
 <div class="metrics">
   <div class="metric">
-    <div class="metric-label">🃏 Total cartes</div>
+    <div class="metric-label">Total cartes</div>
     <div class="metric-value">{{ total_cards }}</div>
   </div>
   <div class="metric">
-    <div class="metric-label">📅 À réviser aujourd'hui</div>
+    <div class="metric-label">À réviser aujourd'hui</div>
     <div class="metric-value">{{ due_count }}</div>
   </div>
   <div class="metric">
-    <div class="metric-label">⚖️ Facilité moyenne</div>
+    <div class="metric-label">Facilité moyenne</div>
     <div class="metric-value">{{ avg_ease if avg_ease is not none else "—" }}</div>
   </div>
 </div>

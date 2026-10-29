@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page-header">
-  <h1>🔄 Révision par répétition espacée</h1>
+  <span class="eyebrow">Répétition espacée</span>
+  <h1>Session de <em>révision</em></h1>
 </div>
 
 {% if due_count %}
 <div class="alert alert-info">
-  📅 <strong>{{ due_count }}</strong> carte(s) à réviser aujourd'hui
+  <strong>{{ due_count }}</strong> carte(s) à réviser aujourd'hui
 </div>
 {% endif %}
 

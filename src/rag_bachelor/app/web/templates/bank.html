@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page-header">
-  <span class="eyebrow">Réserve de questions</span>
-  <h1>🏦 Banque de questions</h1>
+  <span class="eyebrow">Questions enregistrées</span>
+  <h1>La <em>banque</em></h1>
 </div>
 
 {% if not sources %}
@@ -52,7 +52,7 @@
         data-output="gen-count-val"
       >
     </div>
-    <button type="submit" class="btn btn-primary">✨ Générer la banque complète</button>
+    <button type="submit" class="btn btn-primary">Générer la banque →</button>
   </form>
 
   <div id="bank-status" style="margin-top:.75rem;">

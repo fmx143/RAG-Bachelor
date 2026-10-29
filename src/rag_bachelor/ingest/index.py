@@ -71,8 +71,11 @@ def facts_changed() -> None:
     _facts_generation += 1
 
 
-def index_chunks(chunks: list[Chunk]) -> None:
+def index_chunks(chunks: list[Chunk], id_prefix: str | None = None) -> None:
     """Embed *chunks* and upsert them into ChromaDB.
+
+    Ids are ``{id_prefix or source}__p{page}__c{index}``; callers pass a content-hash prefix so
+    a path reused after a move can never collide with another document's ids.
 
     Chunks are embedded in a single batch call via :mod:`rag_bachelor.core.embeddings`
     to minimise model overhead.
@@ -87,7 +90,7 @@ def index_chunks(chunks: list[Chunk]) -> None:
     texts = [c.text for c in chunks]
     vectors = embed(texts)
 
-    ids = [f"{c.source}__p{c.page_num}__c{c.chunk_index}" for c in chunks]
+    ids = [f"{id_prefix or c.source}__p{c.page_num}__c{c.chunk_index}" for c in chunks]
     metadatas: list[dict[str, str | int]] = [
         {"source": c.source, "page": c.page_num} for c in chunks
     ]
@@ -109,6 +112,23 @@ def delete_source(filename: str) -> None:
     collection = get_collection()
     collection.delete(where={"source": filename})
     get_facts_collection().delete(where={"source": filename})
+    facts_changed()
+
+
+_UPDATE_BATCH = 500  # stay well under Chroma's max batch size
+
+
+def rename_source(old: str, new: str) -> None:
+    """Re-tag every chunk and graph fact of *old* as *new*. Embeddings are not recomputed."""
+    for collection in (get_collection(), get_facts_collection()):
+        got = collection.get(where={"source": old}, include=["metadatas"])
+        ids = got["ids"]
+        metas = got.get("metadatas") or []
+        for i in range(0, len(ids), _UPDATE_BATCH):
+            collection.update(
+                ids=ids[i : i + _UPDATE_BATCH],
+                metadatas=[{**m, "source": new} for m in metas[i : i + _UPDATE_BATCH]],
+            )
     facts_changed()
 
 
