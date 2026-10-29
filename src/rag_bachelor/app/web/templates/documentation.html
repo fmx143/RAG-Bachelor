@@ -3,21 +3,21 @@
 <div class="page-header">
   <span class="eyebrow">{{ chunk_count }} passages indexés</span>
   <h1>Tes <em>sources</em></h1>
-  <p class="lede">Sujet <strong>{{ subject }}</strong> : dépose tes PDF de cours, ou un dossier entier, puis coche ce que tu veux importer et indexer. L'arborescence est conservée ; tout est lu, découpé par section et indexé en local.</p>
+  <p class="lede">Sujet <strong>{{ subject }}</strong> : dépose tes PDF de cours, ou un dossier entier. Tout est lu, découpé par section et indexé en local.</p>
 </div>
 
-<div style="display:flex; flex-wrap:wrap; gap:28px; align-items:flex-start;">
+<div style="display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start;">
 
-<div style="flex:999 1 620px; min-width:0;">
+<div style="flex:1.7 1 520px; min-width:0; display:flex; flex-direction:column; gap:16px;">
 
   <!-- ── Upload ────────────────────────────────────────────────────────── -->
-  <div class="card rise d2">
-    <label for="upload-files" class="drop" id="drop-zone">
-      <svg aria-hidden="true" width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="#F2B66D" stroke-width="1.6" stroke-linecap="round"><path d="M18 24V8M11 14l7-7 7 7M6 26v2a2 2 0 002 2h20a2 2 0 002-2v-2"/></svg>
-      <span class="drop-title">Glisse des PDF ici</span>
-      <span>ou clique pour parcourir · plusieurs fichiers possibles</span>
-    </label>
-    <div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-top:20px;">
+  <label for="upload-files" class="drop rise d2" id="drop-zone">
+    <span class="ic"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></span>
+    <span class="drop-title">Glisse des PDF ici</span>
+    <span>ou clique pour parcourir · plusieurs fichiers possibles</span>
+  </label>
+  <div class="card rise d2" style="margin:0">
+    <div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap;">
       <div class="form-group" style="flex:1; min-width:240px; margin-bottom:0;">
         <label for="upload-files">Des fichiers PDF</label>
         <input type="file" id="upload-files" accept=".pdf" multiple>
@@ -39,7 +39,7 @@
   </div>
 
   <!-- ── Document tree (HTMX target) ───────────────────────────────────── -->
-  <div class="card rise d3">
+  <div class="card rise d3" style="margin:0">
     <h2 class="subheader">Fichiers</h2>
     <input type="search" name="q" placeholder="Filtrer par nom…" aria-label="Filtrer les documents"
            hx-get="/docs/list" hx-trigger="input changed delay:300ms" hx-target="#doc-list"
@@ -54,13 +54,14 @@
   </div>
 </div>
 
-<aside class="rise d4" style="flex:1 1 300px; min-width:0;">
-  <div class="card">
+<aside class="rise d4" style="flex:1 1 300px; min-width:0; display:flex; flex-direction:column; gap:16px;">
+  <div class="card" style="margin:0">
     <div class="lab">Index</div>
     <div style="font-family:var(--disp);font-weight:var(--hw);font-size:52px;letter-spacing:-.04em;line-height:1;margin:12px 0 4px">{{ chunk_count }}</div>
-    <div class="stat-cap" style="margin-bottom:0">passages indexés</div>
+    <div class="stat-cap" style="margin-bottom:18px">passages, répartis par document</div>
+    <div class="o-comp">{% for src, n in comp %}<span style="flex:{{ n }};background:oklch(0.79 0.13 {{ src.rsplit('/', 1)[-1] | hue }})" title="{{ src | label }} · {{ n }}"></span>{% endfor %}</div>
   </div>
-  <div class="card">
+  <div class="card" style="margin:0">
     <div class="lab" style="margin-bottom:16px">Chaîne de recherche</div>
     {% for t, d in [("Docling", "mise en page, titres, tableaux"), ("bge-m3", "embeddings locaux"), ("BM25", "mots-clés exacts, fusion RRF"), ("Graphe de faits", "triplets LLM · PageRank personnalisé"), ("Reranker", "bge-reranker-v2-m3")] %}
     <div class="o-step">

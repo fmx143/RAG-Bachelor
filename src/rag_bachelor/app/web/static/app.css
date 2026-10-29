@@ -867,3 +867,75 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .kfocus .meta { font-size: 12.5px; color: var(--muted); }
 .kfocus .go { display: block; margin-top: 14px; text-align: center; padding: 9px; border-radius: var(--rb); background: var(--c); color: #111; font: 700 13px var(--sans); text-decoration: none; }
 @media (max-width: 720px) { .kfocus { position: static; width: auto; margin-top: 12px; } }
+
+/* ── Bank (mock-faithful) ──────────────────────────────────────────────── */
+.toolbar { gap: 12px; }
+.bk-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0 18px; min-height: 48px; border-radius: var(--rb); border: 1px solid var(--hair); background: var(--card); margin: 0; }
+.bk-search svg { width: 16px; height: 16px; fill: none; stroke: var(--dim); stroke-width: 1.8; stroke-linecap: round; flex: none; }
+.bk-search input { flex: 1; min-width: 0; background: none; border: 0; box-shadow: none; outline: none; font-size: 15px; color: var(--text); padding: 0; min-height: 0; }
+.bk-search:focus-within { border-color: oklch(0.82 0.13 78 / .5); }
+.toolbar .o-btn-acc { flex: none; display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px; text-decoration: none; }
+.chipbar { gap: 8px; margin-bottom: 20px; }
+.chip-f.sm span { padding: 6px 13px; font-size: 12.5px; }
+.chip-f.dotchip span { display: inline-flex; align-items: center; gap: 7px; }
+.chip-f.dotchip i { width: 8px; height: 8px; border-radius: 50%; background: oklch(0.79 0.13 var(--h, 0)); }
+.chip-f.dotchip:has(input:checked) span { border-color: oklch(0.79 0.13 var(--h, 78)); background: oklch(0.79 0.13 var(--h, 78) / .12); color: var(--text); }
+.tbl { margin-bottom: 14px; }
+.trow.bank-item { background: none; border-radius: 0; padding: 0 20px 0 14px; align-items: flex-start; gap: 6px; border-radius: 0; }
+.trow.bank-item:has(details[open]) { background: var(--card2); }
+.trow > input[type=checkbox] { margin-top: 20px; opacity: .35; }
+.trow:hover > input[type=checkbox], .trow > input[type=checkbox]:checked { opacity: 1; }
+.qd > summary { padding: 16px 0; align-items: center; gap: 14px; }
+.qdot { margin-top: 0; background: var(--c) !important; }
+.qpill { padding: 4px 9px; border-radius: 999px; border: 1px solid var(--hair); color: var(--muted); font: 400 10.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.qpill.ok { border-color: oklch(0.79 0.13 165 / .35); color: var(--ok); }
+.qpill.ko { border-color: oklch(0.72 0.15 22 / .4); color: oklch(0.78 0.14 22); }
+.qpill.mid { border-color: oklch(0.80 0.13 78 / .35); color: oklch(0.80 0.13 78); }
+.qbody { margin: 0; padding: 0 0 20px 24px; gap: 14px; animation: rise .35s ease both; }
+.qsrc { font: 400 12px var(--mono); }
+.qbody .opt { margin-bottom: 6px; padding: 10px 14px; font-size: 14px; }
+.qbody .card-answer { background: var(--card2); border-radius: var(--rs); padding: 16px 18px; margin: 0; font-size: 15px; line-height: 1.65; }
+.qbody .card-answer > strong:first-child { color: var(--text); }
+.qbody .cours { margin: 0; padding: 4px 0 0; border: 0; font-size: 14.5px; }
+.qbody .cours b { color: var(--c); }
+.qbody .btn { min-height: 36px; border-radius: 999px; }
+.qbody .btn-ghost { background: none; }
+
+/* Audio: saved lessons list */
+.o-lessons { display: flex; flex-direction: column; gap: 2px; }
+.o-lessons a { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--rs); color: inherit; text-decoration: none; }
+.o-lessons a.on, .o-lessons a:hover { background: oklch(0.79 0.13 var(--h) / .1); }
+.o-lessons i { width: 8px; height: 8px; border-radius: 50%; flex: none; background: oklch(0.79 0.13 var(--h)); }
+.o-lessons .t { font-weight: 700; font-size: 14px; }
+.o-lessons .m { font: 400 11.5px var(--mono); color: var(--dim); margin-top: 2px; }
+
+/* Sources (mock-faithful) */
+.drop { border: 1.5px dashed var(--hair); background: var(--card); border-radius: var(--r); padding: 36px 24px; transition: border-color .2s; }
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--card); }
+.drop .drop-title { font-size: 17px; font-weight: 700; }
+.drop .ic { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: oklch(0.82 0.13 78 / .13); }
+.drop .ic svg { width: 22px; height: 22px; fill: none; stroke: var(--accent); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.o-comp { display: flex; height: 10px; border-radius: 9px; overflow: hidden; gap: 2px; }
+.tree summary { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--rs); font-size: 15px; list-style: none; cursor: pointer; }
+.tree summary::-webkit-details-marker { display: none; }
+.tree summary:hover { background: var(--card2); color: var(--text); }
+.tree summary .chev { color: var(--dim); width: 10px; transition: transform .2s; }
+.tree details[open] > summary .chev { transform: rotate(90deg); }
+.tree summary svg { width: 18px; height: 18px; flex: none; fill: oklch(0.79 0.13 var(--h) / .16); stroke: oklch(0.79 0.13 var(--h)); stroke-width: 1.6; stroke-linejoin: round; }
+.tree details details > summary { font-size: 14px; }
+.tree details > details, .tree details > .file-row { margin-left: 17px; }
+.tree details[open] > details, .tree details[open] > .file-row { border-left: 1px solid var(--hair); padding-left: 10px; }
+.tree-actions { margin: 2px 0 6px 29px; }
+.tree-actions .btn, .file-actions .btn, .row-edit summary { min-height: 34px; padding: 0 14px; border-radius: var(--rb); border: 1px solid var(--hair); background: none; font: 600 12.5px var(--sans); color: var(--text2); }
+.tree-actions .btn:hover, .file-actions .btn:hover, .row-edit summary:hover { border-color: var(--accent); color: var(--accent); }
+.tree-actions .btn-danger, .file-actions .btn-danger { color: oklch(0.78 0.14 22); }
+.tree-actions .btn-danger:hover, .file-actions .btn-danger:hover { border-color: oklch(0.72 0.15 22); color: oklch(0.78 0.14 22); }
+.file-row { border-bottom: 0; padding: 9px 12px; border-radius: var(--rs); gap: 12px; }
+.file-row:hover { background: var(--card2); }
+.file-row .pdf { width: 30px; height: 36px; flex: none; border-radius: 6px; display: grid; place-items: center; font: 600 9.5px var(--mono);
+  background: oklch(0.79 0.13 var(--h) / .13); border: 1px solid oklch(0.79 0.13 var(--h) / .4); color: oklch(0.79 0.13 var(--h)); }
+.file-row .file-name { font-weight: 700; font-size: 14.5px; min-width: 180px; }
+.file-row .badge { order: 2; font: 400 10.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; background: none; border: 1px solid; }
+.file-row .badge-gray { order: 3; }
+.file-row .more { order: 4; }
+.file-row .more > summary { width: 34px; min-width: 34px; height: 34px; padding: 0; border-radius: var(--rb); border: 1px solid var(--hair); background: none; display: grid; place-items: center; }

@@ -1,4 +1,4 @@
-{% set diff_badge = {"facile": "badge-green", "moyen": "badge-yellow", "difficile": "badge-red"} %}
+{% set diff_badge = {"facile": "ok", "moyen": "mid", "difficile": "ko"} %}
 
 {% if added_count is defined %}
 <div class="alert alert-success" style="margin-bottom:.75rem;">{{ added_count }} carte(s) ajoutée(s) à la révision.</div>
@@ -24,18 +24,18 @@
 
   <div class="tbl">
   {% for q in items %}
-  <div class="trow bank-item">
+  <div class="trow bank-item" style="--c:{% if q.last_result == 1 %}var(--ok){% elif q.last_result == 0 %}var(--bad){% else %}var(--dim){% endif %}">
     <input type="checkbox" name="ids" value="{{ q.id }}" aria-label="Sélectionner">
     <details class="qd">
       <summary>
         <span class="qdot" style="background:{% if q.last_result == 1 %}var(--ok){% elif q.last_result == 0 %}var(--bad){% else %}var(--dim){% endif %}"></span>
         <span class="qt">{{ q.question }}</span>
         <span class="qm">
-          <span class="badge badge-gray">{{ qtype_labels.get(q.qtype, q.qtype) }}</span>
-          <span class="badge {{ diff_badge.get(q.difficulty, 'badge-yellow') }}">{{ diff_labels.get(q.difficulty, q.difficulty) }}</span>
-          {% if q.last_result == 1 %}<span class="badge badge-green">Juste</span>
-          {% elif q.last_result == 0 %}<span class="badge badge-red">Faux</span>
-          {% else %}<span class="badge badge-gray">Non tenté</span>{% endif %}
+          <span class="qpill">{{ qtype_labels.get(q.qtype, q.qtype) }}</span>
+          <span class="qpill {{ diff_badge.get(q.difficulty, 'mid') }}">{{ diff_labels.get(q.difficulty, q.difficulty) }}</span>
+          {% if q.last_result == 1 %}<span class="qpill ok">Juste</span>
+          {% elif q.last_result == 0 %}<span class="qpill ko">Faux</span>
+          {% else %}<span class="qpill">Non tenté</span>{% endif %}
         </span>
       </summary>
       <div class="qbody">
@@ -82,7 +82,7 @@
 
         <div class="qactions">
           {% if q.card_id %}
-          <span class="badge badge-green">Déjà en révision</span>
+          <span class="qpill ok">Déjà en révision</span>
           {% else %}
           <button id="add-btn-{{ q.id }}" type="button" hx-post="/bank/{{ q.id }}/add" hx-target="#add-btn-{{ q.id }}" hx-swap="outerHTML" class="btn btn-ghost btn-sm">Ajouter à la révision</button>
           {% endif %}

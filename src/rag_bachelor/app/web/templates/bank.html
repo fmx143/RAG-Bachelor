@@ -19,42 +19,43 @@
   hx-target="#bank-list" hx-swap="innerHTML"
 >
   <div class="toolbar">
-    <input type="search" id="filter_search" name="search" value="{{ filter_search }}" placeholder="Rechercher dans les questions…" aria-label="Rechercher">
-    <a class="btn btn-primary" href="/generate">+ Générer</a>
+    <label class="bk-search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5"/></svg>
+      <input type="search" id="filter_search" name="search" value="{{ filter_search }}" placeholder="Rechercher dans les questions…" aria-label="Rechercher">
+    </label>
+    <a class="o-btn-acc" href="/generate">+ Générer</a>
   </div>
 
   <div class="chipbar">
+    <div class="chipgroup" role="radiogroup" aria-label="Document">
+      <label class="chip-f dotchip"><input type="radio" name="source" value="" {% if not filter_source %}checked{% endif %}><span>Tous les documents</span></label>
+      {% for s in sources %}
+      <label class="chip-f dotchip" style="--h:{{ s | hue }}" title="{{ s }}"><input type="radio" name="source" value="{{ s }}" {% if s == filter_source %}checked{% endif %}><span><i></i>{{ s | label }}</span></label>
+      {% endfor %}
+    </div>
     <div class="chipgroup" role="radiogroup" aria-label="Type de question">
-      <label class="chip-f"><input type="radio" name="qtype" value="" {% if not filter_qtype %}checked{% endif %}><span>Tous types</span></label>
+      <label class="chip-f sm"><input type="radio" name="qtype" value="" {% if not filter_qtype %}checked{% endif %}><span>Tous types</span></label>
       {% for qt in qtypes %}
-      <label class="chip-f"><input type="radio" name="qtype" value="{{ qt }}" {% if qt == filter_qtype %}checked{% endif %}><span>{{ qtype_labels[qt] }}</span></label>
+      <label class="chip-f sm"><input type="radio" name="qtype" value="{{ qt }}" {% if qt == filter_qtype %}checked{% endif %}><span>{{ qtype_labels[qt] }}</span></label>
       {% endfor %}
     </div>
     <div class="chipgroup" role="radiogroup" aria-label="Difficulté">
-      <label class="chip-f"><input type="radio" name="difficulty" value="" {% if not filter_difficulty %}checked{% endif %}><span>Toutes difficultés</span></label>
+      <label class="chip-f sm"><input type="radio" name="difficulty" value="" {% if not filter_difficulty %}checked{% endif %}><span>Toutes difficultés</span></label>
       {% for d, label in diff_labels.items() %}
-      <label class="chip-f"><input type="radio" name="difficulty" value="{{ d }}" {% if d == filter_difficulty %}checked{% endif %}><span>{{ label }}</span></label>
+      <label class="chip-f sm"><input type="radio" name="difficulty" value="{{ d }}" {% if d == filter_difficulty %}checked{% endif %}><span>{{ label }}</span></label>
       {% endfor %}
     </div>
     <div class="chipgroup" role="radiogroup" aria-label="Résultat">
-      <label class="chip-f"><input type="radio" name="result" value="" {% if not filter_result %}checked{% endif %}><span>Tous résultats</span></label>
+      <label class="chip-f sm"><input type="radio" name="result" value="" {% if not filter_result %}checked{% endif %}><span>Tous résultats</span></label>
       {% for r, label in result_labels.items() %}
-      <label class="chip-f"><input type="radio" name="result" value="{{ r }}" {% if r == filter_result %}checked{% endif %}><span>{{ label }}</span></label>
+      <label class="chip-f sm"><input type="radio" name="result" value="{{ r }}" {% if r == filter_result %}checked{% endif %}><span>{{ label }}</span></label>
       {% endfor %}
     </div>
-    <div class="chipgroup">
-      <select id="filter_source" name="source" aria-label="Document">
-        <option value="">Tous les documents</option>
-        {% for s in sources %}
-        <option value="{{ s }}" {% if s == filter_source %}selected{% endif %}>{{ s }}</option>
-        {% endfor %}
-      </select>
-      <select id="filter_deck" name="deck" aria-label="Statut révision">
-        <option value="">Tous statuts</option>
-        {% for d, label in deck_labels.items() %}
-        <option value="{{ d }}" {% if d == filter_deck %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
+    <div class="chipgroup" role="radiogroup" aria-label="Statut révision">
+      <label class="chip-f sm"><input type="radio" name="deck" value="" {% if not filter_deck %}checked{% endif %}><span>Tous statuts</span></label>
+      {% for d, label in deck_labels.items() %}
+      <label class="chip-f sm"><input type="radio" name="deck" value="{{ d }}" {% if d == filter_deck %}checked{% endif %}><span>{{ label }}</span></label>
+      {% endfor %}
       <button
         type="button"
         hx-post="/bank/add-all"
@@ -63,6 +64,7 @@
         hx-swap="innerHTML"
         hx-confirm="Ajouter toutes les questions du filtre actuel à la révision ?"
         class="btn btn-ghost btn-sm"
+        style="margin-left:auto"
       >Tout ajouter à la révision</button>
     </div>
   </div>

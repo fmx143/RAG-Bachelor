@@ -28,6 +28,7 @@ from rag_bachelor.ingest.index import (
     index_chunks,
     list_sources,
     rename_source,
+    source_counts,
 )
 from rag_bachelor.ingest.layout import convert, layout_items, section_chunks
 from rag_bachelor.ingest.vision import caption_page
@@ -441,6 +442,7 @@ async def _doc_list_ctx(q: str = "", open_path: str = "") -> dict[str, object]:
             "total": len(docs),
             "q": q,
             "chunk_count": collection_count(),
+            "comp": sorted(source_counts().items(), key=lambda kv: -kv[1]),
             "subject": subject,
             "folders": folders,
         }
