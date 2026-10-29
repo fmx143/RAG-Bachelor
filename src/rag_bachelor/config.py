@@ -57,6 +57,15 @@ class Settings(BaseSettings):
     # max searches per agentic answer (reranker ≈ 6 s each on CPU); bounded, each costs an LLM call
     agent_max_steps: int = Field(default=3, ge=1, le=6)
 
+    # ── Audio (core/podcast.py) ───────────────────────────────────────────
+    # Phonon TTS (ptts), local CPU. Weights are CC BY-NC 4.0: personal/non-commercial use only.
+    # Downloaded on first use into HF_HOME (the model_cache volume in Docker).
+    # Pinned to the audited snapshot; gated repo: seed the cache once with an HF token, then run offline.
+    podcast_model: str = "hf://gradium/phonon-40m-fr@d91086970206b88efd2c88ca971d0628b5968f0f"
+    podcast_quant: str = "q8"
+    podcast_voice_a: str = "Baptiste"  # the expert who answers
+    podcast_voice_b: str = "Orianne"  # the podcaster who leads and asks
+
     # ── Ollama Cloud ──────────────────────────────────────────────────────
     # Same SecretStr rule as the OpenAI key: only read at client construction.
     ollama_host: str = "https://ollama.com"

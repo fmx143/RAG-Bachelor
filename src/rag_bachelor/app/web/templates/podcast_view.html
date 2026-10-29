@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <span class="eyebrow">Cours audio</span>
+  <h1>{{ podcast.source }} <em>p.{{ podcast.page_from }}–{{ podcast.page_to }}</em></h1>
+</div>
+
+<div style="margin-bottom:.75rem;">
+  <a href="/podcasts" class="btn btn-ghost btn-sm">← Podcasts</a>
+</div>
+
+<div class="card">
+  <audio controls preload="metadata" src="/podcasts/{{ podcast.id }}/audio.wav" style="width:100%;"></audio>
+</div>
+
+<div class="card">
+  <div class="subheader">Transcription</div>
+  {% for l in lines %}
+  <p><strong>{{ "Expert" if l.speaker == "A" else "Podcasteuse" }} :</strong> {{ l.text }}</p>
+  {% endfor %}
+</div>
+{% endblock %}

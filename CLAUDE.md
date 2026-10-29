@@ -8,7 +8,7 @@ Local-first RAG study assistant for French bachelor PDFs.
 - LLM: Ollama Cloud (`OLLAMA_API_KEY`, ollama.com) or OpenAI — provider and model per provider are
   chosen in ⚙️ Paramètres (persisted); `DEFAULT_LLM_PROVIDER` is only the startup default. No local Ollama.
 - Embeddings: always local (bge-m3) regardless of LLM provider
-- UI: FastAPI + HTMX, 9 tabs (docs, ask, revision, generate, bank, sheets, maps, progress, settings)
+- UI: FastAPI + HTMX, 10 tabs (docs, ask, revision, generate, bank, sheets, maps, podcasts, progress, settings)
 - Study tracking: SM-2 spaced repetition, persisted to SQLite (local dev) or PostgreSQL
   (`POSTGRES_HOST` set — isolated data-tier container on the NAS)
 - Vector index: ChromaDB, embedded `PersistentClient` (local dev) or standalone server via
@@ -25,6 +25,7 @@ Local-first RAG study assistant for French bachelor PDFs.
 | `src/rag_bachelor/core/bank.py` | Whole-document question-bank generation, windowed LLM calls, semantic near-duplicate filtering |
 | `src/rag_bachelor/core/sheet.py` | Chapter revision sheet (doc + page range): windowed notes → merged Markdown, `[p.N]` citations validated against the range; stored in `revision_sheets` |
 | `src/rag_bachelor/core/mindmap.py` | Chapter mind map (doc + page range): windowed outlines → one validated JSON tree (depth/width bounded), rendered as nested `<details>`; stored in `mind_maps` |
+| `src/rag_bachelor/core/podcast.py` | Two-voice audio lesson (doc + page range): windowed JSON dialogue → local Phonon TTS (`ptts`, weights CC BY-NC) → one WAV stored in `podcasts` (BYTEA/BLOB); voices/model in `settings.podcast_*` |
 | `src/rag_bachelor/core/keywords.py` | LightRAG-style query keywords (one LLM call) feeding BM25 and the graph |
 | `src/rag_bachelor/core/graph.py` | HippoRAG-style fact graph: triples in Chroma `bachelor_facts`, Personalized PageRank → 3rd RRF ranking (`graph_enabled`, `graph_auto_build`) |
 | `src/rag_bachelor/core/agent.py` | Agentic Ask: question searched as asked first, then a JSON `search`/`answer` loop; `agent_max_steps` searches in total |
