@@ -82,3 +82,11 @@ def test_routes_render_link_citations_and_delete() -> None:
         )
         assert client.post(f"/sheets/{sid}/delete").status_code == 200
     assert store.get_sheet(sid) is None
+
+
+def test_citation_inside_link_title_is_not_rewritten() -> None:
+    from rag_bachelor.app.web.routes.sheets import _render_sheet
+
+    html = str(_render_sheet('Vu [p.2] et [x](http://a.fr "t [p.3]")', "a.pdf"))
+    assert 'page=2" target="_blank"' in html
+    assert 'title="t [p.3]"' in html and html.count("<a ") == 2
