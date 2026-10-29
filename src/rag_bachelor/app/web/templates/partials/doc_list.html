@@ -17,6 +17,10 @@
 <div class="file-row">
   <span class="badge {% if d.indexed %}badge-green{% else %}badge-yellow{% endif %}">{% if d.indexed %}Indexé{% else %}Non indexé{% endif %}</span>
   <span class="file-name">{{ d.name }}</span>
+  {% if d.facts %}<span class="badge badge-gray" title="Faits extraits dans le graphe">{{ d.facts }} faits</span>{% endif %}
+  <details class="more">
+  <summary class="btn btn-ghost btn-sm" aria-label="Actions pour {{ d.name }}">⋯</summary>
+  <div class="file-actions">
   <button
     hx-post="/docs/index/doc"
     hx-vals='{{ {"path": d.path} | tojson }}'
@@ -44,6 +48,8 @@
     class="btn btn-danger btn-sm"
   >Retirer</button>
   {{ edit(d.path, false) }}
+  </div>
+  </details>
 </div>
 {% endmacro %}
 

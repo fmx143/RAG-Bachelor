@@ -13,7 +13,7 @@
 {% if steps %}
 <div class="card">
   <details>
-    <summary>🧭 Recherches de l'agent ({{ steps | length }})</summary>
+    <summary>Recherches de l'agent ({{ steps | length }})</summary>
     <ol style="margin-top:.75rem;">
       {% for step in steps %}
       <li>
@@ -31,7 +31,7 @@
 {% if chunks %}
 <div class="card">
   <details>
-    <summary>📖 Sources utilisées ({{ chunks | length }})</summary>
+    <summary>Sources utilisées ({{ chunks | length }})</summary>
     <div style="margin-top:.75rem;">
       {% for chunk in chunks %}
       <div class="source-item">
@@ -45,7 +45,7 @@
           alt="Page {{ chunk.page }} de {{ chunk.source }}"
           style="max-width:100%; margin-top:.5rem; border-radius:6px; border:1px solid var(--border);"
         >
-        <div class="source-text">{{ chunk.text[:400] }}{% if chunk.text | length > 400 %}…{% endif %}</div>
+        <div class="cours source-text">{{ chunk.text[:400] }}{% if chunk.text | length > 400 %}…{% endif %}</div>
       </div>
       {% endfor %}
     </div>
