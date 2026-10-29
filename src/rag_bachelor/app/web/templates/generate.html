@@ -3,16 +3,49 @@
 <div class="page-header">
   <span class="eyebrow">Génération IA</span>
   <h1>Génère des <em>questions</em></h1>
-  <p class="lede">Choisis un document, un type et une difficulté. Les doublons trop proches sont filtrés.</p>
+  <p class="lede">Une banque pour un document entier, ou quelques questions rapides sur un sujet. Les doublons trop proches sont filtrés.</p>
 </div>
 
 {% if not sources %}
 <div class="alert alert-warning">
-  ⚠️ Aucun document indexé. Indexe d'abord tes cours dans
-  <a href="/docs" style="color:inherit;font-weight:600;">📚 Documentation</a>.
+  Aucun document indexé. Indexe d'abord tes cours dans
+  <a href="/docs">Sources</a>.
 </div>
 {% endif %}
 
+<div class="card">
+  <div class="subheader">Banque pour un document entier</div>
+  <p class="lede-sm">Parcourt tout le PDF et génère une question par extrait, en tâche de fond. Retrouve le résultat dans <a href="/bank">la banque</a>.</p>
+  <form hx-post="/bank/generate" hx-target="#bank-status" hx-swap="innerHTML">
+    <div class="form-group">
+      <label for="gen_source">Document source</label>
+      <select id="gen_source" name="source">
+        <option value="">(choisir un document)</option>
+        {% for s in bank_sources %}
+        <option value="{{ s }}">{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Type de question</label>
+      <div class="chipgroup" role="radiogroup" aria-label="Type de question">
+        {% for qt in qtypes %}
+        <label class="chip-f"><input type="radio" name="qtype" value="{{ qt }}" {% if qt == "free" %}checked{% endif %}><span>{{ qtype_labels[qt] }}</span></label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="gen_count">Nombre de questions visées : <span id="gen-count-val">{{ default_target }}</span></label>
+      <input type="range" id="gen_count" name="count" min="{{ min_target }}" max="{{ max_target }}" step="5" value="{{ default_target }}" data-output="gen-count-val">
+    </div>
+    <button type="submit" class="btn btn-primary">Générer la banque →</button>
+  </form>
+  <div id="bank-status" class="batch">
+    {% include "partials/bank_status.html" %}
+  </div>
+</div>
+
+<div class="sect">Génération rapide</div>
 <div class="card">
   <form
     hx-post="/generate"

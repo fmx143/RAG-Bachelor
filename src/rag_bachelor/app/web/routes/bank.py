@@ -166,6 +166,17 @@ async def _list_ctx(
     }
 
 
+def generation_ctx() -> dict[str, object]:
+    """Context for the whole-document generation form (rendered on /generate)."""
+    return {
+        "bank_sources": active_sources(),
+        "default_target": _DEFAULT_TARGET,
+        "min_target": _MIN_TARGET,
+        "max_target": _MAX_TARGET,
+        **_status_ctx(),
+    }
+
+
 # ── Full page ────────────────────────────────────────────────────────────────
 
 
@@ -176,13 +187,7 @@ async def bank_page(request: Request) -> Response:
         "request": request,
         "active_tab": "bank",
         "sources": sources,
-        "qtypes": QTYPES,
-        "qtype_labels": QTYPE_LABELS,
-        "default_target": _DEFAULT_TARGET,
-        "min_target": _MIN_TARGET,
-        "max_target": _MAX_TARGET,
         **sidebar_ctx(),
-        **_status_ctx(),
         **(await _list_ctx(source="", difficulty="", search="", limit=_PAGE_SIZE)),
     }
     return templates.TemplateResponse(request, "bank.html", ctx)
