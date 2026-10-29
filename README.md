@@ -15,7 +15,8 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 | 🕸️ **Agentic search & graph** | LLM keyword extraction widens every search. Optional *deep search* agent searches the question as asked, then runs up to 2 more self-directed searches (query, keywords, target document) before answering. A HippoRAG-style fact graph (LLM triples per chunk → Personalized PageRank) helps multi-page questions |
 | 🔄 **Spaced repetition** | SM-2 algorithm (Anki-style) — review due cards, self-grade, auto-reschedule |
 | 🎯 **Question generation** | LLM-generated easy / medium / hard questions per topic, add them to your deck |
-| 🏦 **Question bank** | Generate a whole-document bank of free / QCM (single/multi) / Vrai-Faux questions, semantic near-duplicate filtering, short answers (1–5 sentences) with the supporting passage from the course, filter by difficulty/type/result, auto-graded structured revision |
+| 🏦 **Question bank** | Generate a whole-document bank of free / cloze (texte à trous) / QCM (single/multi) / Vrai-Faux questions, semantic near-duplicate filtering, short answers (1–5 sentences) with the supporting passage from the course, filter by difficulty/type/result, auto-graded structured revision |
+| 📝 **Study aids** | For a document + page range: a cited **revision sheet** (printable), a collapsible **mind map**, and a two-voice **audio lesson** (local Phonon TTS). All three are persisted and re-openable — see [Study aids](#8--study-aids-sheets-mind-maps-audio) |
 | 📊 **Progress tracking** | Per-topic mastery bars, weak vs strong subject overview |
 | ⚙️ **LLM & data** | Ollama Cloud or OpenAI for the LLM (provider and model chosen in Settings) — bge-m3 embeddings are always local |
 | 🔒 **Secrets via Doppler** | No API keys or passwords ever live in a `.env` file or the image — see [Configuration & sécurité](#configuration--sécurité-doppler) |
@@ -373,6 +374,28 @@ grade automatically — no self-assessment, no LLM call.
 
 ---
 
+### 8 — Study aids (sheets, mind maps, audio)
+
+**Tabs: Fiches · Cartes · Audio**
+
+Pick a document and a page range (80 pages max for sheets, 20 for audio); a background job
+builds the result with a progress bar and cancel button, then saves it for later.
+
+- **Fiches** — structured Markdown sheet; every `[p.N]` citation links to the page image and is
+  validated against the range. *Imprimer / PDF* prints only the sheet.
+- **Cartes** — mind map as nested collapsible lists (depth and width are bounded by code).
+- **Audio** — a dialogue between an expert (Baptiste) and a podcaster (Orianne), synthesised
+  locally by [Phonon](https://huggingface.co/gradium/phonon-40m-fr) (`ptts`, CPU) into one WAV.
+  The model weights are **CC BY-NC 4.0** (non-commercial use only) and the Hugging Face repo is
+  **gated**: accept its terms and download it once with your own HF token. The model is pinned to
+  an audited revision (`podcast_model`) and runs offline afterwards.
+
+  On the NAS, copy `models--gradium--phonon-40m-fr` and `models--gradium--phonon-voices` from
+  your local `~/.cache/huggingface/hub` into the `model_cache` volume (`/app/model_cache/hub`),
+  so the container never needs a token.
+
+---
+
 ## Project structure
 
 ```
@@ -411,8 +434,11 @@ RAG-Bachelor/
     │   ├── llm.py                # Ollama Cloud + OpenAI providers (provider/model persisted)
     │   ├── qa.py                 # RAG Q&A with French system prompt + citations
     │   ├── questions.py          # Easy / medium / hard question generation (per-topic)
-    │   ├── qtypes.py             # Question types (free/mcq_single/mcq_multi/tf), JSON parsing
-    │   └── bank.py               # Whole-document question-bank generation + semantic dedup
+    │   ├── qtypes.py             # Question types (free/cloze/mcq_single/mcq_multi/tf), JSON parsing
+    │   ├── bank.py               # Whole-document question-bank generation + semantic dedup
+    │   ├── sheet.py              # Chapter revision sheet (windowed notes → merged Markdown)
+    │   ├── mindmap.py            # Chapter mind map (validated JSON tree)
+    │   └── podcast.py            # Two-voice audio lesson (dialogue → Phonon TTS → WAV)
     ├── eval/                     # rag-eval: recall@k / MRR on eval/questions.jsonl
     ├── study/
     │   ├── srs.py                # SM-2 spaced-repetition algorithm
@@ -466,6 +492,7 @@ Vectors from different models are incompatible — re-indexing is required.
 | Slow first container start | bge-m3 model downloading (~1.2 GB) — fast on subsequent starts. The reranker (~2.2 GB) is baked into the image; if your `model_cache` volume already existed before it was added, it is downloaded once at first question instead |
 | Indexing progress bar runs for minutes | Expected — Docling layout analysis (~6.5 min per book on CPU) then embeddings at ~1.8 chunks/s. It runs in the background, no 524. See [Add and index your PDFs](#1--add-and-index-your-pdfs) |
 | Ollama error / no response | Check `OLLAMA_API_KEY` and that the model name exists in the ⚙️ Paramètres list |
+| Audio generation fails | The Phonon model is not in the Hugging Face cache (gated repo, needs a one-time download with an HF token) — see [Study aids](#8--study-aids-sheets-mind-maps-audio) |
 | Port 8090 already in use | Kill other uvicorn processes (`pkill -f uvicorn`), or change `--port` |
 | Blank pages not indexed | Expected — pages with no text layer are skipped with a warning |
 
@@ -486,6 +513,13 @@ validated in production (2026-10-04), so both are left as is. To close the gap, 
 server as a **separate change**: back up the `chroma_data` volume first, test the new image on a
 copy of it, and never bump the server image as a side effect of another change.
 
+**Open advisories (2026-10).** Dependabot flags `chromadb` 1.5.9 for CVE-2026-45829 (critical,
+pre-auth code injection), CVE-2026-45833 (critical, code injection), CVE-2026-45830 and
+CVE-2026-45831 (high, tenant authorization). No patched release exists yet (1.5.9 is the latest on
+PyPI). Accepted for now: Chroma publishes no port and runs on the isolated data tier, no Chroma
+auth/multi-tenancy is configured, and the app always supplies its own embeddings. Re-check PyPI
+for a fixed release and upgrade client and server together when one appears.
+
 ---
 
 ## Tech stack
@@ -498,6 +532,7 @@ copy of it, and never bump the server image as a side effect of another change.
 | Retrieval | Dense + BM25 (in-memory) fused with RRF, + optional fact-graph ranking (networkx PageRank), then BAAI/bge-reranker-v2-m3 cross-encoder |
 | Vector store | ChromaDB — embedded locally, standalone server on the NAS (`CHROMA_HOST`) |
 | LLM | Ollama Cloud or OpenAI (chosen in Settings) |
+| Text-to-speech | Phonon via `ptts` (local CPU, CC BY-NC weights) |
 | Config | pydantic-settings |
 | Study DB | SQLite locally, PostgreSQL on the NAS (`POSTGRES_HOST`) |
 | Secrets | Doppler (no `.env`) |

@@ -21,7 +21,7 @@ Local-first RAG study assistant for French bachelor PDFs.
 | `src/rag_bachelor/` | All source code |
 | `src/rag_bachelor/config.py` | Pydantic-settings (single source of truth for all settings) |
 | `src/rag_bachelor/core/llm.py` | `get_provider()` — Ollama Cloud or OpenAI, per `DEFAULT_LLM_PROVIDER` / the Settings toggle |
-| `src/rag_bachelor/core/qtypes.py` | Question types (free/mcq_single/mcq_multi/tf), difficulty levels, tolerant LLM-JSON parsing |
+| `src/rag_bachelor/core/qtypes.py` | Question types (free/cloze/mcq_single/mcq_multi/tf), difficulty levels, tolerant LLM-JSON parsing |
 | `src/rag_bachelor/core/bank.py` | Whole-document question-bank generation, windowed LLM calls, semantic near-duplicate filtering |
 | `src/rag_bachelor/core/sheet.py` | Chapter revision sheet (doc + page range): windowed notes → merged Markdown, `[p.N]` citations validated against the range; stored in `revision_sheets` |
 | `src/rag_bachelor/core/mindmap.py` | Chapter mind map (doc + page range): windowed outlines → one validated JSON tree (depth/width bounded), rendered as nested `<details>`; stored in `mind_maps` |
