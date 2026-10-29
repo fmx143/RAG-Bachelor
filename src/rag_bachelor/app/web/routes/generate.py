@@ -14,8 +14,8 @@ from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.core.qtypes import DIFFICULTIES as _DIFFICULTIES
 from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES, SELF_GRADED
 from rag_bachelor.core.questions import generate_questions
-from rag_bachelor.ingest.index import list_sources
 from rag_bachelor.study.store import add_card
+from rag_bachelor.study.subjects import active_sources, scoped_topic
 
 router = APIRouter()
 
@@ -45,7 +45,7 @@ async def generate_page(request: Request) -> Response:
     ctx: dict[str, object] = {
         "request": request,
         "active_tab": "generate",
-        "sources": list_sources(),
+        "sources": active_sources(),
         "difficulties": _DIFFICULTIES,
         "diff_labels": _DIFF_LABELS,
         "qtypes": QTYPES,
@@ -87,7 +87,9 @@ async def generate_qs(
         )
 
     try:
-        questions = await asyncio.to_thread(generate_questions, effective_topic, diff, qt, n)
+        questions = await asyncio.to_thread(
+            lambda: generate_questions(effective_topic, diff, qt, n, active_sources())
+        )
     except Exception:
         # Never surface the raw exception: LLM SDK auth errors can echo back the API key.
         return templates.TemplateResponse(
@@ -143,7 +145,7 @@ async def add_to_deck(
     card_id = add_card(
         question=question.strip(),
         answer=ans,
-        topic=topic.strip(),
+        topic=scoped_topic(topic.strip()),
         difficulty=diff,
         qtype=qt,
         options=opts_list,
@@ -185,7 +187,7 @@ async def add_all_to_deck(
             add_card(
                 question=question,
                 answer=answer,
-                topic=topic.strip(),
+                topic=scoped_topic(topic.strip()),
                 difficulty=diff,
                 qtype=qt,
                 options=_safe_list(item.get("options")) if qt not in SELF_GRADED else None,

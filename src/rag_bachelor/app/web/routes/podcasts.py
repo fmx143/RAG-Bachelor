@@ -13,13 +13,13 @@ from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.core.podcast import generate_podcast
-from rag_bachelor.ingest.index import list_sources
 from rag_bachelor.study.store import (
     delete_podcast,
     get_podcast,
     get_podcast_audio,
     list_podcasts,
 )
+from rag_bachelor.study.subjects import active_sources, active_subject
 
 router = APIRouter()
 
@@ -91,8 +91,8 @@ async def podcasts_page(request: Request) -> Response:
     ctx: dict[str, object] = {
         "request": request,
         "active_tab": "podcasts",
-        "sources": await asyncio.to_thread(list_sources),
-        "podcasts": await asyncio.to_thread(list_podcasts),
+        "sources": await asyncio.to_thread(active_sources),
+        "podcasts": await asyncio.to_thread(list_podcasts, active_subject()),
         "max_pages": _MAX_PAGES,
         **sidebar_ctx(),
         **_status_ctx(),

@@ -40,18 +40,23 @@ def _system_prompt(qtype: str, difficulty: str, count: int) -> str:
 
 
 def generate_questions(
-    topic: str, difficulty: str, qtype: str = "free", count: int = 3
+    topic: str,
+    difficulty: str,
+    qtype: str = "free",
+    count: int = 3,
+    sources: list[str] | None = None,
 ) -> list[QuestionItem]:
     """Generate *count* study questions about *topic* at the given *difficulty*.
 
     *difficulty* must be one of ``"facile"``, ``"moyen"``, ``"difficile"``.
     *qtype* selects the question format (see ``core/qtypes.QTYPES``).
+    *sources* limits the retrieved context to those documents.
     Returns up to *count* normalized, validated question items.
     """
     difficulty = difficulty.lower()
 
     # Retrieve relevant context from the index
-    chunks = retrieve(topic, top_k=6)
+    chunks = retrieve(topic, top_k=6, sources=sources)
     context = "\n\n".join(c.text for c in chunks[:4]) if chunks else "(aucun extrait disponible)"
 
     messages = [

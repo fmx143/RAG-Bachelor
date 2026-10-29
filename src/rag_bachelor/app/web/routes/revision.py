@@ -22,7 +22,6 @@ from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.core.qtypes import DIFFICULTIES, QTYPE_LABELS, QTYPES, score_selection
-from rag_bachelor.ingest.index import list_sources
 from rag_bachelor.study.srs import Card, update_card
 from rag_bachelor.study.store import (
     bank_sources,
@@ -32,6 +31,7 @@ from rag_bachelor.study.store import (
     materialize_bank_question,
     save_review,
 )
+from rag_bachelor.study.subjects import active_sources, active_subject
 
 router = APIRouter()
 
@@ -54,6 +54,10 @@ def _grade_for_score(score: float) -> int:
     return 0
 
 
+def _due_count() -> int:
+    return len(get_due_cards(limit=200, subject=active_subject()))
+
+
 def _next_card(source: str, difficulty: str, qtype: str) -> Card | None:
     """Return the next card matching the filter: a due card first, else the
     next un-decked bank question for the same filter (materialized on the
@@ -63,12 +67,13 @@ def _next_card(source: str, difficulty: str, qtype: str) -> Card | None:
     diff = difficulty if difficulty in DIFFICULTIES else None
     qt = qtype if qtype in QTYPES else None
 
-    due = get_due_cards(limit=1, source=src, difficulty=diff, qtype=qt)
+    subject = active_subject()
+    due = get_due_cards(limit=1, source=src, difficulty=diff, qtype=qt, subject=subject)
     if due:
         return due[0]
 
     backlog = list_bank_questions(
-        source=src, difficulty=diff, qtype=qt, deck="out", order_asc=True, limit=1
+        source=src, difficulty=diff, qtype=qt, deck="out", order_asc=True, limit=1, subject=subject
     )
     if not backlog:
         return None
@@ -78,7 +83,7 @@ def _next_card(source: str, difficulty: str, qtype: str) -> Card | None:
 
 def _filter_ctx(source: str, difficulty: str, qtype: str) -> dict[str, object]:
     return {
-        "sources": bank_sources() or list_sources(),
+        "sources": bank_sources(active_subject()) or active_sources(),
         "difficulties": DIFFICULTIES,
         "qtypes": QTYPES,
         "qtype_labels": QTYPE_LABELS,
@@ -93,7 +98,7 @@ async def revision_page(
     request: Request, source: str = "", difficulty: str = "", qtype: str = ""
 ) -> Response:
     def _sync() -> tuple[Card | None, int]:
-        return _next_card(source, difficulty, qtype), len(get_due_cards(limit=200))
+        return _next_card(source, difficulty, qtype), _due_count()
 
     card, due_count = await asyncio.to_thread(_sync)
     ctx: dict[str, object] = {
@@ -114,7 +119,7 @@ async def next_card(
     """Return the next matching card's partial (used by "Suivant" and the filter form)."""
 
     def _sync() -> tuple[Card | None, int]:
-        return _next_card(source, difficulty, qtype), len(get_due_cards(limit=200))
+        return _next_card(source, difficulty, qtype), _due_count()
 
     card, due_count = await asyncio.to_thread(_sync)
     ctx: dict[str, object] = {
@@ -145,7 +150,7 @@ async def answer_card(
     card = await asyncio.to_thread(get_card, card_id)
     if card is None or card.correct is None:
         next_c, due_count = await asyncio.to_thread(
-            lambda: (_next_card(source, difficulty, qtype), len(get_due_cards(limit=200)))
+            lambda: (_next_card(source, difficulty, qtype), _due_count())
         )
         return templates.TemplateResponse(
             request,
@@ -166,7 +171,7 @@ async def answer_card(
     def _save() -> int:
         updated = update_card(card, grade)
         save_review(updated, grade)
-        return len(get_due_cards(limit=200))
+        return _due_count()
 
     due_count = await asyncio.to_thread(_save)
 
@@ -200,7 +205,7 @@ async def grade_card(
         if card is not None:
             updated = update_card(card, grade)
             save_review(updated, grade)
-        return _next_card(source, difficulty, qtype), len(get_due_cards(limit=200))
+        return _next_card(source, difficulty, qtype), _due_count()
 
     next_c, due_count = await asyncio.to_thread(_sync)
 

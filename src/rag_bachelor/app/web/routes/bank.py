@@ -14,7 +14,6 @@ from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.core.bank import generate_bank_for_source
 from rag_bachelor.core.qtypes import DIFFICULTIES as _DIFFICULTIES
 from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES, SELF_GRADED
-from rag_bachelor.ingest.index import list_sources
 from rag_bachelor.study.store import (
     BankQuestion,
     count_bank_questions,
@@ -25,6 +24,7 @@ from rag_bachelor.study.store import (
     materialize_bank_question,
     record_bank_attempt,
 )
+from rag_bachelor.study.subjects import active_sources, active_subject
 
 router = APIRouter()
 
@@ -130,11 +130,19 @@ async def _list_ctx(
     dk = deck if deck in _DECKS else None
 
     def _sync() -> tuple[list[BankQuestion], int]:
+        subject = active_subject()
         items = list_bank_questions(
-            source=src, difficulty=diff, search=q, qtype=qt, result=res, deck=dk, limit=limit
+            source=src,
+            difficulty=diff,
+            search=q,
+            qtype=qt,
+            result=res,
+            deck=dk,
+            limit=limit,
+            subject=subject,
         )
         total = count_bank_questions(
-            source=src, difficulty=diff, search=q, qtype=qt, result=res, deck=dk
+            source=src, difficulty=diff, search=q, qtype=qt, result=res, deck=dk, subject=subject
         )
         return list(items), total
 
@@ -163,7 +171,7 @@ async def _list_ctx(
 
 @router.get("/bank", response_class=HTMLResponse)
 async def bank_page(request: Request) -> Response:
-    sources = await asyncio.to_thread(list_sources)
+    sources = await asyncio.to_thread(active_sources)
     ctx: dict[str, object] = {
         "request": request,
         "active_tab": "bank",

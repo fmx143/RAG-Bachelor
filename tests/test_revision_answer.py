@@ -100,7 +100,9 @@ def test_unknown_card_falls_back_to_next_card_partial(client: TestClient) -> Non
     assert resp.status_code == 200
 
 
-def _bq(question: str, source: str = "cours.pdf", difficulty: str = "facile") -> store.BankQuestion:
+def _bq(
+    question: str, source: str = "Bachelor/cours.pdf", difficulty: str = "facile"
+) -> store.BankQuestion:
     return store.BankQuestion(
         question=question,
         answer="Une réponse.",
@@ -114,16 +116,16 @@ def _bq(question: str, source: str = "cours.pdf", difficulty: str = "facile") ->
 def test_empty_deck_serves_next_card_from_bank(client: TestClient) -> None:
     store.add_bank_questions([_bq("Bank Q ?")])
 
-    resp = client.get("/revision/next?source=cours.pdf")
+    resp = client.get("/revision/next?source=Bachelor/cours.pdf")
 
     assert resp.status_code == 200
     assert "Bank Q ?" in resp.text
-    q = store.list_bank_questions(source="cours.pdf")[0]
+    q = store.list_bank_questions(source="Bachelor/cours.pdf")[0]
     assert q.card_id is not None  # materialized into the deck
 
 
 def test_filter_mismatch_returns_empty_state(client: TestClient) -> None:
-    store.add_bank_questions([_bq("Bank Q ?", source="cours.pdf")])
+    store.add_bank_questions([_bq("Bank Q ?", source="Bachelor/cours.pdf")])
 
     resp = client.get("/revision/next?source=autre.pdf")
 
@@ -132,13 +134,15 @@ def test_filter_mismatch_returns_empty_state(client: TestClient) -> None:
 
 
 def test_grade_pulls_next_bank_question_for_same_filter(client: TestClient) -> None:
-    store.add_bank_questions([_bq("Q1 ?", source="cours.pdf"), _bq("Q2 ?", source="cours.pdf")])
-    q1 = store.list_bank_questions(source="cours.pdf", order_asc=True)[0]
+    store.add_bank_questions(
+        [_bq("Q1 ?", source="Bachelor/cours.pdf"), _bq("Q2 ?", source="Bachelor/cours.pdf")]
+    )
+    q1 = store.list_bank_questions(source="Bachelor/cours.pdf", order_asc=True)[0]
     card_id = store.materialize_bank_question(q1)
 
     resp = client.post(
         f"/revision/grade/{card_id}",
-        data={"grade": "5", "source": "cours.pdf"},
+        data={"grade": "5", "source": "Bachelor/cours.pdf"},
     )
 
     assert resp.status_code == 200

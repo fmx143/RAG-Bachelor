@@ -1,3 +1,18 @@
+{% macro edit(path, is_folder) %}
+{% set parent = path.rsplit('/', 1)[0] if '/' in path else '' %}
+{% set leaf = path.rsplit('/', 1)[-1] %}
+<details class="row-edit">
+  <summary class="btn btn-ghost btn-sm">Déplacer / renommer</summary>
+  <form hx-post="/docs/move" hx-target="#doc-list" hx-swap="innerHTML" class="move-form">
+    <input type="hidden" name="path" value="{{ path }}">
+    {% if is_folder %}<input type="hidden" name="folder" value="true">{% endif %}
+    <label>Dossier <input type="text" name="dest" value="{{ parent }}" list="folders" autocomplete="off" required></label>
+    <label>Nom <input type="text" name="name" value="{{ leaf }}" required></label>
+    <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+  </form>
+</details>
+{% endmacro %}
+
 {% macro doc_row(d) %}
 <div class="file-row">
   <span class="badge {% if d.indexed %}badge-green{% else %}badge-yellow{% endif %}">{% if d.indexed %}Indexé{% else %}Non indexé{% endif %}</span>
@@ -28,6 +43,7 @@
     hx-confirm="Supprimer {{ d.path }} ?"
     class="btn btn-danger btn-sm"
   >Retirer</button>
+  {{ edit(d.path, false) }}
 </div>
 {% endmacro %}
 
@@ -50,11 +66,15 @@
       hx-confirm="Supprimer le dossier « {{ f.path }} » et ses {{ f.count }} document(s) ? Fichiers, index et graphe seront effacés. Action irréversible."
       class="btn btn-danger btn-sm"
     >Supprimer le dossier</button>
+    {{ edit(f.path, true) }}
   </div>
   {% for sub in f.children %}{{ folder(sub) }}{% endfor %}
   {% for d in f.docs %}{{ doc_row(d) }}{% endfor %}
 </details>
 {% endmacro %}
+
+<datalist id="folders">{% for f in folders %}<option value="{{ f }}">{% endfor %}</datalist>
+<datalist id="import-folders">{% for f in folders if f.startswith(subject ~ '/') %}<option value="{{ f[subject|length + 1:] }}">{% endfor %}</datalist>
 
 {% if message %}
 <div class="alert alert-success">{{ message }}</div>
@@ -64,7 +84,7 @@
 {% endif %}
 
 {% if not total %}
-<div class="alert alert-info">Aucun PDF trouvé dans <code>data/pdfs/</code>. Dépose des fichiers ci-dessus.</div>
+<div class="alert alert-info">Aucun PDF dans le sujet « {{ subject }} ». Dépose des fichiers ci-dessus.</div>
 {% elif not tree.count %}
 <div class="alert alert-info">Aucun document ne correspond à « {{ q }} ».</div>
 {% else %}

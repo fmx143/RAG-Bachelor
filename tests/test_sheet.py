@@ -67,11 +67,13 @@ def test_routes_render_link_citations_and_delete() -> None:
 
     from rag_bachelor.app.web import server
 
-    sid = store.add_sheet("Cours/a b.pdf", 1, 5, "## Titre\n\nUn fait [p.2] <script>x</script>")
+    sid = store.add_sheet(
+        "Bachelor/Cours/a b.pdf", 1, 5, "## Titre\n\nUn fait [p.2] <script>x</script>"
+    )
     with TestClient(server.app) as client:
-        assert "Cours/a b.pdf" in client.get("/sheets").text
+        assert "Bachelor/Cours/a b.pdf" in client.get("/sheets").text
         page = client.get(f"/sheets/{sid}").text
-        assert "/docs/page.png?path=Cours%2Fa%20b.pdf&amp;page=2" in page
+        assert "/docs/page.png?path=Bachelor%2FCours%2Fa%20b.pdf&amp;page=2" in page
         assert "<script>x" not in page
         assert client.get("/sheets/999").status_code == 404
         assert (

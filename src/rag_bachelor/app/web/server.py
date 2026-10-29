@@ -34,6 +34,7 @@ from rag_bachelor.app.web.routes import (
     revision,
     settings,
     sheets,
+    subjects,
 )
 from rag_bachelor.config import settings as cfg
 
@@ -150,6 +151,7 @@ app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 # ── Routers ────────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
 app.include_router(documentation.router)
+app.include_router(subjects.router)
 app.include_router(ask.router)
 app.include_router(revision.router)
 app.include_router(generate.router)

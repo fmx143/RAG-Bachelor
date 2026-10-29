@@ -23,7 +23,7 @@ _MAP_PROMPT = (
     "À partir de l'extrait fourni (chaque passage est précédé de sa page entre crochets), "
     "écris des notes en Markdown : notions clés, définitions, formules, exemples utiles.\n"
     "Base-toi UNIQUEMENT sur l'extrait. Termine chaque point par la page d'origine au format "
-    "[p.N]. Réponds en français, sans introduction ni conclusion."
+    "[p.N]. Réponds dans la langue du texte, sans introduction ni conclusion."
 )
 
 _REDUCE_PROMPT = (
@@ -31,7 +31,7 @@ _REDUCE_PROMPT = (
     "Fusionne les notes fournies (dans l'ordre du cours) en une fiche structurée en Markdown : "
     "des sections `##` par grande notion, puis « Définitions », « Points clés » et "
     "« Pièges à éviter » quand c'est pertinent. Supprime les redondances, n'invente rien et "
-    "conserve les citations de page [p.N]. Réponds en français."
+    "conserve les citations de page [p.N]. Réponds dans la langue des notes."
 )
 
 

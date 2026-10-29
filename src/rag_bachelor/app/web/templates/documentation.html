@@ -3,7 +3,7 @@
 <div class="page-header">
   <span class="eyebrow">Bibliothèque</span>
   <h1>Tes <em>documents</em></h1>
-  <p class="lede">Dépose tes PDF de cours, ou un dossier entier : l'arborescence est conservée. Ils sont lus, découpés par section et indexés en local.</p>
+  <p class="lede">Sujet <strong>{{ subject }}</strong> : dépose tes PDF de cours, ou un dossier entier, puis coche ce que tu veux importer et indexer. L'arborescence est conservée ; tout est lu, découpé par section et indexé en local.</p>
 </div>
 
 <div style="display:flex; flex-wrap:wrap; gap:28px; align-items:flex-start;">
@@ -26,8 +26,13 @@
         <label for="upload-folder">…ou un dossier entier</label>
         <input type="file" id="upload-folder" webkitdirectory>
       </div>
-      <button type="button" id="upload-btn" class="btn btn-primary">Sauvegarder</button>
+      <button type="button" id="upload-btn" class="btn btn-primary" data-subject="{{ subject }}">Importer la sélection</button>
     </div>
+    <div class="form-group" style="margin:16px 0 0;">
+      <label for="import-dest">Dossier de destination dans « {{ subject }} » <span style="color:var(--muted);">(optionnel, créé s'il n'existe pas)</span></label>
+      <input type="text" id="import-dest" list="import-folders" placeholder="ex. Semestre 3/Compta" autocomplete="off">
+    </div>
+    <div id="import-plan" class="import-plan"></div>
     <progress id="upload-progress" value="0" max="1" hidden style="width:100%; margin-top:16px;"></progress>
     <div id="upload-status" aria-live="polite" style="margin-top:10px; font-size:14px; color:var(--muted);"></div>
     <ul id="upload-log" class="upload-log"></ul>
@@ -58,14 +63,14 @@
   </div>
   <div class="card">
     <div class="lab">Indexation</div>
-    <p style="font-size:15px; line-height:1.6; color:var(--muted);">Relance la lecture et l'indexation de tous les PDF. Les fichiers déjà connus ne sont pas retraités à l'import.</p>
+    <p style="font-size:15px; line-height:1.6; color:var(--muted);">Relance la lecture et l'indexation de tous les PDF du sujet. Les fichiers déjà connus ne sont pas retraités à l'import.</p>
     <button
       hx-post="/docs/index"
       hx-target="#doc-list"
       hx-swap="innerHTML"
       class="btn btn-primary"
       style="margin-top:18px;"
-    >(Ré)indexer tous les PDFs</button>
+    >(Ré)indexer tout le sujet</button>
   </div>
 </aside>
 

@@ -42,17 +42,19 @@ def _format(chunks: list[SearchResult]) -> str:
     return "\n\n---\n\n".join(f"[{c.source}, p.{c.page}]\n{c.text}" for c in chunks)
 
 
-def answer_agentic(question: str, top_k: int = 5) -> tuple[str, list[SearchResult], list[Step]]:
+def answer_agentic(
+    question: str, top_k: int = 5, sources: list[str] | None = None
+) -> tuple[str, list[SearchResult], list[Step]]:
     """Answer *question*: search it as asked first, then up to ``settings.agent_max_steps - 1``
-    self-directed searches before the answer.
+    self-directed searches before the answer. *sources* limits every search to those documents.
 
     Returns ``(answer, chunks, steps)``: every distinct chunk retrieved (first found first) and
     the searches that produced them.
     """
-    if collection_count() == 0:
+    if collection_count() == 0 or sources == []:
         return NO_DOC_MSG, [], []
 
-    sources = list_sources()
+    sources = list_sources() if sources is None else sources
     provider, _ = get_provider()
     seen: set[tuple[str, int, str]] = set()
     chunks: list[SearchResult] = []
@@ -62,7 +64,9 @@ def answer_agentic(question: str, top_k: int = 5) -> tuple[str, list[SearchResul
         """Retrieve, keep only unseen chunks, record the step; return the message for the LLM."""
         new = [
             c
-            for c in retrieve(query[:500], top_k=top_k, keywords=keywords, source=source)
+            for c in retrieve(
+                query[:500], top_k=top_k, keywords=keywords, source=source, sources=sources
+            )
             if (c.source, c.page, c.text) not in seen
         ]
         seen.update((c.source, c.page, c.text) for c in new)
