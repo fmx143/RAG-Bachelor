@@ -22,6 +22,7 @@ router = APIRouter()
 
 _MAX_PAGES = 80  # bounds the number of LLM calls for one sheet
 _CITE_HTML = re.compile(r"\[p\.(\d+)\]")
+_TAG = re.compile(r"(<[^>]*>)")
 
 # Single in-process generation job, same pattern as routes/bank.py.
 _JOB_LOCK = threading.Lock()
@@ -87,13 +88,17 @@ def _status_ctx(error_override: str | None = None) -> dict[str, object]:
 def _render_sheet(content: str, source: str) -> Markup:
     """Markdown → safe HTML, with each ``[p.N]`` linked to its page image."""
     path = quote(source, safe="")
-    return Markup(
-        _CITE_HTML.sub(
-            lambda m: f'<a href="/docs/page.png?path={path}&amp;page={m.group(1)}" '
-            f'target="_blank" rel="noopener">[p.{m.group(1)}]</a>',
-            str(templates.env.filters["md"](content)),
+
+    def link(m: re.Match[str]) -> str:
+        return (
+            f'<a href="/docs/page.png?path={path}&amp;page={m.group(1)}" '
+            f'target="_blank" rel="noopener">[p.{m.group(1)}]</a>'
         )
-    )
+
+    # Only touch text nodes: the md filter escapes < and > inside attribute values, so
+    # splitting on tags never lands inside one (a citation in a link title stays inert).
+    parts = _TAG.split(str(templates.env.filters["md"](content)))
+    return Markup("".join(p if i % 2 else _CITE_HTML.sub(link, p) for i, p in enumerate(parts)))
 
 
 @router.get("/sheets", response_class=HTMLResponse)

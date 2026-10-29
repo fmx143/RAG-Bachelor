@@ -743,10 +743,14 @@ def _sheet(row: Any) -> Sheet:
 
 def list_sheets() -> list[Sheet]:
     """Every sheet, newest first, without its (large) content."""
-    rows = get_conn().execute(
-        "SELECT id, source, page_from, page_to, '' AS content, created_at "
-        "FROM revision_sheets ORDER BY id DESC"
-    ).fetchall()
+    rows = (
+        get_conn()
+        .execute(
+            "SELECT id, source, page_from, page_to, '' AS content, created_at "
+            "FROM revision_sheets ORDER BY id DESC"
+        )
+        .fetchall()
+    )
     return [_sheet(r) for r in rows]
 
 
