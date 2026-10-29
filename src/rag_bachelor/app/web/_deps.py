@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
 
 from rag_bachelor.core.llm import active_model, get_provider
+from rag_bachelor.core.qtypes import SELF_GRADED
 
 _HERE = Path(__file__).parent
 templates = Jinja2Templates(directory=str(_HERE / "templates"))
@@ -53,6 +54,7 @@ def asset_url(path: str) -> str:
 templates.env.filters["md"] = _md_filter
 templates.env.filters["url_encode"] = _url_encode_filter
 templates.env.globals["asset_url"] = asset_url
+templates.env.globals["self_graded"] = SELF_GRADED
 
 
 def sidebar_ctx() -> dict[str, object]:

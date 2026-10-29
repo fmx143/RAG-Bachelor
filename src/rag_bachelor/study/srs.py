@@ -33,7 +33,7 @@ class Card:
     topic: str
     difficulty: str  # "facile" | "moyen" | "difficile" (generation difficulty)
 
-    # Question type: "free" | "mcq_single" | "mcq_multi" | "tf".
+    # Question type: "free" | "cloze" | "mcq_single" | "mcq_multi" | "tf".
     # options / correct are only meaningful for structured types.
     qtype: str = "free"
     options: list[str] | None = None

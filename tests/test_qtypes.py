@@ -116,3 +116,33 @@ def test_loads_object_accepts_raw_newlines_inside_strings() -> None:
     raw = '{"action": "answer", "text": "1. un\n2. deux\tfin"}'  # what a Markdown answer looks like
 
     assert qtypes.loads_object(raw) == {"action": "answer", "text": "1. un\n2. deux\tfin"}
+
+
+def test_cloze_valid_normalizes_blanks() -> None:
+    item = qtypes.validate_item(
+        {
+            "question": "Le protocole ___ est fiable, ... non.",
+            "answer": "TCP",
+            "difficulty": "facile",
+        },
+        "cloze",
+    )
+    assert item is not None
+    assert item["question"] == "Le protocole ____ est fiable, ... non."
+    assert item["qtype"] == "cloze" and item["options"] is None and item["correct"] is None
+
+
+def test_cloze_blank_and_term_counts_must_match() -> None:
+    entry = {"question": "Le ____ et le ____ sont des protocoles.", "answer": "TCP"}
+    assert qtypes.validate_item(entry, "cloze") is None
+    entry = {"question": "Le ____ et le ____ sont des protocoles.", "answer": "TCP ; UDP"}
+    item = qtypes.validate_item(entry, "cloze")
+    assert item is not None and item["answer"] == "TCP ; UDP"
+
+
+def test_cloze_rejects_leaked_term_and_missing_blank() -> None:
+    assert (
+        qtypes.validate_item({"question": "TCP est ____ et fiable.", "answer": "TCP"}, "cloze")
+        is None
+    )
+    assert qtypes.validate_item({"question": "Aucun trou ici.", "answer": "trou"}, "cloze") is None

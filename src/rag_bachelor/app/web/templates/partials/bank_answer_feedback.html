@@ -5,7 +5,7 @@
   <div class="alert alert-error" style="margin-top:.5rem;">❌ Mauvaise réponse.</div>
   {% endif %}
 
-  {% if q.qtype != "free" %}
+  {% if q.qtype not in self_graded %}
   <ul style="padding-left:1.2rem; margin-top:.5rem;">
     {% for opt in q.options %}
     <li

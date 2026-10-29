@@ -13,7 +13,7 @@ from starlette.responses import Response
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.core.bank import generate_bank_for_source
 from rag_bachelor.core.qtypes import DIFFICULTIES as _DIFFICULTIES
-from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES
+from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES, SELF_GRADED
 from rag_bachelor.ingest.index import list_sources
 from rag_bachelor.study.store import (
     BankQuestion,
@@ -353,7 +353,7 @@ async def answer_bank_question(
         q = get_bank_question(bank_id)
         if q is None:
             return None
-        if q.qtype == "free":
+        if q.qtype in SELF_GRADED:
             is_correct = self_grade == "correct"
         else:
             is_correct = q.correct is not None and set(selected) == set(q.correct)
