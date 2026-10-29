@@ -28,6 +28,7 @@ from rag_bachelor.app.web.routes import (
     bank,
     documentation,
     generate,
+    maps,
     progress,
     revision,
     settings,
@@ -153,6 +154,7 @@ app.include_router(revision.router)
 app.include_router(generate.router)
 app.include_router(bank.router)
 app.include_router(sheets.router)
+app.include_router(maps.router)
 app.include_router(progress.router)
 app.include_router(settings.router)
 

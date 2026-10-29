@@ -85,6 +85,15 @@ CREATE TABLE IF NOT EXISTS revision_sheets (
     content    TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS mind_maps (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    source     TEXT NOT NULL,
+    page_from  INTEGER NOT NULL,
+    page_to    INTEGER NOT NULL,
+    content    TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 _POSTGRES_SCHEMA = """
@@ -141,6 +150,15 @@ CREATE TABLE IF NOT EXISTS documents (
 );
 
 CREATE TABLE IF NOT EXISTS revision_sheets (
+    id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    source     TEXT NOT NULL,
+    page_from  INTEGER NOT NULL,
+    page_to    INTEGER NOT NULL,
+    content    TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS mind_maps (
     id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     source     TEXT NOT NULL,
     page_from  INTEGER NOT NULL,
@@ -328,6 +346,7 @@ def rename_document(old: str, new: str) -> None:
             "UPDATE documents SET path = ? WHERE path = ?",
             "UPDATE question_bank SET source = ? WHERE source = ?",
             "UPDATE revision_sheets SET source = ? WHERE source = ?",
+            "UPDATE mind_maps SET source = ? WHERE source = ?",
             "UPDATE cards SET topic = ? WHERE topic = ?",
         ):
             conn.execute(_adapt(sql), (new, old))
@@ -766,6 +785,51 @@ def get_sheet(sheet_id: int) -> Sheet | None:
 def delete_sheet(sheet_id: int) -> None:
     conn = get_conn()
     conn.execute(_adapt("DELETE FROM revision_sheets WHERE id = ?"), (sheet_id,))
+    conn.commit()
+
+
+# ── Mind maps (chapter trees, JSON in `content`) ───────────────────────────────
+
+
+def add_map(source: str, page_from: int, page_to: int, content: str) -> int:
+    """Insert a mind map and return its id."""
+    conn = get_conn()
+    sql = "INSERT INTO mind_maps (source, page_from, page_to, content) VALUES (?,?,?,?)"
+    params = (source, page_from, page_to, content)
+    if _use_postgres():
+        row = conn.execute(_adapt(sql) + " RETURNING id", params).fetchone()
+        assert row is not None
+        new_id = row["id"]
+    else:
+        cur = conn.execute(sql, params)
+        assert isinstance(cur, sqlite3.Cursor)
+        new_id = cur.lastrowid
+    conn.commit()
+    assert new_id is not None
+    return int(new_id)
+
+
+def list_maps() -> list[Sheet]:
+    """Every mind map, newest first, without its content."""
+    rows = (
+        get_conn()
+        .execute(
+            "SELECT id, source, page_from, page_to, '' AS content, created_at "
+            "FROM mind_maps ORDER BY id DESC"
+        )
+        .fetchall()
+    )
+    return [_sheet(r) for r in rows]
+
+
+def get_map(map_id: int) -> Sheet | None:
+    row = get_conn().execute(_adapt("SELECT * FROM mind_maps WHERE id = ?"), (map_id,)).fetchone()
+    return _sheet(row) if row else None
+
+
+def delete_map(map_id: int) -> None:
+    conn = get_conn()
+    conn.execute(_adapt("DELETE FROM mind_maps WHERE id = ?"), (map_id,))
     conn.commit()
 
 

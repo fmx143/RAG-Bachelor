@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% macro branch(node) %}
+{% if node.children %}
+<details open class="mm-node"><summary>{{ node.title }}</summary>
+  {% for c in node.children %}{{ branch(c) }}{% endfor %}
+</details>
+{% else %}
+<div class="mm-leaf">{{ node.title }}</div>
+{% endif %}
+{% endmacro %}
+{% block content %}
+<div class="page-header no-print">
+  <span class="eyebrow">Carte mentale</span>
+  <h1>{{ map.source }} <em>p.{{ map.page_from }}–{{ map.page_to }}</em></h1>
+</div>
+
+<div class="no-print" style="display:flex; gap:.5rem; margin-bottom:.75rem;">
+  <a href="/maps" class="btn btn-ghost btn-sm">← Cartes</a>
+  <button type="button" class="btn btn-primary btn-sm" data-print>🖨️ Imprimer / PDF</button>
+</div>
+
+<div class="card mm-tree">
+  <h2 class="print-only">{{ map.source }} — p.{{ map.page_from }}–{{ map.page_to }}</h2>
+  {{ branch(tree) }}
+</div>
+{% endblock %}
