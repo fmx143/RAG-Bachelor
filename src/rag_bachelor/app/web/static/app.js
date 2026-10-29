@@ -300,3 +300,33 @@ document.addEventListener("click", (e) => {
   void card.offsetWidth;
   card.classList.add("flash");
 });
+
+// Knowledge map (home): click a node or legend chip to focus a document and highlight its links.
+document.querySelectorAll("[data-kmap]").forEach((box) => {
+  const nodes = [...box.querySelectorAll(".gnode")];
+  const chips = [...box.querySelectorAll("[data-focus]")];
+  const card = box.querySelector(".kfocus");
+  const svg = box.querySelector(".o-graph");
+  const show = (i) => {
+    const on = box.querySelector(".gnode.on")?.dataset.i === String(i);
+    nodes.forEach((n) => n.classList.toggle("on", !on && n.dataset.i === String(i)));
+    chips.forEach((c) => c.classList.toggle("on", !on && c.dataset.focus === String(i)));
+    svg.classList.toggle("focus", !on);
+    box.querySelectorAll(".xlink").forEach((l) => l.classList.toggle("hot", !on && (l.dataset.a === String(i) || l.dataset.b === String(i))));
+    card.hidden = on;
+    if (on) return;
+    const n = nodes[i], d = n.dataset;
+    card.style.setProperty("--c", `oklch(0.79 0.13 ${getComputedStyle(n).getPropertyValue("--h")})`);
+    card.querySelector("[data-f=name]").textContent = d.name;
+    card.querySelector("[data-f=file]").textContent = d.file;
+    card.querySelector("[data-f=mastery]").textContent = `${d.mastery} %`;
+    card.querySelector(".trk i").style.width = `${d.mastery}%`;
+    card.querySelector("[data-f=meta]").textContent = d.meta;
+    card.querySelector("[data-f=href]").href = d.href;
+  };
+  nodes.forEach((n) => {
+    n.addEventListener("click", () => show(+n.dataset.i));
+    n.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); show(+n.dataset.i); } });
+  });
+  chips.forEach((c) => c.addEventListener("click", () => show(+c.dataset.focus)));
+});

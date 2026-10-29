@@ -845,3 +845,25 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .sheet-prev .pg { color: oklch(0.79 0.13 305); }
 .sheet-prev img { width: 100%; border-radius: 8px; border: 1px solid var(--hair); background: var(--card2); }
 .gradebar button small { display: block; font: 400 10.5px var(--mono); color: var(--dim); margin-top: 3px; }
+
+/* ── Knowledge map: focus card + cross-document links ──────────────────── */
+.o-map { position: relative; overflow: hidden; }
+.o-graph .gnode { cursor: pointer; outline: none; }
+.o-graph .gnode:hover .node, .o-graph .gnode:focus-visible .node, .o-graph .gnode.on .node { fill-opacity: .6; stroke-width: 3; }
+.o-graph .xlink { stroke: var(--accent); stroke-opacity: .28; stroke-linecap: round; transition: stroke-opacity .2s; }
+.o-graph .xlink.hot { stroke-opacity: .9; }
+.o-graph.focus .gnode:not(.on) { opacity: .45; }
+.o-chip { background: none; color: var(--text-2); font: 600 12px var(--sans); cursor: pointer; }
+.o-chip.on { border-color: oklch(0.79 0.13 var(--h)); background: oklch(0.79 0.13 var(--h) / .12); }
+.kfocus { position: absolute; left: 26px; bottom: 22px; width: 260px; padding: 18px; border-radius: var(--rs); background: var(--bg); border: 1px solid var(--hair); box-shadow: 0 20px 50px rgba(0,0,0,.45); animation: rise .35s ease both; }
+.kfocus[hidden] { display: none; }
+.kfocus .hd { display: flex; align-items: center; gap: 8px; }
+.kfocus .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.kfocus .fl { font: 400 11.5px var(--mono); color: var(--dim); margin: 3px 0 14px; overflow-wrap: anywhere; }
+.kfocus .row { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); }
+.kfocus .row b { color: var(--text); }
+.kfocus .trk { height: 5px; border-radius: 9px; background: var(--hair); margin: 6px 0 12px; overflow: hidden; }
+.kfocus .trk i { display: block; height: 100%; background: var(--c); border-radius: 9px; transition: width .8s ease; }
+.kfocus .meta { font-size: 12.5px; color: var(--muted); }
+.kfocus .go { display: block; margin-top: 14px; text-align: center; padding: 9px; border-radius: var(--rb); background: var(--c); color: #111; font: 700 13px var(--sans); text-decoration: none; }
+@media (max-width: 720px) { .kfocus { position: static; width: auto; margin-top: 12px; } }

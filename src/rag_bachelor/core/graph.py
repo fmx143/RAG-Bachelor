@@ -13,6 +13,7 @@ import time
 from collections import Counter, defaultdict
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from itertools import combinations
 from typing import Any, cast
 
 import networkx as nx
@@ -134,6 +135,17 @@ def fact_counts() -> dict[str, int]:
     """Number of graph facts per source document."""
     metas = get_facts_collection().get(include=["metadatas"]).get("metadatas") or []
     return dict(Counter(str(m["source"]) for m in metas if m))
+
+
+def shared_links() -> dict[tuple[str, str], int]:
+    """Number of graph entities shared by each pair of source documents (a < b)."""
+    metas = get_facts_collection().get(include=["metadatas"]).get("metadatas") or []
+    sources_of: dict[str, set[str]] = {}
+    for m in metas:
+        for e in (m["subject"], m["object"]):
+            sources_of.setdefault(str(e), set()).add(str(m["source"]))
+    pairs = Counter(pair for srcs in sources_of.values() for pair in combinations(sorted(srcs), 2))
+    return dict(pairs)
 
 
 def _graph(metas: list[Any]) -> nx.Graph:

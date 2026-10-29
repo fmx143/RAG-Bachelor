@@ -84,6 +84,15 @@ def test_rebuilding_replaces_the_facts_instead_of_duplicating(provider: FakeProv
     assert graph.fact_counts() == {"a.pdf": 1}
 
 
+def test_shared_links_count_entities_common_to_two_sources(provider: FakeProvider) -> None:
+    graph._store_facts(
+        "a.pdf", "c1", [("Tri rapide", "utilise", "pivot"), ("Dijkstra", "calcule", "chemin")]
+    )
+    graph._store_facts("b.pdf", "c2", [("Pivot", "sert a", "tri")])
+
+    assert graph.shared_links() == {("a.pdf", "b.pdf"): 1}
+
+
 def test_delete_source_removes_its_facts(provider: FakeProvider) -> None:
     _index_chunks(a="tri rapide")
     graph.build_graph("a.pdf")
