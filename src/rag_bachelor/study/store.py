@@ -94,6 +94,17 @@ CREATE TABLE IF NOT EXISTS mind_maps (
     content    TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS podcasts (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    source     TEXT NOT NULL,
+    page_from  INTEGER NOT NULL,
+    page_to    INTEGER NOT NULL,
+    script     TEXT NOT NULL,
+    audio      BLOB NOT NULL,
+    duration   REAL NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 _POSTGRES_SCHEMA = """
@@ -164,6 +175,17 @@ CREATE TABLE IF NOT EXISTS mind_maps (
     page_from  INTEGER NOT NULL,
     page_to    INTEGER NOT NULL,
     content    TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS podcasts (
+    id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    source     TEXT NOT NULL,
+    page_from  INTEGER NOT NULL,
+    page_to    INTEGER NOT NULL,
+    script     TEXT NOT NULL,
+    audio      BYTEA NOT NULL,
+    duration   DOUBLE PRECISION NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 """
@@ -347,6 +369,7 @@ def rename_document(old: str, new: str) -> None:
             "UPDATE question_bank SET source = ? WHERE source = ?",
             "UPDATE revision_sheets SET source = ? WHERE source = ?",
             "UPDATE mind_maps SET source = ? WHERE source = ?",
+            "UPDATE podcasts SET source = ? WHERE source = ?",
             "UPDATE cards SET topic = ? WHERE topic = ?",
         ):
             conn.execute(_adapt(sql), (new, old))
@@ -830,6 +853,99 @@ def get_map(map_id: int) -> Sheet | None:
 def delete_map(map_id: int) -> None:
     conn = get_conn()
     conn.execute(_adapt("DELETE FROM mind_maps WHERE id = ?"), (map_id,))
+    conn.commit()
+
+
+# ── Podcasts (two-voice audio lessons: transcript JSON + WAV bytes) ────────────
+
+
+@dataclass
+class Podcast:
+    source: str
+    page_from: int
+    page_to: int
+    script: str = ""
+    duration: float = 0.0
+    id: int | None = None
+    created_at: str = ""
+
+
+def add_podcast(
+    source: str, page_from: int, page_to: int, script: str, audio: bytes, duration: float
+) -> int:
+    """Insert a podcast and return its id."""
+    conn = get_conn()
+    sql = (
+        "INSERT INTO podcasts (source, page_from, page_to, script, audio, duration) "
+        "VALUES (?,?,?,?,?,?)"
+    )
+    params = (source, page_from, page_to, script, audio, duration)
+    if _use_postgres():
+        row = conn.execute(_adapt(sql) + " RETURNING id", params).fetchone()
+        assert row is not None
+        new_id = row["id"]
+    else:
+        cur = conn.execute(sql, params)
+        assert isinstance(cur, sqlite3.Cursor)
+        new_id = cur.lastrowid
+    conn.commit()
+    assert new_id is not None
+    return int(new_id)
+
+
+def _podcast(row: Any) -> Podcast:
+    return Podcast(
+        source=row["source"],
+        page_from=row["page_from"],
+        page_to=row["page_to"],
+        script=row["script"],
+        duration=float(row["duration"]),
+        id=row["id"],
+        created_at=str(row["created_at"])[:16],
+    )
+
+
+def list_podcasts() -> list[Podcast]:
+    """Every podcast, newest first, without script or audio."""
+    rows = (
+        get_conn()
+        .execute(
+            "SELECT id, source, page_from, page_to, '' AS script, duration, created_at "
+            "FROM podcasts ORDER BY id DESC"
+        )
+        .fetchall()
+    )
+    return [_podcast(r) for r in rows]
+
+
+def get_podcast(podcast_id: int) -> Podcast | None:
+    """One podcast with its script, without the (large) audio."""
+    row = (
+        get_conn()
+        .execute(
+            _adapt(
+                "SELECT id, source, page_from, page_to, script, duration, created_at "
+                "FROM podcasts WHERE id = ?"
+            ),
+            (podcast_id,),
+        )
+        .fetchone()
+    )
+    return _podcast(row) if row else None
+
+
+def get_podcast_audio(podcast_id: int) -> bytes | None:
+    row = (
+        get_conn()
+        .execute(_adapt("SELECT audio FROM podcasts WHERE id = ?"), (podcast_id,))
+        .fetchone()
+    )
+    return bytes(row["audio"]) if row else None
+
+
+def delete_podcast(podcast_id: int) -> None:
+    conn = get_conn()
+    conn.execute(_adapt("DELETE FROM podcasts WHERE id = ?"), (podcast_id,))
     conn.commit()
 
 

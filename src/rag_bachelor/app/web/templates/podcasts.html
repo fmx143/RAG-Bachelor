@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <span class="eyebrow">Cours audio</span>
+  <h1>Les <em>podcasts</em></h1>
+</div>
+
+{% if not sources %}
+<div class="alert alert-warning">
+  ⚠️ Aucun document indexé. Indexe d'abord tes cours dans
+  <a href="/docs" style="color:inherit;font-weight:600;">📚 Documentation</a>.
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="subheader">Générer un podcast</div>
+  <small style="color:var(--muted);">
+    Dialogue à deux voix sur la plage de pages choisie, synthétisé en local. La génération peut durer plusieurs minutes. {{ max_pages }} pages maximum.
+  </small>
+
+  <form
+    hx-post="/podcasts/generate"
+    hx-target="#podcast-status"
+    hx-swap="innerHTML"
+    style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-top:.75rem;"
+  >
+    <div class="form-group" style="margin-bottom:0; min-width:240px;">
+      <label for="pod_source">Document source</label>
+      <select id="pod_source" name="source">
+        <option value="">(choisir un document)</option>
+        {% for s in sources %}
+        <option value="{{ s }}">{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:0; width:110px;">
+      <label for="pod_from">Page de</label>
+      <input type="number" id="pod_from" name="page_from" min="1" value="1">
+    </div>
+    <div class="form-group" style="margin-bottom:0; width:110px;">
+      <label for="pod_to">à</label>
+      <input type="number" id="pod_to" name="page_to" min="1" value="10">
+    </div>
+    <button type="submit" class="btn btn-primary">Générer le podcast →</button>
+  </form>
+
+  <div id="podcast-status" style="margin-top:.75rem;">
+    {% include "partials/podcast_status.html" %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="subheader">Podcasts enregistrés ({{ podcasts | length }})</div>
+  {% if not podcasts %}
+  <small style="color:var(--muted);">Aucun podcast pour l'instant.</small>
+  {% endif %}
+  {% for pd in podcasts %}
+  <div class="podcast-item" style="display:flex; justify-content:space-between; align-items:center; gap:.5rem; padding:.4rem 0;">
+    <a href="/podcasts/{{ pd.id }}" style="color:inherit;">
+      <strong>{{ pd.source }}</strong> — p.{{ pd.page_from }}–{{ pd.page_to }}
+      <small style="color:var(--muted);"> · {{ (pd.duration // 60) | int }} min {{ (pd.duration % 60) | int }} s · {{ pd.created_at }}</small>
+    </a>
+    <button
+      type="button"
+      hx-post="/podcasts/{{ pd.id }}/delete"
+      hx-target="closest .podcast-item"
+      hx-swap="outerHTML"
+      hx-confirm="Supprimer ce podcast ?"
+      class="btn btn-danger btn-sm"
+    >🗑️</button>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
