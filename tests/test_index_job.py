@@ -48,11 +48,16 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     monkeypatch.setattr(docs_module, "_graphs", graphs, raising=False)
 
     batch_sizes: list[int] = []
-    monkeypatch.setattr(docs_module, "index_chunks", lambda chunks: batch_sizes.append(len(chunks)))
+    monkeypatch.setattr(
+        docs_module, "index_chunks", lambda chunks, prefix=None: batch_sizes.append(len(chunks))
+    )
     monkeypatch.setattr(docs_module, "_batch_sizes", batch_sizes, raising=False)
 
+    docs_module._PENDING.clear()
     docs_module._JOB.update(
         running=False,
+        phase="index",
+        active="",
         file_index=0,
         file_total=0,
         current="",
@@ -94,12 +99,12 @@ def test_indexing_builds_the_graph_unless_auto_build_is_off(
 
 
 def test_graph_button_builds_one_indexed_document(client: TestClient) -> None:
-    resp = client.post("/docs/graph/cours.pdf")
+    resp = client.post("/docs/graph/doc", data={"path": "cours.pdf"})
 
     assert resp.status_code == 200
     assert docs_module._graphs == ["cours.pdf"]  # type: ignore[attr-defined]
     assert "3 faits" in docs_module._JOB["message"]  # type: ignore[operator]
-    assert "non indexé" in client.post("/docs/graph/inconnu.pdf").text
+    assert "non indexé" in client.post("/docs/graph/doc", data={"path": "inconnu.pdf"}).text
 
 
 def test_status_while_running_polls_via_self_reinjecting_trigger(
@@ -136,8 +141,12 @@ def test_second_start_while_running_does_not_restart_the_job(
     assert docs_module._JOB["chunks_done"] == 20  # untouched, not reset to 0
 
 
-def _upload(client: TestClient, name: str, content: bytes) -> str:
-    return client.post("/docs/upload", files={"files": (name, content, "application/pdf")}).text
+def _upload(client: TestClient, relpath: str, content: bytes) -> str:
+    return client.post(
+        "/docs/upload",
+        files={"file": (relpath.rsplit("/", 1)[-1], content, "application/pdf")},
+        data={"relpath": relpath},
+    ).text
 
 
 def test_upload_new_pdf_is_indexed_automatically(client: TestClient, tmp_path: Path) -> None:
@@ -147,20 +156,66 @@ def test_upload_new_pdf_is_indexed_automatically(client: TestClient, tmp_path: P
     assert sum(docs_module._batch_sizes) == _N_CHUNKS  # type: ignore[attr-defined]
 
 
-def test_upload_same_name_is_skipped_not_overwritten(client: TestClient, tmp_path: Path) -> None:
-    text = _upload(client, "cours.pdf", b"%PDF-1.4 other")
+def test_upload_keeps_the_folder_structure(client: TestClient, tmp_path: Path) -> None:
+    _upload(client, "Bachelor/S1/Algo/Chapitre 1.pdf", b"%PDF-1.4 algo")
 
+    assert (tmp_path / "Bachelor/S1/Algo/Chapitre 1.pdf").read_bytes() == b"%PDF-1.4 algo"
+    assert not (tmp_path / "Chapitre 1.pdf").exists()
+
+
+def test_same_file_name_in_two_folders_is_kept_twice(client: TestClient, tmp_path: Path) -> None:
+    _upload(client, "S1/Chapitre 1.pdf", b"%PDF-1.4 un")
+    _upload(client, "S2/Chapitre 1.pdf", b"%PDF-1.4 deux")
+
+    assert (tmp_path / "S1/Chapitre 1.pdf").read_bytes() == b"%PDF-1.4 un"
+    assert (tmp_path / "S2/Chapitre 1.pdf").read_bytes() == b"%PDF-1.4 deux"
+
+
+def test_upload_same_content_same_path_is_already_up_to_date(client: TestClient) -> None:
+    text = _upload(client, "cours.pdf", b"%PDF-1.4 fake")
+
+    assert "déjà à jour" in text
+    assert docs_module._batch_sizes == []  # type: ignore[attr-defined]
+
+
+def test_upload_other_content_at_taken_path_is_refused(client: TestClient, tmp_path: Path) -> None:
+    resp = client.post(
+        "/docs/upload",
+        files={"file": ("cours.pdf", b"%PDF-1.4 other", "application/pdf")},
+        data={"relpath": "cours.pdf"},
+    )
+
+    assert resp.status_code == 409
     assert (tmp_path / "cours.pdf").read_bytes() == b"%PDF-1.4 fake"
-    assert "déjà présent" in text
     assert docs_module._batch_sizes == []  # type: ignore[attr-defined]
 
 
-def test_upload_same_content_other_name_is_skipped(client: TestClient, tmp_path: Path) -> None:
-    text = _upload(client, "copie.pdf", b"%PDF-1.4 fake")
+def test_upload_known_content_elsewhere_moves_without_reindexing(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    renamed: list[tuple[str, str]] = []
+    monkeypatch.setattr(docs_module, "rename_source", lambda old, new: renamed.append((old, new)))
 
-    assert not (tmp_path / "copie.pdf").exists()
-    assert "identique à cours.pdf" in text
+    text = _upload(client, "Bachelor/S1/cours.pdf", b"%PDF-1.4 fake")
+
+    assert not (tmp_path / "cours.pdf").exists()
+    assert (tmp_path / "Bachelor/S1/cours.pdf").read_bytes() == b"%PDF-1.4 fake"
+    assert renamed == [("cours.pdf", "Bachelor/S1/cours.pdf")]
+    assert "sans réindexation" in text
     assert docs_module._batch_sizes == []  # type: ignore[attr-defined]
+    assert docs_module.document_paths().keys() == {"Bachelor/S1/cours.pdf"}
+
+
+def test_two_uploads_during_a_running_job_are_both_indexed(client: TestClient) -> None:
+    docs_module._JOB.update(running=True, file_total=1, active="cours.pdf")
+
+    _upload(client, "a.pdf", b"%PDF-1.4 a")
+    _upload(client, "b.pdf", b"%PDF-1.4 b")
+
+    assert docs_module._PENDING == ["a.pdf", "b.pdf"]
+    assert docs_module._JOB["file_total"] == 3
+    docs_module._JOB["running"] = False
+    docs_module._PENDING.clear()
 
 
 def test_upload_non_pdf_content_is_rejected(client: TestClient, tmp_path: Path) -> None:
@@ -178,6 +233,49 @@ def test_upload_too_large_is_rejected(
 
     assert not (tmp_path / "gros.pdf").exists()
     assert "trop volumineux" in text
+
+
+def test_upload_bad_path_is_rejected_with_400(client: TestClient, tmp_path: Path) -> None:
+    resp = client.post(
+        "/docs/upload",
+        files={"file": ("x.pdf", b"%PDF-1.4 x", "application/pdf")},
+        data={"relpath": "../evil.pdf"},
+    )
+
+    assert resp.status_code == 400
+    assert not (tmp_path.parent / "evil.pdf").exists()
+
+
+def test_tree_counts_documents_per_folder_and_filters(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(docs_module, "rename_source", lambda old, new: None)
+    _upload(client, "Bachelor/S1/a.pdf", b"%PDF-1.4 a")
+    _upload(client, "Bachelor/S1/b.pdf", b"%PDF-1.4 b")
+    _upload(client, "Bachelor/S2/c.pdf", b"%PDF-1.4 c")
+
+    html = client.get("/docs/list").text
+    assert "Non classés" in html  # cours.pdf from the fixture
+    assert 'tree-count">3<' in html  # Bachelor
+    assert 'tree-count">2<' in html  # Bachelor/S1
+
+    filtered = client.get("/docs/list", params={"q": "C.PDF"}).text
+    assert "c.pdf" in filtered and "a.pdf" not in filtered
+
+
+def test_delete_folder_removes_its_files_and_rows(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _upload(client, "S1/a.pdf", b"%PDF-1.4 a")
+    _upload(client, "S1/sub/b.pdf", b"%PDF-1.4 b")
+    _upload(client, "S2/c.pdf", b"%PDF-1.4 c")
+
+    client.post("/docs/delete/folder", data={"path": "S1"})
+
+    assert not (tmp_path / "S1").exists()
+    assert (tmp_path / "S2/c.pdf").exists()
+    assert (tmp_path / "cours.pdf").exists()
+    assert set(docs_module.document_paths()) == {"cours.pdf", "S2/c.pdf"}
 
 
 def test_progress_wording_tells_graph_from_indexing(client: TestClient) -> None:

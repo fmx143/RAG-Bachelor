@@ -71,6 +71,11 @@ CREATE TABLE IF NOT EXISTS question_bank (
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(source, question)
 );
+
+CREATE TABLE IF NOT EXISTS documents (
+    path   TEXT PRIMARY KEY,
+    sha256 TEXT NOT NULL UNIQUE
+);
 """
 
 _POSTGRES_SCHEMA = """
@@ -119,6 +124,11 @@ CREATE TABLE IF NOT EXISTS question_bank (
     -- btree index row limit; SQLite has no such ceiling. Generated questions are
     -- one sentence, so this is left unguarded.
     UNIQUE(source, question)
+);
+
+CREATE TABLE IF NOT EXISTS documents (
+    path   TEXT PRIMARY KEY,
+    sha256 TEXT NOT NULL UNIQUE
 );
 """
 
@@ -261,6 +271,51 @@ def set_setting(key: str, value: str) -> None:
         (key, value),
     )
     conn.commit()
+
+
+# ── Documents (relative path ↔ content hash) ─────────────────────────────────
+
+
+def document_paths() -> dict[str, str]:
+    """Return every known document as ``{relative path: sha256}``."""
+    rows = get_conn().execute("SELECT path, sha256 FROM documents").fetchall()
+    return {r["path"]: r["sha256"] for r in rows}
+
+
+def document_by_sha(sha: str) -> str | None:
+    """Return the path of the document with content hash *sha*, or None."""
+    row = (
+        get_conn().execute(_adapt("SELECT path FROM documents WHERE sha256 = ?"), (sha,)).fetchone()
+    )
+    return row["path"] if row else None
+
+
+def add_document(path: str, sha: str) -> None:
+    conn = get_conn()
+    conn.execute(_adapt("INSERT INTO documents (path, sha256) VALUES (?, ?)"), (path, sha))
+    conn.commit()
+
+
+def delete_document(path: str) -> None:
+    conn = get_conn()
+    conn.execute(_adapt("DELETE FROM documents WHERE path = ?"), (path,))
+    conn.commit()
+
+
+def rename_document(old: str, new: str) -> None:
+    """Re-key a document and everything that names it (bank questions, SRS topics), atomically."""
+    conn = get_conn()
+    try:
+        for sql in (
+            "UPDATE documents SET path = ? WHERE path = ?",
+            "UPDATE question_bank SET source = ? WHERE source = ?",
+            "UPDATE cards SET topic = ? WHERE topic = ?",
+        ):
+            conn.execute(_adapt(sql), (new, old))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
 
 
 # ── Card CRUD ─────────────────────────────────────────────────────────────────

@@ -3,49 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎓 Assistant Révision</title>
+  <title>Bachelor — Assistant de révision</title>
   <link rel="stylesheet" href="{{ asset_url('app.css') }}">
   <script src="{{ asset_url('htmx.min.js') }}" defer></script>
   <script src="{{ asset_url('app.js') }}" defer></script>
 </head>
 <body>
 <a href="#main-content" class="skip-link">Aller au contenu principal</a>
-<button id="nav-toggle-btn" class="nav-toggle-btn" type="button"
-        aria-expanded="false" aria-controls="sidebar" aria-label="Ouvrir le menu">☰</button>
-<div id="nav-backdrop" class="nav-backdrop" hidden></div>
-<div class="layout">
-
-  <!-- ── Sidebar ──────────────────────────────────────────────────────── -->
-  <aside id="sidebar" class="sidebar">
-    <div class="sidebar-brand">🎓 Assistant Révision</div>
-    <div class="sidebar-caption">Révise tes cours avec l'IA — Ollama Cloud ou OpenAI.</div>
-
-    <div class="provider-badge">
-      <span>{{ provider_icon }}</span>
-      <span>{{ provider_label }}</span>
-    </div>
-
-    <hr class="sidebar-divider">
-
-    <nav class="nav">
-      <a href="/docs"     class="nav-link {% if active_tab == 'docs'     %}active{% endif %}">📚 Documentation</a>
-      <a href="/ask"      class="nav-link {% if active_tab == 'ask'      %}active{% endif %}">❓ Poser une question</a>
-      <a href="/revision" class="nav-link {% if active_tab == 'revision' %}active{% endif %}">🔄 Révision</a>
-      <a href="/generate" class="nav-link {% if active_tab == 'generate' %}active{% endif %}">🎯 Générer des questions</a>
-      <a href="/bank"     class="nav-link {% if active_tab == 'bank'     %}active{% endif %}">🏦 Banque de questions</a>
-      <a href="/progress" class="nav-link {% if active_tab == 'progress' %}active{% endif %}">📊 Progrès</a>
-      <a href="/settings" class="nav-link {% if active_tab == 'settings' %}active{% endif %}">⚙️ Paramètres</a>
+<div class="shell">
+  {% block decor %}{% endblock %}
+  <div style="position:relative;">
+  <header class="site-header rise">
+    <a href="/docs" class="brand">
+      <svg aria-hidden="true" width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="3" fill="#F2B66D"/><circle cx="4" cy="6" r="2" fill="#7FD1C7"/><circle cx="22" cy="8" r="2" fill="#7FD1C7"/><circle cx="19" cy="21" r="2" fill="#7FD1C7"/><path d="M13 13L4 6M13 13L22 8M13 13L19 21" stroke="#F2B66D" stroke-opacity=".6"/></svg>
+      Bachelor
+      <span class="provider-badge">{{ provider_label }}</span>
+    </a>
+    <nav class="nav" aria-label="Navigation principale">
+      <a href="/docs"     class="nav-link {% if active_tab == 'docs'     %}active{% endif %}">Documents</a>
+      <a href="/ask"      class="nav-link {% if active_tab == 'ask'      %}active{% endif %}">Demander</a>
+      <a href="/revision" class="nav-link {% if active_tab == 'revision' %}active{% endif %}">Réviser</a>
+      <a href="/generate" class="nav-link {% if active_tab == 'generate' %}active{% endif %}">Générer</a>
+      <a href="/bank"     class="nav-link {% if active_tab == 'bank'     %}active{% endif %}">Banque</a>
+      <a href="/progress" class="nav-link {% if active_tab == 'progress' %}active{% endif %}">Progrès</a>
+      <a href="/settings" class="nav-link {% if active_tab == 'settings' %}active{% endif %}">Paramètres</a>
       {% if auth_enabled() %}
-      <a href="/logout" class="nav-link">🔓 Déconnexion</a>
+      <a href="/logout" class="nav-link">Déconnexion</a>
       {% endif %}
     </nav>
-  </aside>
+  </header>
 
-  <!-- ── Main content ─────────────────────────────────────────────────── -->
   <main id="main-content" class="main">
     {% block content %}{% endblock %}
   </main>
-
+  </div>
 </div>
 </body>
 </html>

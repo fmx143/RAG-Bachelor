@@ -1,3 +1,61 @@
+{% macro doc_row(d) %}
+<div class="file-row">
+  <span class="badge {% if d.indexed %}badge-green{% else %}badge-yellow{% endif %}">{% if d.indexed %}Indexé{% else %}Non indexé{% endif %}</span>
+  <span class="file-name">{{ d.name }}</span>
+  <button
+    hx-post="/docs/index/doc"
+    hx-vals='{{ {"path": d.path} | tojson }}'
+    hx-target="#doc-list"
+    hx-swap="innerHTML"
+    class="btn btn-ghost btn-sm"
+  >Indexer</button>
+  {% if d.indexed %}
+  <button
+    hx-post="/docs/graph/doc"
+    hx-vals='{{ {"path": d.path} | tojson }}'
+    hx-target="#doc-list"
+    hx-swap="innerHTML"
+    hx-confirm="Construire le graphe de {{ d.path }} ? Un appel LLM par chunk (payant, plusieurs minutes)."
+    class="btn btn-ghost btn-sm"
+    title="Extrait les faits du cours avec le LLM pour retrouver les notions reliées"
+  >Graphe{% if d.facts %} ({{ d.facts }}){% endif %}</button>
+  {% endif %}
+  <button
+    hx-post="/docs/delete/doc"
+    hx-vals='{{ {"path": d.path} | tojson }}'
+    hx-target="#doc-list"
+    hx-swap="innerHTML"
+    hx-confirm="Supprimer {{ d.path }} ?"
+    class="btn btn-danger btn-sm"
+  >Retirer</button>
+</div>
+{% endmacro %}
+
+{% macro folder(f) %}
+<details class="tree-folder"{% if f.open %} open{% endif %}>
+  <summary>{{ f.name }} <span class="tree-count">{{ f.count }}</span></summary>
+  <div class="tree-actions">
+    <button
+      hx-post="/docs/index/folder"
+      hx-vals='{{ {"path": f.path} | tojson }}'
+      hx-target="#doc-list"
+      hx-swap="innerHTML"
+      class="btn btn-ghost btn-sm"
+    >Réindexer le dossier</button>
+    <button
+      hx-post="/docs/delete/folder"
+      hx-vals='{{ {"path": f.path} | tojson }}'
+      hx-target="#doc-list"
+      hx-swap="innerHTML"
+      hx-confirm="Supprimer le dossier « {{ f.path }} » et ses {{ f.count }} document(s) ? Fichiers, index et graphe seront effacés. Action irréversible."
+      class="btn btn-danger btn-sm"
+    >Supprimer le dossier</button>
+  </div>
+  {% for sub in f.children %}{{ folder(sub) }}{% endfor %}
+  {% for d in f.docs %}{{ doc_row(d) }}{% endfor %}
+</details>
+{% endmacro %}
+
 {% if message %}
 <div class="alert alert-success">{{ message }}</div>
 {% endif %}
@@ -5,41 +63,18 @@
 <div class="alert alert-error">{{ error }}</div>
 {% endif %}
 
-{% if not pdfs %}
+{% if not total %}
 <div class="alert alert-info">Aucun PDF trouvé dans <code>data/pdfs/</code>. Dépose des fichiers ci-dessus.</div>
+{% elif not tree.count %}
+<div class="alert alert-info">Aucun document ne correspond à « {{ q }} ».</div>
 {% else %}
-<div style="margin-top:.25rem;">
-  {% for pdf in pdfs %}
-  <div class="file-row">
-    <span class="file-status">{% if pdf.indexed %}✅{% else %}⚠️{% endif %}</span>
-    <span class="file-name"><strong>{{ pdf.name }}</strong></span>
-    <button
-      hx-post="/docs/index/{{ pdf.name | url_encode }}"
-      hx-target="#doc-list"
-      hx-swap="innerHTML"
-      class="btn btn-ghost btn-sm"
-    >Indexer</button>
-    {% if pdf.indexed %}
-    <button
-      hx-post="/docs/graph/{{ pdf.name | url_encode }}"
-      hx-target="#doc-list"
-      hx-swap="innerHTML"
-      hx-confirm="Construire le graphe de {{ pdf.name }} ? Un appel LLM par chunk (payant, plusieurs minutes)."
-      class="btn btn-ghost btn-sm"
-      title="Extrait les faits du cours avec le LLM pour retrouver les notions reliées"
-    >🕸️ Graphe{% if pdf.facts %} ({{ pdf.facts }}){% endif %}</button>
-    {% endif %}
-    <button
-      hx-post="/docs/delete/{{ pdf.name | url_encode }}"
-      hx-target="#doc-list"
-      hx-swap="innerHTML"
-      hx-confirm="Supprimer {{ pdf.name }} ?"
-      class="btn btn-danger btn-sm"
-    >🗑️</button>
-  </div>
-  {% endfor %}
-</div>
-<div style="font-size:.8rem; color:var(--muted); margin-top:.5rem;">
-  {{ chunk_count }} chunk(s) indexé(s) au total
+<div class="tree">
+  {% if tree.docs %}
+  <details class="tree-folder"{% if q %} open{% endif %}>
+    <summary>Non classés <span class="tree-count">{{ tree.docs | length }}</span></summary>
+    {% for d in tree.docs %}{{ doc_row(d) }}{% endfor %}
+  </details>
+  {% endif %}
+  {% for f in tree.children %}{{ folder(f) }}{% endfor %}
 </div>
 {% endif %}

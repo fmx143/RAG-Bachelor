@@ -1,4 +1,4 @@
-"""render_page_png() output, and GET /docs/page/{name}/{page}.png guarding."""
+"""render_page_png() output, and GET /docs/page.png guarding."""
 
 from __future__ import annotations
 
@@ -35,22 +35,22 @@ def client(
 
 
 def test_page_image_route_returns_png(client: TestClient, sample_pdf: Path) -> None:
-    resp = client.get(f"/docs/page/{sample_pdf.name}/1.png")
+    resp = client.get("/docs/page.png", params={"path": sample_pdf.name, "page": 1})
     assert resp.status_code == 200
     assert resp.content.startswith(_PNG_MAGIC)
     assert resp.headers["content-type"] == "image/png"
 
 
 def test_page_image_route_rejects_path_traversal(client: TestClient) -> None:
-    resp = client.get("/docs/page/..%2f..%2fetc%2fpasswd/1.png")
+    resp = client.get("/docs/page.png", params={"path": "../../etc/passwd", "page": 1})
     assert resp.status_code == 404
 
 
 def test_page_image_route_rejects_non_pdf_name(client: TestClient) -> None:
-    resp = client.get("/docs/page/notes.txt/1.png")
+    resp = client.get("/docs/page.png", params={"path": "notes.txt", "page": 1})
     assert resp.status_code == 404
 
 
 def test_page_image_route_rejects_out_of_range_page(client: TestClient, sample_pdf: Path) -> None:
-    resp = client.get(f"/docs/page/{sample_pdf.name}/999.png")
+    resp = client.get("/docs/page.png", params={"path": sample_pdf.name, "page": 999})
     assert resp.status_code == 404

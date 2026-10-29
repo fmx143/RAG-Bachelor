@@ -1,7 +1,16 @@
 {% extends "base.html" %}
+{% block decor %}
+<svg aria-hidden="true" class="sky" viewBox="0 0 1360 700" preserveAspectRatio="xMidYMin slice">
+  <g stroke="#F2B66D" stroke-opacity=".35" fill="none"><line class="edge" x1="1010" y1="120" x2="1150" y2="230"/><line class="edge" x1="1150" y1="230" x2="1260" y2="150"/><line class="edge" x1="1150" y1="230" x2="1080" y2="360"/><line class="edge" x1="1080" y1="360" x2="1240" y2="420"/><line class="edge" x1="1010" y1="120" x2="900" y2="210"/><line class="edge" x1="900" y1="210" x2="1080" y2="360"/><line class="edge" x1="1240" y1="420" x2="1300" y2="330"/></g>
+  <g fill="#F2B66D"><circle class="node" cx="1010" cy="120" r="4"/><circle class="node" style="animation-delay:-1s" cx="1150" cy="230" r="6"/><circle class="node" style="animation-delay:-2s" cx="1260" cy="150" r="3"/><circle class="node" style="animation-delay:-3s" cx="1080" cy="360" r="5"/><circle class="node" style="animation-delay:-1.5s" cx="1240" cy="420" r="4"/><circle class="node" style="animation-delay:-2.5s" cx="900" cy="210" r="3"/><circle class="node" style="animation-delay:-.5s" cx="1300" cy="330" r="3"/></g>
+  <g fill="#7FD1C7"><circle class="node" style="animation-delay:-2s" cx="760" cy="90" r="2"/><circle class="node" cx="1330" cy="60" r="2"/><circle class="node" style="animation-delay:-3s" cx="980" cy="470" r="2"/></g>
+</svg>
+{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>❓ Poser une question</h1>
+<div class="page-header ask-hero" style="max-width:760px;">
+  <span class="eyebrow">Tes cours, interrogeables</span>
+  <h1>Pose ta question,<br><em>on fouille</em> tes PDF.</h1>
+  <p class="lede">Chaque réponse cite le fichier et la page d'où elle vient.</p>
 </div>
 
 {% if no_docs %}
@@ -12,56 +21,44 @@
 </div>
 {% endif %}
 
-<div class="card">
+<div class="ask-box rise d3" style="max-width:860px;">
   <form
     hx-post="/ask"
     hx-target="#answer-area"
     hx-swap="innerHTML"
     hx-indicator="#ask-spinner"
   >
-    <div class="form-group">
-      <label for="question">Ta question</label>
-      <textarea
-        id="question"
-        name="question"
-        rows="4"
-        placeholder="Explique-moi la différence entre la complexité O(n log n) et O(n²)…"
-        {% if no_docs %}disabled{% endif %}
-      ></textarea>
-    </div>
+    <label for="question" style="position:absolute; left:-9999px;">Ta question</label>
+    <textarea
+      id="question"
+      name="question"
+      rows="2"
+      placeholder="Quelle est la différence entre complexité O(n log n) et O(n²) ?"
+      {% if no_docs %}disabled{% endif %}
+    ></textarea>
 
-    <div class="form-group">
-      <label for="n_sources">Sources utilisées : <span id="n-val" aria-live="polite">5</span></label>
-      <input
-        type="range"
-        id="n_sources"
-        name="n_sources"
-        min="3" max="10" value="5"
-        data-output="n-val"
-      >
-      <small style="color:var(--muted);">Nombre de passages de cours utilisés pour construire la réponse.</small>
-    </div>
-
-    <div class="form-group">
+    <div class="ask-options">
+      <label for="n_sources">Sources : <span id="n-val" aria-live="polite">5</span></label>
+      <input type="range" id="n_sources" name="n_sources" min="3" max="10" value="5"
+             data-output="n-val" style="width:140px;">
       <label>
         <input type="checkbox" name="agent" value="true">
-        Recherche approfondie (agent)
+        Recherche approfondie (agent, plusieurs étapes)
       </label>
-      <small style="color:var(--muted);">Le modèle enchaîne plusieurs recherches (reformulation, un document précis) avant de répondre. Plus lent, mieux pour les questions qui touchent plusieurs chapitres.</small>
+      <button
+        type="submit"
+        class="btn btn-primary"
+        style="margin-left:auto; min-height:48px; padding:0 28px;"
+        {% if no_docs %}disabled{% endif %}
+      >Demander →</button>
     </div>
-
-    <button
-      type="submit"
-      class="btn btn-primary"
-      {% if no_docs %}disabled{% endif %}
-    >🔍 Obtenir une réponse</button>
   </form>
+</div>
 
-  <div id="ask-spinner" class="htmx-indicator" style="margin-top:.75rem;">
-    <div class="spinner"></div> Recherche dans tes cours et génération de la réponse…
-  </div>
+<div id="ask-spinner" class="htmx-indicator" style="max-width:860px;">
+  <div class="spinner"></div> Recherche dans tes cours et génération de la réponse…
 </div>
 
 <!-- HTMX swaps the answer in here -->
-<div id="answer-area"></div>
+<div id="answer-area" style="max-width:860px; margin-top:40px;"></div>
 {% endblock %}
