@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header up">
+  <span class="eyebrow">{{ kicker }}</span>
+  <h1>{{ greeting }}</h1>
+  <p class="lede">
+    {% if due %}Une courte session suffit à garder le rythme.{% elif total_cards %}Tu es à jour. Reviens demain ou pioche dans la banque.{% else %}Commence par importer un cours dans Sources, puis génère des questions.{% endif %}
+  </p>
+</div>
+
+<div class="grid g2 up" style="--d:.08s">
+  <div class="card hero">
+    {% if due %}
+    <div class="num">{{ due }} <small>carte{{ "s" if due > 1 }} à réviser</small></div>
+    <div class="meta">≈ {{ minutes }} min{% if activity.streak %} · ta série de {{ activity.streak }} jour{{ "s" if activity.streak > 1 }} est en jeu{% endif %}</div>
+    <a href="/revision" class="btn btn-primary">Commencer la session</a>
+    {% else %}
+    <div class="num">0 <small>carte à réviser</small></div>
+    <div class="meta">{% if activity.streak %}Série de {{ activity.streak }} jour{{ "s" if activity.streak > 1 }}{% else %}Rien de prévu aujourd'hui{% endif %}</div>
+    <a href="/{{ 'bank' if total_cards else 'docs' }}" class="btn btn-primary">{{ "Voir la banque" if total_cards else "Importer un cours" }}</a>
+    {% endif %}
+  </div>
+  <div class="grid" style="grid-template-rows:1fr 1fr;">
+    <div class="card stat"><div class="v">{{ activity.retention_pct ~ " %" if activity.retention_pct is not none else "—" }}</div><div class="l">Taux de validation (30 j)</div></div>
+    <div class="card stat"><div class="v">{{ total_cards }}<span class="unit"> cartes</span></div><div class="l">Deck actif</div></div>
+  </div>
+</div>
+
+<div class="sect up" style="--d:.16s">Tes supports</div>
+<div class="tiles4 up" style="--d:.2s">
+  <a class="tile" href="/sheets"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h6M9 16h6"/></svg><span class="lb">Fiche de révision</span></a>
+  <a class="tile" href="/maps"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="5" cy="18" r="1.8"/><circle cx="19" cy="18" r="1.8"/><path d="M10.8 10.9 6 7.2M13.2 10.9 18 7.2M10.8 13.1 6 16.8M13.2 13.1 18 16.8"/></svg><span class="lb">Mind map</span></a>
+  <a class="tile" href="/podcasts"><svg viewBox="0 0 24 24"><path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="13" width="4" height="7" rx="2"/><rect x="17" y="13" width="4" height="7" rx="2"/></svg><span class="lb">Leçon audio</span></a>
+  <a class="tile" href="/ask"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.4a2.6 2.6 0 0 1 5.1.8c0 1.5-2.4 2-2.4 3.4M12 17h.01"/></svg><span class="lb">Poser une question</span></a>
+</div>
+
+<div class="grid g2" style="margin-top:6px">
+  <div class="up" style="--d:.24s">
+    <div class="sect">À retravailler</div>
+    <div class="card rows">
+      {% for t in weak %}
+      <a class="row" href="/revision?source={{ t.topic | url_encode }}">
+        <div><div class="t">{{ t.topic.rsplit('/', 1)[-1] }}</div>
+        <div class="m">{{ t.mastery_pct | int }} % maîtrisé · {{ t.due_cards }} à réviser</div></div><span class="arrow">›</span>
+      </a>
+      {% else %}
+      <div class="row"><div class="m">Pas encore de cartes : génère des questions puis ajoute-les à la révision.</div></div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="up" style="--d:.28s">
+    <div class="sect">Sources</div>
+    <div class="card rows">
+      <a class="row" href="/docs"><div><div class="t">{{ n_docs }} document{{ "s" if n_docs != 1 }}</div><div class="m">Sujet « {{ subject }} »</div></div><span class="arrow">›</span></a>
+    </div>
+  </div>
+</div>
+{% endblock %}
