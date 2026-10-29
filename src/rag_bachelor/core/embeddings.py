@@ -38,4 +38,4 @@ def embed(texts: list[str]) -> list[list[float]]:
         show_progress_bar=False,
         batch_size=32,
     )
-    return vectors.tolist()
+    return list(vectors.tolist())
