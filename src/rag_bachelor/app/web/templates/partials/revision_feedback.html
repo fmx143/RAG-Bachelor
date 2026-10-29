@@ -1,64 +1,29 @@
-{% set diff_badge = {"facile": "badge-green", "moyen": "badge-yellow", "difficile": "badge-red"} %}
+{% set current = [done_today, 1] | max %}
+{% include "partials/revision_head.html" %}
 
 <div class="flashcard">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem;">
-    <div style="font-size:.85rem; color:var(--muted);">
-      Sujet : <strong>{{ card.topic }}</strong>
-    </div>
-    <span style="display:flex; gap:.4rem;">
-      {% if card.qtype != "free" and qtype_labels %}
-      <span class="badge badge-gray">{{ qtype_labels.get(card.qtype, card.qtype) }}</span>
-      {% endif %}
-      <span class="badge {{ diff_badge.get(card.difficulty, 'badge-yellow') }}">
-        {{ card.difficulty | capitalize }}
-      </span>
-    </span>
+  <div class="ftags">
+    <span class="ftag">{{ qtype_labels.get(card.qtype, card.qtype) }}</span>
+    <span class="ftag dim">{{ card.difficulty | capitalize }}</span>
   </div>
 
-  <h2>❓ {{ card.question }}</h2>
+  <div class="fq">{{ card.question }}</div>
 
-  {% if is_correct %}
-  <div class="alert alert-success" style="margin-top:1rem;">✅ Bonne réponse !</div>
-  {% elif is_partial %}
-  <div class="alert alert-warning" style="margin-top:1rem;">🤏 Partiellement correct.</div>
-  {% else %}
-  <div class="alert alert-error" style="margin-top:1rem;">❌ Mauvaise réponse.</div>
-  {% endif %}
-
-  <ul style="padding-left:1.2rem; margin-top:.75rem;">
-    {% for opt in card.options %}
-    <li
-      {% if loop.index0 in card.correct %}
-        style="font-weight:600; color:var(--success);"
-      {% elif loop.index0 in selected %}
-        style="color:var(--danger); text-decoration:line-through;"
-      {% endif %}
-    >
-      {{ opt }}
-      {% if loop.index0 in card.correct %} ✓{% endif %}
-      {% if loop.index0 in selected and loop.index0 not in card.correct %} (ta réponse){% endif %}
-    </li>
-    {% endfor %}
-  </ul>
+  {% for opt in card.options %}
+  {% set right = loop.index0 in card.correct %}
+  {% set picked = loop.index0 in selected %}
+  <div class="opt {% if right %}good{% elif picked %}miss{% endif %}">
+    <span class="dot"></span>{{ opt }}{% if picked and not right %} <small>(ta réponse)</small>{% endif %}
+  </div>
+  {% endfor %}
 
   {% if card.answer %}
-  <div class="card-answer" style="margin-top:.75rem;">
-    <strong>Explication :</strong> {{ card.answer }}
-  </div>
+  <div class="cours"><b>Explication</b>{{ card.answer }}</div>
   {% endif %}
 
-  <button
-    hx-get="/revision/next"
-    hx-include="#revision-filter-form"
-    hx-target="#revision-content"
-    hx-swap="innerHTML"
-    class="btn btn-primary"
-    style="margin-top:1.25rem;"
-  >➡️ Suivant</button>
-</div>
+  <div class="note">
+    {% if is_correct %}Auto-correction — Parfait{% elif is_partial %}Auto-correction — Bien (partiel){% else %}Auto-correction — Raté{% endif %} · la revue est replanifiée
+  </div>
 
-{% if due_count > 0 %}
-<p style="font-size:.85rem; color:var(--muted); margin-top:.75rem;">
-  Encore {{ due_count }} carte(s) à réviser.
-</p>
-{% endif %}
+  <button hx-get="/revision/next" hx-include="#revision-filter-form" hx-target="#revision-content" hx-swap="innerHTML" class="btn btn-primary" data-autofocus>Carte suivante</button>
+</div>

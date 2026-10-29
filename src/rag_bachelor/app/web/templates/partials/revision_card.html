@@ -1,99 +1,48 @@
 {% if not card %}
-<div class="card" style="text-align:center; padding:2.5rem 1.5rem;">
-  <div style="font-size:2rem; margin-bottom:.75rem;">🎉</div>
-  <div style="font-size:1.15rem; font-weight:600;">Bravo ! Aucune carte à réviser pour aujourd'hui.</div>
-  <p style="color:var(--muted); margin-top:.5rem;">Reviens demain, élargis le filtre, ou pioche dans la banque de questions.</p>
-  <a href="/bank" class="btn btn-primary" style="margin-top:1rem;">🏦 Voir la banque de questions</a>
+<div class="flashcard done">
+  <div class="kicker">Session terminée</div>
+  <h2>Tu es à jour.</h2>
+  <p class="lede">Reviens demain, élargis le filtre, ou pioche dans la banque de questions.</p>
+  <a href="/bank" class="btn btn-primary">Voir la banque de questions</a>
 </div>
 {% else %}
-{% set diff_badge = {"facile": "badge-green", "moyen": "badge-yellow", "difficile": "badge-red"} %}
+{% set current = done_today + 1 %}
+{% include "partials/revision_head.html" %}
 
 <div class="flashcard">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem;">
-    <div style="font-size:.85rem; color:var(--muted);">
-      Sujet : <strong>{{ card.topic }}</strong>
-    </div>
-    <span style="display:flex; gap:.4rem;">
-      {% if card.qtype != "free" and qtype_labels %}
-      <span class="badge badge-gray">{{ qtype_labels.get(card.qtype, card.qtype) }}</span>
-      {% endif %}
-      <span class="badge {{ diff_badge.get(card.difficulty, 'badge-yellow') }}">
-        {{ card.difficulty | capitalize }}
-      </span>
-    </span>
+  <div class="ftags">
+    <span class="ftag">{{ qtype_labels.get(card.qtype, card.qtype) }}</span>
+    <span class="ftag dim">{{ card.difficulty | capitalize }}</span>
   </div>
 
-  <h2>❓ {{ card.question }}</h2>
+  <div class="fq">{{ card.question }}</div>
 
   {% if card.qtype not in self_graded %}
   <!-- Structured type (QCM/Vrai-Faux): auto-graded, no LLM call -->
-  <form hx-post="/revision/answer/{{ card.id }}" hx-include="#revision-filter-form" hx-target="#revision-content" hx-swap="innerHTML" style="margin-top:1rem;">
+  <form hx-post="/revision/answer/{{ card.id }}" hx-include="#revision-filter-form" hx-target="#revision-content" hx-swap="innerHTML">
     {% for opt in card.options %}
-    <label style="display:block; margin-bottom:.5rem; cursor:pointer;">
+    <label class="opt">
       <input type="{{ 'checkbox' if card.qtype == 'mcq_multi' else 'radio' }}" name="selected" value="{{ loop.index0 }}">
-      {{ opt }}
+      <span class="dot"></span>{{ opt }}
     </label>
     {% endfor %}
-    <button type="submit" class="btn btn-primary" style="margin-top:.75rem;">✅ Valider</button>
+    <button type="submit" class="btn btn-ghost">Valider</button>
   </form>
 
   {% else %}
-  <details>
-    <summary>👁️ Afficher la réponse</summary>
+  <details class="reveal">
+    <summary class="btn btn-ghost">Afficher la réponse</summary>
 
-    <div class="card-answer">
-      <strong>Réponse :</strong> {{ card.answer }}
-    </div>
+    <div class="answer">{{ card.answer }}</div>
 
-    <p style="font-weight:600; margin-top:1.25rem;">Comment tu t'en es sorti ?</p>
-    <div class="grade-buttons">
-      <button
-        type="button"
-        hx-post="/revision/grade/{{ card.id }}"
-        hx-include="#revision-filter-form"
-        hx-vals='{"grade": "0"}'
-        hx-target="#revision-content"
-        hx-swap="innerHTML"
-        class="btn btn-danger"
-      >😰 Raté</button>
-
-      <button
-        type="button"
-        hx-post="/revision/grade/{{ card.id }}"
-        hx-include="#revision-filter-form"
-        hx-vals='{"grade": "3"}'
-        hx-target="#revision-content"
-        hx-swap="innerHTML"
-        class="btn btn-warning"
-      >🤔 Difficile</button>
-
-      <button
-        type="button"
-        hx-post="/revision/grade/{{ card.id }}"
-        hx-include="#revision-filter-form"
-        hx-vals='{"grade": "4"}'
-        hx-target="#revision-content"
-        hx-swap="innerHTML"
-        class="btn btn-success"
-      >😊 Bien</button>
-
-      <button
-        type="button"
-        hx-post="/revision/grade/{{ card.id }}"
-        hx-include="#revision-filter-form"
-        hx-vals='{"grade": "5"}'
-        hx-target="#revision-content"
-        hx-swap="innerHTML"
-        class="btn btn-primary"
-      >🌟 Parfait</button>
+    <div class="gradebar">
+      {% for label, g in [("Raté", 0), ("Difficile", 3), ("Bien", 4), ("Parfait", 5)] %}
+      <button type="button" class="g{{ loop.index0 }}"
+        hx-post="/revision/grade/{{ card.id }}" hx-include="#revision-filter-form"
+        hx-vals='{"grade": "{{ g }}"}' hx-target="#revision-content" hx-swap="innerHTML">{{ label }}</button>
+      {% endfor %}
     </div>
   </details>
   {% endif %}
 </div>
-
-{% if due_count > 1 %}
-<p style="font-size:.85rem; color:var(--muted); margin-top:.75rem;">
-  Encore {{ due_count - 1 }} carte(s) à réviser après celle-ci.
-</p>
-{% endif %}
 {% endif %}

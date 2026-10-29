@@ -1,0 +1,4 @@
+{# Session header: "Carte n / N" and the progress track. `current` = 1-based index of the card shown. #}
+{% set total = [done_today + due_count, current, 1] | max %}
+<div class="pinfo"><span>Carte {{ current }} / {{ total }}</span><span>{{ card.topic.rsplit('/', 1)[-1] }}</span></div>
+<div class="track"><div style="width:{{ (current - 1) * 100 / total }}%"></div></div>

@@ -80,7 +80,7 @@ def test_half_correct_multi_selection_still_passes_with_partial_grade(client: Te
     resp = client.post(f"/revision/answer/{card_id}", data={"selected": ["1"]})
 
     assert resp.status_code == 200
-    assert "Partiellement correct" in resp.text
+    assert "Bien (partiel)" in resp.text
     after = next(c for c in store.get_all_cards() if c.id == card_id)
     assert after.repetitions > 0
 
@@ -130,7 +130,7 @@ def test_filter_mismatch_returns_empty_state(client: TestClient) -> None:
     resp = client.get("/revision/next?source=autre.pdf")
 
     assert resp.status_code == 200
-    assert "Aucune carte à réviser" in resp.text
+    assert "Tu es à jour" in resp.text
 
 
 def test_grade_pulls_next_bank_question_for_same_filter(client: TestClient) -> None:

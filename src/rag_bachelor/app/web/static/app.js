@@ -203,3 +203,16 @@ document.querySelector(".nav-link.active")?.scrollIntoView({ inline: "center", b
 document.addEventListener("click", (e) => {
   if (e.target.closest && e.target.closest("[data-print]")) window.print();
 });
+
+// Revision shortcuts: Space reveals the answer, 1-4 grade it, Enter-less "next" button gets focus.
+document.addEventListener("keydown", (e) => {
+  if (!document.getElementById("revision-content") || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.closest && e.target.closest("input, textarea, select, summary, button")) return;
+  const reveal = document.querySelector("#revision-content details.reveal:not([open])");
+  if (e.key === " " && reveal) {
+    e.preventDefault();
+    reveal.open = true;
+  } else if (e.key >= "1" && e.key <= "4") {
+    document.querySelector(`#revision-content .gradebar .g${+e.key - 1}`)?.click();
+  }
+});

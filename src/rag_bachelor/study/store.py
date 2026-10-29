@@ -1043,6 +1043,29 @@ def get_topic_stats_rows(subject: str | None = None) -> list[dict[str, Any]]:
     ]
 
 
+def get_review_days(since: date, subject: str | None = None) -> list[tuple[date, int, int]]:
+    """``(day, reviews, successes)`` per day since *since* (grade >= 3 is a success)."""
+    clause, prefix = _in_subject("c.topic", subject) if subject else ("1 = 1", None)
+    rows = (
+        get_conn()
+        .execute(
+            _adapt(
+                f"""
+                SELECT substr(CAST(r.reviewed_at AS TEXT), 1, 10) AS day,
+                       COUNT(*) AS n,
+                       SUM(CASE WHEN r.grade >= 3 THEN 1 ELSE 0 END) AS ok
+                FROM reviews r JOIN cards c ON c.id = r.card_id
+                WHERE {clause} AND substr(CAST(r.reviewed_at AS TEXT), 1, 10) >= ?
+                GROUP BY day ORDER BY day
+                """
+            ),
+            (prefix, since.isoformat()) if prefix else (since.isoformat(),),
+        )
+        .fetchall()
+    )
+    return [(date.fromisoformat(r["day"]), int(r["n"]), int(r["ok"])) for r in rows]
+
+
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 
