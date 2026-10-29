@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import html as html_lib
+import math
 import re
+import zlib
 from pathlib import Path
 from urllib.parse import quote
 
@@ -38,6 +40,24 @@ def _md_filter(text: str) -> Markup:
     return Markup(_HREF.sub(_safe_href, _IMG_TAG.sub("", rendered)))
 
 
+_CITE = re.compile(r"\[([^\[\]]+?),\s*p\.\s*(\d+)\]")
+_TAG_SPLIT = re.compile(r"(<[^>]*>)")
+
+
+def _md_cite_filter(text: str) -> Markup:
+    """Like ``md`` but turns each ``[document, p.N]`` citation into a pill that opens its source card."""
+
+    def pill(m: re.Match[str]) -> str:
+        src = html_lib.escape(html_lib.unescape(m.group(1)).strip(), quote=True)
+        return (
+            f'<a href="#" class="cite" data-src="{src}" data-page="{m.group(2)}">'
+            f"{html_lib.escape(_label_filter(html_lib.unescape(m.group(1))))} p.{m.group(2)}</a>"
+        )
+
+    parts = _TAG_SPLIT.split(str(_md_filter(text)))
+    return Markup("".join(p if i % 2 else _CITE.sub(pill, p) for i, p in enumerate(parts)))
+
+
 def _url_encode_filter(value: str) -> str:
     return quote(value, safe="")
 
@@ -53,9 +73,30 @@ def asset_url(path: str) -> str:
     return f"/static/{path}?v={version}"
 
 
+_HUES = (75, 165, 235, 305, 25, 45, 105, 140, 20)  # the design's per-subject palette
+
+
+def _label_filter(topic: str) -> str:
+    """Short display name for a topic path: no folder, extension, numbering or 'Livre -' prefix."""
+    name = re.sub(r"\.pdf$", "", topic.rsplit("/", 1)[-1], flags=re.I)
+    name = re.sub(r"^\s*\d+\s*[.)-]\s*", "", name)
+    name = re.sub(r"^(livre|cours|support)\s*[-:]\s*", "", name, flags=re.I).strip() or topic
+    return name if len(name) <= 30 else name[:29].rstrip() + "…"
+
+
+def _hue_filter(name: str) -> int:
+    """Stable per-subject hue (top-level name or path) for the design's coloured dots/rings."""
+    return _HUES[zlib.crc32(name.split("/")[0].encode()) % len(_HUES)]
+
+
 templates.env.filters["md"] = _md_filter
+templates.env.filters["md_cite"] = _md_cite_filter
+templates.env.filters["hue"] = _hue_filter
+templates.env.filters["label"] = _label_filter
 templates.env.filters["url_encode"] = _url_encode_filter
 templates.env.globals["asset_url"] = asset_url
+templates.env.globals["cos"] = math.cos
+templates.env.globals["sin"] = math.sin
 templates.env.globals["self_graded"] = SELF_GRADED
 
 

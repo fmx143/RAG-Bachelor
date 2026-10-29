@@ -224,3 +224,79 @@ document.addEventListener("keydown", (e) => {
     e.target.form?.requestSubmit();
   }
 });
+
+// Progress heatmap: hovering a day shows its detail above the grid.
+document.addEventListener("mouseover", (e) => {
+  const c = e.target.closest && e.target.closest(".o-heatcol .c[data-tip]");
+  const tip = document.getElementById("heat-tip");
+  if (c && tip) tip.textContent = c.dataset.tip;
+});
+
+// Mind map: fold/unfold branches, zoom (inline handlers are forbidden by the CSP).
+document.addEventListener("click", (e) => {
+  const t = e.target.closest && e.target.closest("[data-mm-toggle]");
+  if (t) t.parentElement.classList.toggle("closed");
+  const all = e.target.closest && e.target.closest("[data-mm-all]");
+  if (all) document.querySelectorAll(".mm-n").forEach((n) => n.classList.toggle("closed", all.dataset.mmAll === "close" && !!n.querySelector(".mm-kids") && !n.parentElement.matches("[data-mm-scale]")));
+  const z = e.target.closest && e.target.closest("[data-mm-zoom]");
+  const scale = document.querySelector("[data-mm-scale]");
+  if (z && scale) {
+    const v = Math.min(1.4, Math.max(0.6, (parseFloat(scale.dataset.z) || 1) + parseFloat(z.dataset.mmZoom)));
+    scale.dataset.z = v;
+    scale.style.transform = `scale(${v})`;
+    document.querySelector("[data-mm-pct]").textContent = `${Math.round(v * 100)} %`;
+  }
+});
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("[data-mm-toggle]")) {
+    e.preventDefault();
+    e.target.parentElement.classList.toggle("closed");
+  }
+});
+
+// Audio lesson player: custom controls over a hidden <audio>.
+document.querySelectorAll("[data-player]").forEach((box) => {
+  const au = box.querySelector("[data-audio]");
+  const bars = [...box.querySelectorAll("[data-wave] span")];
+  const icon = box.querySelector("[data-icon]");
+  const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+  box.querySelector("[data-play]").addEventListener("click", () => (au.paused ? au.play() : au.pause()));
+  au.addEventListener("play", () => icon.setAttribute("d", "M6 5h4v14H6zM14 5h4v14h-4z"));
+  au.addEventListener("pause", () => icon.setAttribute("d", "M8 5v14l11-7z"));
+  au.addEventListener("timeupdate", () => {
+    box.querySelector("[data-cur]").textContent = fmt(au.currentTime);
+    const k = au.duration ? Math.round((au.currentTime / au.duration) * bars.length) : 0;
+    bars.forEach((b, i) => b.classList.toggle("on", i < k));
+  });
+  box.querySelector("[data-wave]").addEventListener("click", (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    if (au.duration) au.currentTime = ((e.clientX - r.left) / r.width) * au.duration;
+  });
+  box.querySelectorAll("[data-speed]").forEach((b) => b.addEventListener("click", () => {
+    au.playbackRate = parseFloat(b.dataset.speed);
+    box.querySelectorAll("[data-speed]").forEach((x) => x.classList.toggle("on", x === b));
+  }));
+});
+
+// Citation pills: on a sheet they swap the sticky page preview, in an answer they open the matching source card.
+document.addEventListener("click", (e) => {
+  const c = e.target.closest && e.target.closest("a.cite");
+  if (!c) return;
+  const img = document.querySelector("[data-prev-img]");
+  if (img) {
+    e.preventDefault();
+    img.src = img.dataset.base + c.dataset.page;
+    document.querySelector("[data-prev-page]").textContent = c.dataset.page;
+    document.querySelectorAll("a.cite").forEach((x) => x.classList.toggle("on", x === c));
+    return;
+  }
+  e.preventDefault();
+  const srcs = [...document.querySelectorAll(".o-src")].filter((d) => d.dataset.src === c.dataset.src || d.dataset.src.endsWith("/" + c.dataset.src));
+  const card = srcs.find((d) => d.dataset.page === c.dataset.page) || srcs[0];
+  if (!card) return;
+  card.open = true;
+  card.scrollIntoView({ behavior: "smooth", block: "center" });
+  card.classList.remove("flash");
+  void card.offsetWidth;
+  card.classList.add("flash");
+});

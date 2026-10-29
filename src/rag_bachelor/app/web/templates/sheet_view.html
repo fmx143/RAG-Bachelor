@@ -2,7 +2,7 @@
 {% block content %}
 <div class="page-header no-print">
   <span class="eyebrow">Fiche de révision</span>
-  <h1>{{ sheet.source }} <em>p.{{ sheet.page_from }}–{{ sheet.page_to }}</em></h1>
+  <h1>{{ sheet.source | label }} <em>p.{{ sheet.page_from }}–{{ sheet.page_to }}</em></h1>
 </div>
 
 <div class="no-print" style="display:flex; gap:.5rem; margin-bottom:.75rem;">
@@ -10,8 +10,14 @@
   <button type="button" class="btn btn-primary btn-sm" data-print>🖨️ Imprimer / PDF</button>
 </div>
 
-<div class="card sheet-content">
-  <h2 class="print-only">{{ sheet.source }} — p.{{ sheet.page_from }}–{{ sheet.page_to }}</h2>
-  {{ html }}
+<div class="sheet-grid">
+  <div class="card sheet-content" data-preview>
+    <h2 class="print-only">{{ sheet.source }} — p.{{ sheet.page_from }}–{{ sheet.page_to }}</h2>
+    {{ html }}
+  </div>
+  <aside class="o-card sheet-prev no-print">
+    <div class="hd"><span>{{ sheet.source | label }}</span><span class="pg">page <b data-prev-page>{{ sheet.page_from }}</b></span></div>
+    <img data-prev-img data-base="/docs/page.png?path={{ sheet.source | url_encode }}&page=" src="/docs/page.png?path={{ sheet.source | url_encode }}&page={{ sheet.page_from }}" alt="Aperçu de la page">
+  </aside>
 </div>
 {% endblock %}

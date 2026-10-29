@@ -1,135 +1,99 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-header">
-  <span class="eyebrow">Statistiques d'étude</span>
-  <h1>Ta <em>progression</em></h1>
+{% set week = activity.bars[-7:] %}
+{% set wmax = week | map(attribute=1) | max %}
+{% set today = activity.bars[-1][0] %}
+<div class="up">
+<div class="o-head" style="margin-bottom:28px">
+  <div><span class="o-kick">Statistiques d'étude</span>
+  <h1 class="o-h1">Ta <span class="acc">progression</span></h1></div>
 </div>
 
-<!-- ── Summary metrics ──────────────────────────────────────────────────── -->
-<div class="metrics">
-  <div class="metric">
-    <div class="metric-label">Total cartes</div>
-    <div class="metric-value">{{ total_cards }}</div>
-  </div>
-  <div class="metric">
-    <div class="metric-label">À réviser aujourd'hui</div>
-    <div class="metric-value">{{ due_count }}</div>
-  </div>
-  <div class="metric">
-    <div class="metric-label">Série</div>
-    <div class="metric-value">{{ activity.streak }} <small>j</small></div>
-  </div>
-  <div class="metric">
-    <div class="metric-label">Réussite 30 j</div>
-    <div class="metric-value">{{ activity.retention_pct ~ " %" if activity.retention_pct is not none else "—" }}</div>
-  </div>
-</div>
-
-{% if not stats %}
-<div class="alert alert-info">
-  Aucune carte de révision créée. Va dans
-  <a href="/generate">Générer des questions</a>
-  pour commencer.
-</div>
-{% else %}
-
-
-<!-- ── Rings + last 7 days ──────────────────────────────────────────────── -->
-<div class="cols-2">
-  <div class="card">
-    <h2 class="subheader">Maîtrise</h2>
-    <small class="chart-cap">Les 3 thèmes les plus faibles</small>
-    <div class="rings">
-      {% for s in rings %}
-      <div class="ring" role="img" aria-label="{{ s.topic.split('/', 1)[-1] }} : {{ s.mastery_pct | int }} %">
-        <div class="ring-dial" style="--p:{{ s.mastery_pct | int }}"><span>{{ s.mastery_pct | int }}%</span></div>
-        <div class="ring-name" title="{{ s.topic }}">{{ s.topic.split('/', 1)[-1] }}</div>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-
-  <div class="card">
-    <h2 class="subheader">7 derniers jours</h2>
-    <small class="chart-cap"><i class="dot mature"></i> réussies (note ≥ 3) <i class="dot miss"></i> ratées</small>
-    {% set week = activity.bars[-7:] %}
-    {% set wmax = week | map(attribute=1) | max %}
-    <div class="bars" role="img" aria-label="Révisions par jour sur 7 jours">
-      {% for day, n, ok in week %}
-        <div class="bar-col" title="{{ day.strftime('%d/%m') }} : {{ n }} révision(s), {{ ok }} réussie(s)">
-          <div class="bar" style="height:{{ (n * 100 / wmax) if wmax else 0 }}%;">
-            <span class="seg miss" style="flex:{{ n - ok }}"></span><span class="seg ok" style="flex:{{ ok }}"></span>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-    <div class="bar-axis"><span>{{ week[0][0].strftime('%d/%m') }}</span><span>aujourd'hui</span></div>
-  </div>
-</div>
-
-<!-- ── All topics ────────────────────────────────────────────────────────── -->
-<div class="sect">Tous les thèmes</div>
-<div class="card">
-  {% for s in stats %}
-    {% set bar_class = "red" if s.mastery_pct < 40 else ("yellow" if s.mastery_pct < 70 else "green") %}
-    <div class="topic-row">
-      <div class="topic-head">
-        <span class="topic-name" title="{{ s.topic }}">{{ s.topic.split('/', 1)[-1] }}</span>
-        <strong class="topic-pct">{{ s.mastery_pct | int }}%</strong>
-      </div>
-      <div class="progress-wrap">
-        <div class="progress-fill {{ bar_class }}" style="--pct:{{ (s.mastery_pct | int) / 100 }};"></div>
-      </div>
-      <div class="topic-meta">
-        <span class="chip{% if s.due_cards %} chip-due{% endif %}"><b>{{ s.due_cards }}</b> à réviser</span>
-        <span class="chip"><b>{{ s.total_cards }}</b> cartes</span>
-        <span class="chip">intervalle moyen <b>{{ s.avg_interval | int }} j</b></span>
-      </div>
-    </div>
+<div class="o-metrics">
+  {% for label, value, unit in [("Total cartes", total_cards, ""), ("À réviser aujourd'hui", due_count, ""), ("Série", activity.streak, " j"), ("Réussite 30 j", activity.retention_pct if activity.retention_pct is not none else "—", " %" if activity.retention_pct is not none else "")] %}
+  <div class="o-card o-metric"><div class="o-lab" style="letter-spacing:.12em">{{ label }}</div><div class="v">{{ value }}<span>{{ unit }}</span></div></div>
   {% endfor %}
 </div>
 
-{% if reading %}
-<div class="sect">Lecture de tes données</div>
-<div class="card">
-  <ul class="reading">
-    {% for line in reading %}<li>{{ line }}</li>{% endfor %}
-  </ul>
-</div>
-{% endif %}
+{% if not stats %}
+<div class="o-card o-empty">Aucune carte de révision créée. Va dans <a class="acc" href="/generate">Générer des questions</a> pour commencer.</div>
+{% else %}
 
-<!-- ── Regularity + forecast ─────────────────────────────────────────────── -->
-<div class="cols-2">
-  <div class="card">
-    <h2 class="subheader">Régularité</h2>
-    <small class="chart-cap">12 dernières semaines · une case = un jour</small>
-    <div class="heatmap" role="img" aria-label="Activité de révision sur 12 semaines">
-      {% for week in activity.heatmap %}
-        <div class="heat-col">
-        {% for day, n in week %}
-          {% set lvl = 0 if n == 0 else ((n * 4 / activity.heat_max) | round(0, "ceil") | int) %}
-          <span class="heat l{{ lvl }}" title="{{ day.strftime('%d/%m') }} : {{ n }} révision(s)"></span>
+<div class="o-card o-pad" style="margin-bottom:16px">
+  <div class="o-between" style="margin-bottom:22px"><div class="o-lab">Maîtrise par matière</div><span class="o-mono" style="margin:0">du plus faible au plus solide</span></div>
+  <div class="o-rings">
+    {% for s in stats %}
+    <div class="o-ringcell" style="--h:{{ s.topic | hue }}" role="img" aria-label="{{ s.topic | label }} : {{ s.mastery_pct | int }} %">
+      <div class="o-ring" style="--ring:oklch(0.79 0.13 {{ s.topic | hue }})">
+        <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" class="bg"/><circle cx="50" cy="50" r="42" class="fg" style="stroke-dashoffset:{{ 263.9 * (1 - s.mastery_pct / 100) }};transition-delay:{{ loop.index0 * 0.12 }}s"/></svg>
+        <div class="v" style="font-size:24px">{{ s.mastery_pct | int }}%</div>
+      </div>
+      <div><div class="nm" title="{{ s.topic }}">{{ s.topic | label }}</div><div class="o-dimmono">{{ s.total_cards }} cartes · {{ s.due_cards }} dues</div></div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="o-row" style="margin-bottom:16px">
+  <div class="o-card o-pad" style="flex:1.3 1 420px">
+    <div class="o-between" style="margin-bottom:6px"><div class="o-lab">Régularité</div><span class="o-mono" style="margin:0">12 dernières semaines</span></div>
+    <div class="o-tip" id="heat-tip">Survole une case pour voir le détail du jour.</div>
+    <div class="o-heat">
+      <div class="o-heatdays"><span>L</span><span></span><span>M</span><span></span><span>V</span><span></span><span>D</span></div>
+      {% for wk in activity.heatmap %}
+      <div class="o-heatcol">
+        {% for day, n in wk %}
+        {% if day > today %}<span class="c" style="visibility:hidden"></span>{% else %}
+        <span class="c{% if day == today %} now{% endif %}" style="{% if n %}background:color-mix(in oklch, var(--accent) {{ [100, 22 + n * 2.6] | min }}%, transparent);{% endif %}"
+          data-tip="{{ day.strftime('%d/%m') }} · {{ n }} révision{{ 's' if n > 1 }}" title="{{ day.strftime('%d/%m') }} : {{ n }} révision(s)"></span>{% endif %}
         {% endfor %}
-        </div>
+      </div>
       {% endfor %}
     </div>
+    <div class="o-heatleg">moins <i style="background:var(--hair)"></i><i style="background:color-mix(in oklch, var(--accent) 30%, transparent)"></i><i style="background:color-mix(in oklch, var(--accent) 55%, transparent)"></i><i style="background:color-mix(in oklch, var(--accent) 80%, transparent)"></i><i style="background:var(--accent)"></i> plus</div>
   </div>
-
-  <div class="card">
-    <h2 class="subheader">À venir</h2>
-    <small class="chart-cap">Cartes dues sur 14 jours (retards inclus aujourd'hui)</small>
-    <div class="bars">
-      {% for day, n in activity.forecast %}
-        <div class="bar-col" title="{{ day.strftime('%d/%m') }} : {{ n }} carte(s)">
-          <div class="bar" style="height:{{ (n * 100 / activity.forecast_max) if activity.forecast_max else 0 }}%;">
-            <span class="seg fc" style="flex:1"></span>
-          </div>
-        </div>
+  <div class="o-card o-pad o-col" style="display:flex;flex-direction:column">
+    <div class="o-lab">7 derniers jours</div>
+    <div class="o-keys"><span><i style="background:oklch(0.79 0.13 165)"></i>réussies</span><span><i style="background:oklch(0.72 0.15 22)"></i>ratées</span></div>
+    <div class="o-wbars">
+      {% for day, n, ok in week %}
+      <div title="{{ day.strftime('%d/%m') }} : {{ n }} révision(s), {{ ok }} réussie(s)"><span class="n">{{ n }}</span>
+        <div class="b" style="height:{{ (n * 100 / wmax) if wmax else 0 }}%"><span style="flex:{{ n - ok }};background:oklch(0.72 0.15 22)"></span><span style="flex:{{ ok }};background:oklch(0.79 0.13 165)"></span></div></div>
       {% endfor %}
     </div>
-    <div class="bar-axis"><span>aujourd'hui</span><span>{{ activity.forecast[-1][0].strftime('%d/%m') }}</span></div>
+    <div class="o-wdays">{% for day, n, ok in week %}<span>{{ ["lun","mar","mer","jeu","ven","sam","dim"][day.weekday()] }}</span>{% endfor %}</div>
   </div>
 </div>
 
+<div class="o-row">
+  <div class="o-card o-pad" style="flex:1.3 1 420px">
+    <div class="o-lab" style="margin-bottom:20px">Tous les thèmes</div>
+    <div style="display:flex;flex-direction:column;gap:20px">
+      {% for s in stats %}
+      <div style="--h:{{ s.topic | hue }}">
+        <div class="o-between" style="align-items:baseline"><span class="o-tname"><i></i>{{ s.topic | label }}</span><span class="o-tpct">{{ s.mastery_pct | int }}%</span></div>
+        <div class="o-tbar"><i style="width:{{ s.mastery_pct | int }}%"></i></div>
+        <div class="o-pills">
+          <span{% if s.due_cards %} class="due"{% endif %}><b>{{ s.due_cards }}</b> à réviser</span>
+          <span><b>{{ s.total_cards }}</b> cartes</span>
+          <span>intervalle moyen <b>{{ s.avg_interval | int }} j</b></span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% if reading %}<ul class="reading" style="margin-top:22px">{% for line in reading %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+  <div class="o-card o-pad o-col" style="display:flex;flex-direction:column">
+    <div class="o-lab">À venir</div>
+    <div class="o-note" style="margin:6px 0 18px">Cartes dues sur 14 jours</div>
+    <div class="o-fc">
+      {% for day, n in activity.forecast %}
+      <div title="{{ day.strftime('%d/%m') }} : {{ n }} carte(s)"><i style="height:{{ (n * 100 / activity.forecast_max) if activity.forecast_max else 0 }}%;{% if loop.first %}background:var(--accent){% endif %}"></i></div>
+      {% endfor %}
+    </div>
+    <div class="o-wdays" style="justify-content:space-between;margin-top:8px"><span>aujourd'hui</span><span>{{ activity.forecast[-1][0].strftime('%d/%m') }}</span></div>
+  </div>
+</div>
 {% endif %}
+</div>
 {% endblock %}

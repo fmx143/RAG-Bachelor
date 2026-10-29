@@ -3,53 +3,41 @@
   <div class="alert alert-error">{{ error }}</div>
 </div>
 {% else %}
-<div class="card answer-card">
-  <h2 class="lab">Réponse{% if chunks %} · {{ chunks | length }} passage(s) trouvé(s){% endif %}</h2>
-  <div class="answer-body answer-reveal">
-    {{ answer | md }}
-  </div>
-</div>
-
-{% if steps %}
-<div class="card">
-  <details>
-    <summary>Recherches de l'agent ({{ steps | length }})</summary>
-    <ol style="margin-top:.75rem;">
+<div class="o-ans">
+  <div class="o-anscol">
+    {% if steps %}
+    <div class="o-card o-pad" style="padding:20px 24px">
+      <div class="o-lab" style="margin-bottom:14px">Recherches de l'agent · {{ steps | length }}</div>
       {% for step in steps %}
-      <li>
-        « {{ step.query }} »
-        {% if step.source %}dans <code>{{ step.source }}</code>{% endif %}
-        {% if step.keywords %}· mots-clés : {{ step.keywords | join(", ") }}{% endif %}
-        · {{ step.found }} nouveau(x) passage(s)
-      </li>
-      {% endfor %}
-    </ol>
-  </details>
-</div>
-{% endif %}
-
-{% if chunks %}
-<div class="card">
-  <details>
-    <summary>Sources utilisées ({{ chunks | length }})</summary>
-    <div style="margin-top:.75rem;">
-      {% for chunk in chunks %}
-      <div class="source-item">
-        <div class="source-header">
-          {{ loop.index }}. <code>{{ chunk.source }}</code> — p.{{ chunk.page }}
-          &nbsp;·&nbsp; pertinence : {{ "%.0f" | format(chunk.score * 100) }}%
-        </div>
-        <img
-          loading="lazy"
-          src="/docs/page.png?path={{ chunk.source | url_encode }}&page={{ chunk.page }}"
-          alt="Page {{ chunk.page }} de {{ chunk.source }}"
-          style="max-width:100%; margin-top:.5rem; border-radius:6px; border:1px solid var(--border);"
-        >
-        <div class="cours source-text">{{ chunk.text[:400] }}{% if chunk.text | length > 400 %}…{% endif %}</div>
+      <div class="o-step">
+        <div class="rail"><span class="n">{{ loop.index }}</span>{% if not loop.last %}<span class="ln"></span>{% endif %}</div>
+        <div class="bd"><div class="q">« {{ step.query }} »</div>
+          <div class="meta">{% if step.source %}{{ step.source }} · {% endif %}{% if step.keywords %}mots-clés : {{ step.keywords | join(", ") }} · {% endif %}{{ step.found }} nouveau(x) passage(s)</div></div>
       </div>
       {% endfor %}
     </div>
-  </details>
+    {% endif %}
+    <div class="card answer-card">
+      <h2 class="lab">Réponse{% if chunks %} · {{ chunks | length }} passage(s) trouvé(s){% endif %}</h2>
+      <div class="answer-body answer-reveal">
+        {{ answer | md_cite }}
+      </div>
+    </div>
+  </div>
+  {% if chunks %}
+  <div class="o-anscol o-srccol">
+    <div class="o-lab" style="margin:4px 0">Sources utilisées</div>
+    {% for chunk in chunks %}
+    <details class="o-src" data-src="{{ chunk.source }}" data-page="{{ chunk.page }}"{% if loop.first %} open{% endif %}>
+      <summary>
+        <div class="top"><span class="f">{{ loop.index }}. {{ chunk.source | label }} — p.{{ chunk.page }}</span><span class="pct">{{ "%.0f" | format(chunk.score * 100) }} %</span></div>
+        <div class="bar"><i style="width:{{ "%.0f" | format(chunk.score * 100) }}%"></i></div>
+      </summary>
+      <img loading="lazy" src="/docs/page.png?path={{ chunk.source | url_encode }}&page={{ chunk.page }}" alt="Page {{ chunk.page }} de {{ chunk.source }}">
+      <div class="txt">{{ chunk.text[:400] }}{% if chunk.text | length > 400 %}…{% endif %}</div>
+    </details>
+    {% endfor %}
+  </div>
+  {% endif %}
 </div>
-{% endif %}
 {% endif %}

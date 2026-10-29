@@ -1,26 +1,35 @@
 {% extends "base.html" %}
-{% macro branch(node) %}
-{% if node.children %}
-<details open class="mm-node"><summary>{{ node.title }}</summary>
-  {% for c in node.children %}{{ branch(c) }}{% endfor %}
-</details>
-{% else %}
-<div class="mm-leaf">{{ node.title }}</div>
-{% endif %}
+{% macro branch(node, depth=0, h=75) %}
+<div class="mm-n">
+  <div class="mm-box d{{ [depth, 2] | min }}"{% if node.children %} data-mm-toggle tabindex="0" role="button"{% endif %} style="--h:{{ h }}">
+    {{ node.title }}{% if node.children %}<span class="cnt">{{ node.children | length }}</span><span class="chev">›</span>{% endif %}
+  </div>
+  {% if node.children %}
+  <div class="mm-kids">
+    {% for c in node.children %}
+    <div class="mm-k">{{ branch(c, depth + 1, [75, 165, 235, 305, 25, 105][loop.index0 % 6] if depth == 0 else h) }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
 {% endmacro %}
 {% block content %}
 <div class="page-header no-print">
   <span class="eyebrow">Carte mentale</span>
-  <h1>{{ map.source }} <em>p.{{ map.page_from }}–{{ map.page_to }}</em></h1>
+  <h1>{{ map.source | label }} <em>p.{{ map.page_from }}–{{ map.page_to }}</em></h1>
 </div>
 
-<div class="no-print" style="display:flex; gap:.5rem; margin-bottom:.75rem;">
+<div class="no-print mm-bar">
   <a href="/maps" class="btn btn-ghost btn-sm">← Cartes</a>
-  <button type="button" class="btn btn-primary btn-sm" data-print>🖨️ Imprimer / PDF</button>
+  <button type="button" class="btn btn-ghost btn-sm" data-mm-all="open">Tout déplier</button>
+  <button type="button" class="btn btn-ghost btn-sm" data-mm-all="close">Tout replier</button>
+  <span class="zoom"><button type="button" data-mm-zoom="-0.1" aria-label="Dézoomer">−</button><span data-mm-pct>100 %</span><button type="button" data-mm-zoom="0.1" aria-label="Zoomer">+</button></span>
+  <button type="button" class="btn btn-primary btn-sm" data-print style="margin-left:auto">Imprimer / PDF</button>
 </div>
 
-<div class="card mm-tree">
+<div class="mm-canvas mm-tree">
   <h2 class="print-only">{{ map.source }} — p.{{ map.page_from }}–{{ map.page_to }}</h2>
-  {{ branch(tree) }}
+  <div class="mm-scale" data-mm-scale>{{ branch(tree) }}</div>
 </div>
+<p class="o-note no-print" style="margin-top:12px">Clique une branche pour la déplier.</p>
 {% endblock %}

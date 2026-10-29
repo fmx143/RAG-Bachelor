@@ -54,21 +54,16 @@
   {% if not sheets %}
   <small style="color:var(--muted);">Aucune fiche pour l'instant.</small>
   {% endif %}
+  <div class="o-saved">
   {% for sh in sheets %}
-  <div class="sheet-item" style="display:flex; justify-content:space-between; align-items:center; gap:.5rem; padding:.4rem 0;">
-    <a href="/sheets/{{ sh.id }}" style="color:inherit;">
-      <strong>{{ sh.source }}</strong> — p.{{ sh.page_from }}–{{ sh.page_to }}
-      <small style="color:var(--muted);"> · {{ sh.created_at }}</small>
+  <div class="sheet-item o-saved-item" style="--h:{{ sh.source | hue }}">
+    <a href="/sheets/{{ sh.id }}" title="{{ sh.source }}">
+      <div class="t"><i></i>{{ sh.source | label }}</div>
+      <div class="m">p.{{ sh.page_from }}–{{ sh.page_to }} · {{ sh.created_at }}</div>
     </a>
-    <button
-      type="button"
-      hx-post="/sheets/{{ sh.id }}/delete"
-      hx-target="closest .sheet-item"
-      hx-swap="outerHTML"
-      hx-confirm="Supprimer cette fiche ?"
-      class="btn btn-danger btn-sm"
-    >🗑️</button>
+    <button type="button" hx-post="/sheets/{{ sh.id }}/delete" hx-target="closest .sheet-item" hx-swap="outerHTML" hx-confirm="Supprimer cette fiche ?" class="x" aria-label="Supprimer">✕</button>
   </div>
   {% endfor %}
+  </div>
 </div>
 {% endblock %}
