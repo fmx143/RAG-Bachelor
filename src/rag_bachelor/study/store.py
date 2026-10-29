@@ -76,6 +76,15 @@ CREATE TABLE IF NOT EXISTS documents (
     path   TEXT PRIMARY KEY,
     sha256 TEXT NOT NULL UNIQUE
 );
+
+CREATE TABLE IF NOT EXISTS revision_sheets (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    source     TEXT NOT NULL,
+    page_from  INTEGER NOT NULL,
+    page_to    INTEGER NOT NULL,
+    content    TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 _POSTGRES_SCHEMA = """
@@ -129,6 +138,15 @@ CREATE TABLE IF NOT EXISTS question_bank (
 CREATE TABLE IF NOT EXISTS documents (
     path   TEXT PRIMARY KEY,
     sha256 TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS revision_sheets (
+    id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    source     TEXT NOT NULL,
+    page_from  INTEGER NOT NULL,
+    page_to    INTEGER NOT NULL,
+    content    TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 """
 
@@ -309,6 +327,7 @@ def rename_document(old: str, new: str) -> None:
         for sql in (
             "UPDATE documents SET path = ? WHERE path = ?",
             "UPDATE question_bank SET source = ? WHERE source = ?",
+            "UPDATE revision_sheets SET source = ? WHERE source = ?",
             "UPDATE cards SET topic = ? WHERE topic = ?",
         ):
             conn.execute(_adapt(sql), (new, old))
@@ -678,6 +697,72 @@ def delete_bank_questions(bank_ids: list[int]) -> int:
     cur = conn.execute(_adapt(f"DELETE FROM question_bank WHERE id IN ({placeholders})"), bank_ids)
     conn.commit()
     return cur.rowcount
+
+
+# ── Revision sheets (chapter summaries) ────────────────────────────────────────
+
+
+@dataclass
+class Sheet:
+    source: str
+    page_from: int
+    page_to: int
+    content: str = ""
+    id: int | None = None
+    created_at: str = ""
+
+
+def add_sheet(source: str, page_from: int, page_to: int, content: str) -> int:
+    """Insert a revision sheet and return its id."""
+    conn = get_conn()
+    sql = "INSERT INTO revision_sheets (source, page_from, page_to, content) VALUES (?,?,?,?)"
+    params = (source, page_from, page_to, content)
+    if _use_postgres():
+        row = conn.execute(_adapt(sql) + " RETURNING id", params).fetchone()
+        assert row is not None
+        new_id = row["id"]
+    else:
+        cur = conn.execute(sql, params)
+        assert isinstance(cur, sqlite3.Cursor)
+        new_id = cur.lastrowid
+    conn.commit()
+    assert new_id is not None
+    return int(new_id)
+
+
+def _sheet(row: Any) -> Sheet:
+    return Sheet(
+        source=row["source"],
+        page_from=row["page_from"],
+        page_to=row["page_to"],
+        content=row["content"],
+        id=row["id"],
+        created_at=str(row["created_at"])[:16],
+    )
+
+
+def list_sheets() -> list[Sheet]:
+    """Every sheet, newest first, without its (large) content."""
+    rows = get_conn().execute(
+        "SELECT id, source, page_from, page_to, '' AS content, created_at "
+        "FROM revision_sheets ORDER BY id DESC"
+    ).fetchall()
+    return [_sheet(r) for r in rows]
+
+
+def get_sheet(sheet_id: int) -> Sheet | None:
+    row = (
+        get_conn()
+        .execute(_adapt("SELECT * FROM revision_sheets WHERE id = ?"), (sheet_id,))
+        .fetchone()
+    )
+    return _sheet(row) if row else None
+
+
+def delete_sheet(sheet_id: int) -> None:
+    conn = get_conn()
+    conn.execute(_adapt("DELETE FROM revision_sheets WHERE id = ?"), (sheet_id,))
+    conn.commit()
 
 
 # ── Stats (used by rag_bachelor.study.stats) ────────────────────────────────

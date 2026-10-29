@@ -99,3 +99,8 @@ document.addEventListener("input", (e) => {
 
 // Mobile topbar: the nav scrolls horizontally, so bring the active tab into view.
 document.querySelector(".nav-link.active")?.scrollIntoView({ inline: "center", block: "nearest" });
+
+// Print button on a revision sheet (inline handlers are forbidden by the CSP).
+document.addEventListener("click", (e) => {
+  if (e.target.closest && e.target.closest("[data-print]")) window.print();
+});
