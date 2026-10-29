@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
+from rag_bachelor.app.web.routes.bank import generation_ctx
 from rag_bachelor.core.qtypes import DIFFICULTIES as _DIFFICULTIES
 from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES, SELF_GRADED
 from rag_bachelor.core.questions import generate_questions
@@ -51,6 +52,7 @@ async def generate_page(request: Request) -> Response:
         "qtypes": QTYPES,
         "qtype_labels": QTYPE_LABELS,
         **sidebar_ctx(),
+        **generation_ctx(),
     }
     return templates.TemplateResponse(request, "generate.html", ctx)
 
