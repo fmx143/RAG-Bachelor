@@ -16,75 +16,118 @@
     <div class="metric-value">{{ due_count }}</div>
   </div>
   <div class="metric">
-    <div class="metric-label">Facilité moyenne</div>
-    <div class="metric-value">{{ avg_ease if avg_ease is not none else "—" }}</div>
+    <div class="metric-label">Série</div>
+    <div class="metric-value">{{ activity.streak }} <small>j</small></div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Réussite 30 j</div>
+    <div class="metric-value">{{ activity.retention_pct ~ " %" if activity.retention_pct is not none else "—" }}</div>
   </div>
 </div>
 
 {% if not stats %}
 <div class="alert alert-info">
   Aucune carte de révision créée. Va dans
-  <a href="/generate" style="color:inherit;font-weight:600;">🎯 Générer des questions</a>
+  <a href="/generate">Générer des questions</a>
   pour commencer.
 </div>
 {% else %}
 
-<!-- ── Per-topic mastery ─────────────────────────────────────────────────── -->
-<div class="card">
-  <h2 class="subheader">Maîtrise par sujet</h2>
-  <small style="color:var(--muted);">Les sujets les plus faibles sont affichés en premier.</small>
 
-  <div style="margin-top:1rem;">
-  {% for s in stats %}
-    {% if s.mastery_pct < 40 %}
-      {% set icon = "🔴" %}
-      {% set bar_class = "red" %}
-    {% elif s.mastery_pct < 70 %}
-      {% set icon = "🟡" %}
-      {% set bar_class = "yellow" %}
-    {% else %}
-      {% set icon = "🟢" %}
-      {% set bar_class = "green" %}
-    {% endif %}
-
-    <div style="display:flex; gap:1rem; align-items:flex-start; margin-bottom:1rem;">
-      <div style="flex:1;">
-        <div style="font-weight:600;">{{ icon }} {{ s.topic }} — {{ s.mastery_pct | int }}%</div>
-        <div class="progress-wrap">
-          <div class="progress-fill {{ bar_class }}" style="--pct:{{ (s.mastery_pct | int) / 100 }};"></div>
-        </div>
+<!-- ── Rings + last 7 days ──────────────────────────────────────────────── -->
+<div class="cols-2">
+  <div class="card">
+    <h2 class="subheader">Maîtrise</h2>
+    <small class="chart-cap">Les 3 thèmes les plus faibles</small>
+    <div class="rings">
+      {% for s in rings %}
+      <div class="ring" role="img" aria-label="{{ s.topic.split('/', 1)[-1] }} : {{ s.mastery_pct | int }} %">
+        <div class="ring-dial" style="--p:{{ s.mastery_pct | int }}"><span>{{ s.mastery_pct | int }}%</span></div>
+        <div class="ring-name" title="{{ s.topic }}">{{ s.topic.split('/', 1)[-1] }}</div>
       </div>
-      <div style="font-size:.8rem; color:var(--muted); text-align:right; white-space:nowrap;">
-        📅 {{ s.due_cards }} due(s)<br>
-        🃏 {{ s.total_cards }} carte(s)<br>
-        ⏱️ {{ s.avg_interval | int }}j moy.
-      </div>
+      {% endfor %}
     </div>
-  {% endfor %}
+  </div>
+
+  <div class="card">
+    <h2 class="subheader">7 derniers jours</h2>
+    <small class="chart-cap"><i class="dot mature"></i> réussies (note ≥ 3) <i class="dot miss"></i> ratées</small>
+    {% set week = activity.bars[-7:] %}
+    {% set wmax = week | map(attribute=1) | max %}
+    <div class="bars" role="img" aria-label="Révisions par jour sur 7 jours">
+      {% for day, n, ok in week %}
+        <div class="bar-col" title="{{ day.strftime('%d/%m') }} : {{ n }} révision(s), {{ ok }} réussie(s)">
+          <div class="bar" style="height:{{ (n * 100 / wmax) if wmax else 0 }}%;">
+            <span class="seg miss" style="flex:{{ n - ok }}"></span><span class="seg ok" style="flex:{{ ok }}"></span>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="bar-axis"><span>{{ week[0][0].strftime('%d/%m') }}</span><span>aujourd'hui</span></div>
   </div>
 </div>
 
-<!-- ── Weak vs strong ────────────────────────────────────────────────────── -->
+<!-- ── All topics ────────────────────────────────────────────────────────── -->
+<div class="sect">Tous les thèmes</div>
+<div class="card">
+  {% for s in stats %}
+    {% set bar_class = "red" if s.mastery_pct < 40 else ("yellow" if s.mastery_pct < 70 else "green") %}
+    <div class="topic-row">
+      <div class="topic-head">
+        <span class="topic-name" title="{{ s.topic }}">{{ s.topic.split('/', 1)[-1] }}</span>
+        <strong class="topic-pct">{{ s.mastery_pct | int }}%</strong>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-fill {{ bar_class }}" style="--pct:{{ (s.mastery_pct | int) / 100 }};"></div>
+      </div>
+      <div class="topic-meta">
+        <span class="chip{% if s.due_cards %} chip-due{% endif %}"><b>{{ s.due_cards }}</b> à réviser</span>
+        <span class="chip"><b>{{ s.total_cards }}</b> cartes</span>
+        <span class="chip">intervalle moyen <b>{{ s.avg_interval | int }} j</b></span>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+{% if reading %}
+<div class="sect">Lecture de tes données</div>
+<div class="card">
+  <ul class="reading">
+    {% for line in reading %}<li>{{ line }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<!-- ── Regularity + forecast ─────────────────────────────────────────────── -->
 <div class="cols-2">
   <div class="card">
-    <h2 class="subheader">📚 À renforcer</h2>
-    {% if weak %}
-      {% for s in weak | sort(attribute="mastery_pct") %}
-        <div>🔴 <strong>{{ s.topic }}</strong> ({{ s.mastery_pct | int }}%)</div>
+    <h2 class="subheader">Régularité</h2>
+    <small class="chart-cap">12 dernières semaines · une case = un jour</small>
+    <div class="heatmap" role="img" aria-label="Activité de révision sur 12 semaines">
+      {% for week in activity.heatmap %}
+        <div class="heat-col">
+        {% for day, n in week %}
+          {% set lvl = 0 if n == 0 else ((n * 4 / activity.heat_max) | round(0, "ceil") | int) %}
+          <span class="heat l{{ lvl }}" title="{{ day.strftime('%d/%m') }} : {{ n }} révision(s)"></span>
+        {% endfor %}
+        </div>
       {% endfor %}
-    {% else %}
-      <div class="alert alert-success" style="margin-top:.5rem;">✅ Aucun sujet critique pour le moment !</div>
-    {% endif %}
+    </div>
   </div>
+
   <div class="card">
-    <h2 class="subheader">💪 Points forts</h2>
-    {% if strong %}
-      {% for s in strong | sort(attribute="mastery_pct", reverse=True) %}
-        <div>🟢 <strong>{{ s.topic }}</strong> ({{ s.mastery_pct | int }}%)</div>
+    <h2 class="subheader">À venir</h2>
+    <small class="chart-cap">Cartes dues sur 14 jours (retards inclus aujourd'hui)</small>
+    <div class="bars">
+      {% for day, n in activity.forecast %}
+        <div class="bar-col" title="{{ day.strftime('%d/%m') }} : {{ n }} carte(s)">
+          <div class="bar" style="height:{{ (n * 100 / activity.forecast_max) if activity.forecast_max else 0 }}%;">
+            <span class="seg fc" style="flex:1"></span>
+          </div>
+        </div>
       {% endfor %}
-    {% else %}
-      <div class="alert alert-info" style="margin-top:.5rem;">Continue à réviser pour faire apparaître tes points forts !</div>
-    {% endif %}
+    </div>
+    <div class="bar-axis"><span>aujourd'hui</span><span>{{ activity.forecast[-1][0].strftime('%d/%m') }}</span></div>
   </div>
 </div>
 
