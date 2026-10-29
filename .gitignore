@@ -19,7 +19,7 @@ htmlcov/
 # App data (user data — not tracked in git)
 data/chroma/
 data/app.db
-data/pdfs/*.pdf
+data/pdfs/*
 model_cache/
 
 # Eval reports (only the committed baseline is kept)
