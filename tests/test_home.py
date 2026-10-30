@@ -8,7 +8,7 @@ from rag_bachelor.app.web.server import app
 def test_home_renders_without_cards() -> None:
     r = TestClient(app).get("/")
     assert r.status_code == 200
-    assert "Raccourcis" in r.text
+    assert "À retravailler" in r.text
 
 
 def test_home_knowledge_map_draws_nodes_and_cross_document_links(monkeypatch) -> None:  # type: ignore[no-untyped-def]

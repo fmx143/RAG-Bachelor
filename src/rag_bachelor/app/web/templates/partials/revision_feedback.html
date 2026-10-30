@@ -3,7 +3,7 @@
 
 <div class="flashcard">
   <div class="ftags">
-    <span class="ftag">{{ qtype_labels.get(card.qtype, card.qtype) }}</span>
+    <span class="ftag" data-t="{{ card.qtype }}">{{ qtype_labels.get(card.qtype, card.qtype) }}</span>
     <span class="ftag dim">{{ card.difficulty | capitalize }}</span>
   </div>
 

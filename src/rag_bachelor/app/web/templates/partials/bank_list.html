@@ -31,7 +31,7 @@
         <span class="qdot" style="background:{% if q.last_result == 1 %}var(--ok){% elif q.last_result == 0 %}var(--bad){% else %}var(--dim){% endif %}"></span>
         <span class="qt">{{ q.question }}</span>
         <span class="qm">
-          <span class="qpill">{{ qtype_labels.get(q.qtype, q.qtype) }}</span>
+          <span class="qpill" data-t="{{ q.qtype }}">{{ qtype_labels.get(q.qtype, q.qtype) }}</span>
           <span class="qpill {{ diff_badge.get(q.difficulty, 'mid') }}">{{ diff_labels.get(q.difficulty, q.difficulty) }}</span>
           {% if q.last_result == 1 %}<span class="qpill ok">Juste</span>
           {% elif q.last_result == 0 %}<span class="qpill ko">Faux</span>
