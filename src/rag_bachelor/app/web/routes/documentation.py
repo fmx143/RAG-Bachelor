@@ -154,15 +154,15 @@ def _run_queue() -> None:
                         else ""
                     )
                     if no_text:
-                        warning += f" ⚠️ aucun texte extrait (PDF scanné ?) : {', '.join(no_text)}"
+                        warning += f" aucun texte extrait (PDF scanné ?) : {', '.join(no_text)}"
                     if graph_failed:
                         warning += (
-                            f" ⚠️ graphe incomplet ou non construit : {', '.join(graph_failed)}"
+                            f" graphe incomplet ou non construit : {', '.join(graph_failed)}"
                         )
                     if done == 1:
-                        msg = f"✅ {last} — {total_chunks} chunks indexés{warning}"
+                        msg = f"{last} — {total_chunks} chunks indexés{warning}"
                     else:
-                        msg = f"✅ {done} document(s) indexés — {total_chunks} chunks au total{warning}"
+                        msg = f"{done} document(s) indexés — {total_chunks} chunks au total{warning}"
                     _JOB.update(message=msg if done else None, running=False, active="")
                     return
                 rel = _PENDING.pop(0)
@@ -207,7 +207,7 @@ def _run_queue() -> None:
     except Exception as exc:  # noqa: BLE001 — surfaced to the user via the status partial
         with _JOB_LOCK:
             _PENDING.clear()
-            _JOB.update(error=f"❌ Échec de l'indexation ({_describe(exc)}).", running=False)
+            _JOB.update(error=f"Échec de l'indexation ({_describe(exc)}).", running=False)
             _JOB["active"] = ""
 
 
@@ -218,7 +218,7 @@ def _describe(exc: Exception) -> str:
 
 
 def _graph_summary(name: str, facts: int, skipped: int) -> str:
-    note = f" ⚠️ {skipped} passage(s) ignoré(s) (erreurs du fournisseur)" if skipped else ""
+    note = f" {skipped} passage(s) ignoré(s) (erreurs du fournisseur)" if skipped else ""
     return f"{name} — {facts} faits dans le graphe{note}"
 
 
@@ -237,9 +237,9 @@ def _run_graph_job(name: str) -> None:
     _JOB["file_index"] = 1
     try:
         facts, skipped = _build_graph_for(name)
-        _JOB["message"] = ("⚠️ " if skipped else "✅ ") + _graph_summary(name, facts, skipped)
+        _JOB["message"] = _graph_summary(name, facts, skipped)
     except Exception as exc:  # noqa: BLE001 — surfaced to the user via the status partial
-        _JOB["error"] = f"❌ Échec du graphe ({_describe(exc)})."
+        _JOB["error"] = f"Échec du graphe ({_describe(exc)})."
     with _JOB_LOCK:
         if not _PENDING:
             _JOB["running"] = False
@@ -534,22 +534,22 @@ def _store_upload(rel: str, sha: str, data: bytes) -> tuple[int, str, bool]:
     dest = _resolve(rel)
     known = document_by_sha(sha)
     if known == rel:
-        return 200, f"⏭️ {rel} déjà à jour", False
+        return 200, f"⏭{rel} déjà à jour", False
     if known:  # same content already stored elsewhere: move it, no re-indexing
         if (busy := _busy(known)) is not None:
-            return 409, f"⚠️ {busy} est en cours d'indexation, réessaie ensuite", False
+            return 409, f"{busy} est en cours d'indexation, réessaie ensuite", False
         if dest.exists() or rel in document_paths():
-            return 409, f"❌ {rel} : ce chemin est déjà occupé par un autre document", False
+            return 409, f"{rel} : ce chemin est déjà occupé par un autre document", False
         _move_doc(known, rel)
-        return 200, f"📦 {known} → {rel} (déplacé, sans réindexation)", False
+        return 200, f"{known} → {rel} (déplacé, sans réindexation)", False
     if dest.exists() or rel in document_paths():
-        return 409, f"❌ {rel} : un autre document occupe déjà ce chemin, ignoré", False
+        return 409, f"{rel} : un autre document occupe déjà ce chemin, ignoré", False
     dest.parent.mkdir(parents=True, exist_ok=True)
     part = dest.with_name(dest.name + ".part")
     part.write_bytes(data)
     os.replace(part, dest)
     add_document(rel, sha)
-    return 200, f"📥 {rel} enregistré", True
+    return 200, f"{rel} enregistré", True
 
 
 @router.post("/docs/upload", response_class=PlainTextResponse)
@@ -568,21 +568,21 @@ async def upload_pdf(
     try:
         rel = _safe_relpath(relpath or file.filename or "")
     except ValueError as exc:
-        return PlainTextResponse(f"❌ {relpath or file.filename} : chemin refusé ({exc})", 400)
+        return PlainTextResponse(f"{relpath or file.filename} : chemin refusé ({exc})", 400)
     if "/" not in rel or subject_of(rel) != await asyncio.to_thread(active_subject):
-        return PlainTextResponse(f"❌ {rel} : hors du sujet actif", 400)
+        return PlainTextResponse(f"{rel} : hors du sujet actif", 400)
     if (file.size or 0) > _MAX_UPLOAD_BYTES:
-        return PlainTextResponse(f"❌ {rel} : fichier trop volumineux (> {_MAX_UPLOAD_MB} Mo)", 413)
+        return PlainTextResponse(f"{rel} : fichier trop volumineux (> {_MAX_UPLOAD_MB} Mo)", 413)
     data = await file.read()
     if len(data) > _MAX_UPLOAD_BYTES:
-        return PlainTextResponse(f"❌ {rel} : fichier trop volumineux (> {_MAX_UPLOAD_MB} Mo)", 413)
+        return PlainTextResponse(f"{rel} : fichier trop volumineux (> {_MAX_UPLOAD_MB} Mo)", 413)
     if not data.startswith(b"%PDF-"):
-        return PlainTextResponse(f"❌ {rel} : ce n'est pas un PDF", 400)
+        return PlainTextResponse(f"{rel} : ce n'est pas un PDF", 400)
     try:
         sha = await asyncio.to_thread(lambda: hashlib.sha256(data).hexdigest())
         status, message, needs_index = await asyncio.to_thread(_store_upload, rel, sha, data)
     except Exception as exc:  # noqa: BLE001 — reported to the upload loop, never echoing the message
-        return PlainTextResponse(f"❌ {rel} : échec de l'enregistrement ({_describe(exc)})", 500)
+        return PlainTextResponse(f"{rel} : échec de l'enregistrement ({_describe(exc)})", 500)
     if needs_index and index and _enqueue([rel]):
         background_tasks.add_task(_run_queue)
     return PlainTextResponse(message, status)
@@ -597,7 +597,7 @@ async def index_all(request: Request, background_tasks: BackgroundTasks) -> Resp
     subject = await asyncio.to_thread(active_subject)
     rels = [r for r in await asyncio.to_thread(_sync_documents) if subject_of(r) == subject]
     if not rels:
-        return await _list_response(request, error=f"⚠️ Aucun PDF trouvé dans {subject}.")
+        return await _list_response(request, error=f"Aucun PDF trouvé dans {subject}.")
     return await _start_indexing(request, background_tasks, rels)
 
 
@@ -612,7 +612,7 @@ async def index_one(
     except ValueError:
         exists = False
     if not exists:
-        return await _list_response(request, error=f"❌ Fichier introuvable : {path}")
+        return await _list_response(request, error=f"Fichier introuvable : {path}")
     return await _start_indexing(request, background_tasks, [rel])
 
 
@@ -624,10 +624,10 @@ async def index_folder(
     try:
         folder = _safe_relpath(path, file=False)
     except ValueError:
-        return await _list_response(request, error=f"❌ Dossier invalide : {path}")
+        return await _list_response(request, error=f"Dossier invalide : {path}")
     rels = [r for r in await asyncio.to_thread(_sync_documents) if r.startswith(folder + "/")]
     if not rels:
-        return await _list_response(request, error=f"⚠️ Aucun PDF dans {folder}")
+        return await _list_response(request, error=f"Aucun PDF dans {folder}")
     return await _start_indexing(request, background_tasks, rels)
 
 
@@ -642,7 +642,7 @@ async def graph_one(
     except ValueError:
         indexed = False
     if not indexed:
-        return await _list_response(request, error=f"❌ Document non indexé : {path}")
+        return await _list_response(request, error=f"Document non indexé : {path}")
     if _try_start(1):
         background_tasks.add_task(_run_graph_job, rel)
     return _progress_response(request)
@@ -675,11 +675,11 @@ async def delete_pdf(request: Request, path: Annotated[str, Form()]) -> Response
     try:
         rel = _safe_relpath(path)
     except ValueError:
-        return await _list_response(request, error=f"❌ Chemin invalide : {path}")
+        return await _list_response(request, error=f"Chemin invalide : {path}")
     if _busy(rel):
-        return await _list_response(request, error=f"⚠️ {rel} est en cours d'indexation")
+        return await _list_response(request, error=f"{rel} est en cours d'indexation")
     await asyncio.to_thread(_delete_docs, [rel])
-    return await _list_response(request, f"🗑️ {rel} supprimé", open_path=rel)
+    return await _list_response(request, f"{rel} supprimé", open_path=rel)
 
 
 @router.post("/docs/delete/folder", response_class=HTMLResponse)
@@ -688,13 +688,13 @@ async def delete_folder(request: Request, path: Annotated[str, Form()]) -> Respo
     try:
         folder = _safe_relpath(path, file=False)
     except ValueError:
-        return await _list_response(request, error=f"❌ Dossier invalide : {path}")
+        return await _list_response(request, error=f"Dossier invalide : {path}")
     rels = [r for r in await asyncio.to_thread(_sync_documents) if r.startswith(folder + "/")]
     if busy := _busy(*rels):
-        return await _list_response(request, error=f"⚠️ {busy} est en cours d'indexation")
+        return await _list_response(request, error=f"{busy} est en cours d'indexation")
     await asyncio.to_thread(_delete_docs, rels)
     return await _list_response(
-        request, f"🗑️ Dossier {folder} supprimé ({len(rels)} document(s))", open_path=folder
+        request, f"Dossier {folder} supprimé ({len(rels)} document(s))", open_path=folder
     )
 
 
@@ -706,22 +706,22 @@ def _move_paths(old: str, new: str, *, folder: bool) -> tuple[str, str]:
     rels = _sync_documents()
     if folder:
         if new == old or new.startswith(old + "/"):
-            return "", f"❌ Impossible de déplacer {old} dans lui-même"
+            return "", f"Impossible de déplacer {old} dans lui-même"
         pairs = [(r, new + r[len(old) :]) for r in rels if r.startswith(old + "/")]
     else:
         pairs = [(old, new)] if old in rels else []
     if not pairs:
-        return "", f"❌ Introuvable : {old}"
+        return "", f"Introuvable : {old}"
     if new == old:
-        return f"⏭️ {old} n'a pas changé", ""
+        return f"⏭{old} n'a pas changé", ""
     if busy := _busy(*(o for o, _ in pairs)):
-        return "", f"⚠️ {busy} est en cours d'indexation"
+        return "", f"{busy} est en cours d'indexation"
     taken = set(rels)
     if clash := next((n for _, n in pairs if n in taken or _resolve(n).exists()), None):
-        return "", f"❌ {clash} existe déjà"
+        return "", f"{clash} existe déjà"
     for o, n in pairs:
         _move_doc(o, n)
-    return f"📦 {len(pairs)} document(s) déplacé(s) vers {new}", ""
+    return f"{len(pairs)} document(s) déplacé(s) vers {new}", ""
 
 
 @router.post("/docs/move", response_class=HTMLResponse)
@@ -742,11 +742,11 @@ async def move_path(
         if dest.strip() == "" or "/" not in new:
             raise ValueError("dossier de destination manquant")
     except ValueError as exc:
-        return await _list_response(request, error=f"❌ Déplacement refusé ({exc})")
+        return await _list_response(request, error=f"Déplacement refusé ({exc})")
     try:
         message, error = await asyncio.to_thread(_move_paths, old, new, folder=folder)
     except Exception as exc:  # noqa: BLE001 — shown in the list, never echoing the message
-        return await _list_response(request, error=f"❌ Échec du déplacement ({_describe(exc)})")
+        return await _list_response(request, error=f"Échec du déplacement ({_describe(exc)})")
     return await _list_response(request, message or None, error or None, open_path=new)
 
 

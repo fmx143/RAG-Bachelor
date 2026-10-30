@@ -66,7 +66,7 @@ async def ask_question(
             "partials/answer.html",
             {
                 "request": request,
-                "error": "Erreur lors de la génération de la réponse. Vérifie la configuration du fournisseur LLM dans ⚙️ Paramètres.",
+                "error": "Erreur lors de la génération de la réponse. Vérifie la configuration du fournisseur LLM dans Paramètres.",
                 "answer": None,
                 "chunks": [],
             },

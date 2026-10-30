@@ -64,7 +64,7 @@
 <aside class="rise d4" style="flex:1 1 300px; min-width:0; display:flex; flex-direction:column; gap:16px;">
   <div class="card" style="margin:0">
     <div class="lab">Index</div>
-    <div style="font-family:var(--disp);font-weight:var(--hw);font-size:52px;letter-spacing:-.04em;line-height:1;margin:12px 0 4px">{{ chunk_count }}</div>
+    <div style="font-family:var(--disp);font-weight:var(--hw);font-size:40px;letter-spacing:-.04em;line-height:1;margin:12px 0 4px">{{ chunk_count }}</div>
     <div class="stat-cap" style="margin-bottom:18px">passages, répartis par document</div>
     <div class="o-comp">{% for src, n in comp %}<span style="flex:{{ n }};background:oklch(0.79 0.13 {{ src.rsplit('/', 1)[-1] | hue }})" title="{{ src | label }} · {{ n }}"></span>{% endfor %}</div>
   </div>

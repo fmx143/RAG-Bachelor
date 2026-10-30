@@ -15,7 +15,7 @@ SYSTEM_PROMPT = (
 )
 NO_DOC_MSG = (
     "Je n'ai trouvé aucun document indexé. "
-    "Va dans l'onglet 📚 Documentation pour indexer tes cours."
+    "Va dans l'onglet Documentation pour indexer tes cours."
 )
 
 

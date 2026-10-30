@@ -53,7 +53,7 @@
       <div class="t"><i></i>{{ ch.title if ch else "Pages au choix" }}</div>
       <div class="m">p.{{ it.page_from }}–{{ it.page_to }} · {{ it.created_at }}</div>
     </a>
-    <button type="button" hx-post="/{{ base }}/{{ it.id }}/delete" hx-target="closest .o-saved-item" hx-swap="outerHTML" hx-confirm="Supprimer ?" class="x" aria-label="Supprimer">✕</button>
+    <button type="button" hx-post="/{{ base }}/{{ it.id }}/delete" hx-target="closest .o-saved-item" hx-swap="outerHTML" hx-confirm="Supprimer ?" class="x" aria-label="Supprimer">×</button>
   </div>
   {% endfor %}
   </div>
@@ -184,7 +184,7 @@
 {% elif tab == "fichier" %}
 {% if job.running %}
 <div class="alert alert-info" id="file-job" hx-get="{{ durl }}?tab=fichier" hx-select="#file-job" hx-target="this" hx-swap="outerHTML" hx-trigger="every 3s">
-  {% if job.phase == "graph" %}🕸️ Construction du graphe{% else %}🔄 Indexation{% endif %} en cours ({{ job.pct }} %){% if job.current %} · {{ job.current }}{% endif %}. Elle continue si tu quittes la page.
+  {% if job.phase == "graph" %}Construction du graphe{% else %}Indexation{% endif %} en cours ({{ job.pct }} %){% if job.current %} · {{ job.current }}{% endif %}. Elle continue si tu quittes la page.
 </div>
 {% endif %}
 <div class="card">

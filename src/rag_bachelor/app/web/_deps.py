@@ -117,7 +117,6 @@ def sidebar_ctx() -> dict[str, object]:
     subject = active_subject()
     return {
         "provider_label": active_model(name),
-        "provider_icon": "☁️",
         "subject": subject,
         "subjects": list_subjects(),
         "nav_due": len(get_due_cards(limit=99, subject=subject)),  # sidebar badge
