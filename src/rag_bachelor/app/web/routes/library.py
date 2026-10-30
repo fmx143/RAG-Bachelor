@@ -59,6 +59,7 @@ async def _library(request: Request, kind: str) -> Response:
         "title": title,
         "heading": heading,
         "folder": folder,
+        "kind": kind,
         "docs": docs,
         "unsorted": unsorted,
         **sidebar_ctx(),

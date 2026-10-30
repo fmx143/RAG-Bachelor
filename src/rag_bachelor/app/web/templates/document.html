@@ -60,8 +60,9 @@
 </div>
 {% endmacro %}
 
-{% if tab == "apercu" %}
 {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+{% if tab == "apercu" %}
 <div class="card">
   <div class="o-between">
     <div class="subheader" style="margin:0">Chapitres</div>
@@ -179,5 +180,57 @@
   <div id="podcast-status" style="margin-top:.75rem;">{% include "partials/podcast_status.html" %}</div>
 </div>
 {{ saved_list("podcasts", "Leçons audio") }}
+
+{% elif tab == "fichier" %}
+{% if job.running %}
+<div class="alert alert-info" id="file-job" hx-get="{{ durl }}?tab=fichier" hx-select="#file-job" hx-target="this" hx-swap="outerHTML" hx-trigger="every 3s">
+  {% if job.phase == "graph" %}🕸️ Construction du graphe{% else %}🔄 Indexation{% endif %} en cours ({{ job.pct }} %){% if job.current %} · {{ job.current }}{% endif %}. Elle continue si tu quittes la page.
+</div>
+{% endif %}
+<div class="card">
+  <div class="subheader">Index</div>
+  <p class="lede-sm">Relis le PDF (mise en page, découpage, embeddings) après l'avoir remplacé, ou construis son graphe de faits pour améliorer les questions qui croisent plusieurs pages.</p>
+  <div class="chap-btns">
+    <form method="post" action="/docs/file/index"><input type="hidden" name="path" value="{{ path }}"><button type="submit" class="btn btn-ghost btn-sm"{% if job.running %} disabled{% endif %}>Réindexer</button></form>
+    <form method="post" action="/docs/file/graph"><input type="hidden" name="path" value="{{ path }}"><button type="submit" class="btn btn-ghost btn-sm"{% if job.running %} disabled{% endif %}>Construire le graphe</button></form>
+    <a class="btn btn-ghost btn-sm" href="/docs/page.png?path={{ path | url_encode }}&page=1" target="_blank" rel="noopener">Voir la 1ʳᵉ page</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="subheader">Classer ou renommer</div>
+  <form method="post" action="/docs/file/move" class="gen-form">
+    <input type="hidden" name="path" value="{{ path }}">
+    <div class="form-group" style="margin-bottom:0">
+      <label>Type</label>
+      <div class="chipgroup" role="radiogroup" aria-label="Type de document">
+        <label class="chip-f"><input type="radio" name="kind" value="livre" {% if kind != "source" %}checked{% endif %}><span>Livre</span></label>
+        <label class="chip-f"><input type="radio" name="kind" value="source" {% if kind == "source" %}checked{% endif %}><span>Source</span></label>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:0;flex:1 1 200px">
+      <label for="move_folder">Sous-dossier <span style="color:var(--muted);">(optionnel)</span></label>
+      <input type="text" id="move_folder" name="folder" value="{{ file_folder }}" placeholder="ex. Semestre 3">
+    </div>
+    <div class="form-group" style="margin-bottom:0;flex:1 1 240px">
+      <label for="move_name">Nom du fichier</label>
+      <input type="text" id="move_name" name="name" value="{{ file_name }}" required>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Déplacer</button>
+  </form>
+  <small style="color:var(--muted);">Questions, fiches, mind maps, audio et cartes suivent le document.</small>
+</div>
+
+<div class="card">
+  <div class="subheader">Supprimer</div>
+  <details>
+    <summary class="btn btn-danger btn-sm">Supprimer ce document…</summary>
+    <form method="post" action="/docs/file/delete" style="margin-top:12px">
+      <input type="hidden" name="path" value="{{ path }}">
+      <p class="lede-sm">Le PDF, son index et son graphe sont supprimés. Les questions, fiches, mind maps et leçons audio restent en base mais ne seront plus rattachées à un document.</p>
+      <button type="submit" class="btn btn-danger btn-sm">Confirmer la suppression</button>
+    </form>
+  </details>
+</div>
 {% endif %}
 {% endblock %}

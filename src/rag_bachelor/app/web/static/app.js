@@ -154,7 +154,9 @@ document.addEventListener("input", (e) => {
       return;
     }
     // Subject first, then the optional folders typed in the destination field.
-    const base = [btn.dataset.subject, ...dest.value.split("/").map((s) => s.trim()).filter(Boolean)].join("/");
+    const kind = document.querySelector('input[name="import-kind"]:checked');
+    const folders = dest.value.split("/").map((s) => s.trim()).filter(Boolean);
+    const base = [btn.dataset.subject, ...(kind ? [kind.value] : []), ...folders].join("/");
     btn.disabled = true;
     log.replaceChildren();
     bar.max = todo.length;

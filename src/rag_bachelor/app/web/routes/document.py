@@ -1,8 +1,9 @@
 """📖 Document page — one book or source with everything made from it.
 
 Overview (chapters, per-chapter stats, targeted revision), its question bank, sheets,
-mind maps and audio lessons, each generated for a chapter or a free page range. The
-generation forms post to the existing /bank, /sheets, /maps and /podcasts endpoints.
+mind maps and audio lessons, each generated for a chapter or a free page range, and its
+file (re-index, fact graph, move between Livres/Sources, delete). The forms post to the
+existing /bank, /sheets, /maps, /podcasts and /docs/file endpoints.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
-from rag_bachelor.app.web.routes import bank, maps, podcasts, sheets
+from rag_bachelor.app.web.routes import bank, documentation, maps, podcasts, sheets
 from rag_bachelor.core.chapters import chapters_for, detect_chapters, page_count
 from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES
 from rag_bachelor.ingest.index import list_sources
@@ -32,12 +33,17 @@ TABS = {
     "fiches": "Fiches",
     "cartes": "Mind maps",
     "audio": "Audio",
+    "fichier": "Fichier",
 }
 KIND_LABELS = {"livre": "Livre", "source": "Source", None: "À classer"}
-_CHAPTER_ERRORS = {
+_ERRORS = {
     "pages": "Chaque chapitre doit avoir des pages valides, comprises dans le document.",
     "overlap": "Deux chapitres se chevauchent : corrige leurs pages.",
     "empty": "Il faut au moins un chapitre.",
+    "busy": "Une indexation ou un graphe est en cours : réessaie quand il sera terminé.",
+    "exists": "Un document porte déjà ce nom à cet endroit.",
+    "invalid": "Type, dossier ou nom invalide.",
+    "move": "Le déplacement a échoué.",
 }
 
 
@@ -101,7 +107,7 @@ async def document_page(
         "kind_labels": KIND_LABELS,
         "tab": tab,
         "tabs": TABS,
-        "error": _CHAPTER_ERRORS.get(err),
+        "error": _ERRORS.get(err),
         **(await asyncio.to_thread(_sync)),
         **sidebar_ctx(),
     }
@@ -114,6 +120,13 @@ async def document_page(
         ctx.update(max_pages=maps.MAX_PAGES, **maps.status_ctx())
     elif tab == "audio":
         ctx.update(max_pages=podcasts.MAX_PAGES, **podcasts.status_ctx())
+    elif tab == "fichier":
+        parts = path.split("/")
+        ctx.update(
+            job=documentation.job_status(),
+            file_name=parts[-1],
+            file_folder="/".join(parts[2:-1] if doc_kind(path) else parts[1:-1]),
+        )
     return templates.TemplateResponse(request, "document.html", ctx)
 
 

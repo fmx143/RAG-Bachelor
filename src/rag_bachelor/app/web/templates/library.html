@@ -3,6 +3,7 @@
 <div class="page-header">
   <span class="eyebrow">{{ subject }} · {{ docs | length }} document{{ "s" if docs | length > 1 }}</span>
   <h1>{{ heading | safe }}</h1>
+  <a class="btn btn-primary btn-sm lib-add" href="/docs?kind={{ kind }}">+ Ajouter</a>
 </div>
 
 {% macro tile(d) %}
@@ -24,7 +25,7 @@
 
 {% if unsorted %}
 <div class="sect">À classer</div>
-<p class="lede-sm">Déplace ces documents dans <strong>{{ subject }}/Livres/</strong> ou <strong>{{ subject }}/Sources/</strong> depuis <a href="/docs">la gestion des fichiers</a>.</p>
+<p class="lede-sm">Déplace ces documents dans <strong>{{ subject }}/Livres/</strong> ou <strong>{{ subject }}/Sources/</strong> depuis l'onglet <em>Fichier</em> de chaque document.</p>
 <div class="lib-grid">{% for d in unsorted %}{{ tile(d) }}{% endfor %}</div>
 {% endif %}
 {% endblock %}
