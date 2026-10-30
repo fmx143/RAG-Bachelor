@@ -26,7 +26,7 @@ from rag_bachelor.study.subjects import active_sources, active_subject
 
 router = APIRouter()
 
-_MAX_PAGES = 40  # bounds LLM calls, TTS time (CPU) and the stored audio size (~0.5 MB/min)
+MAX_PAGES = 40  # bounds LLM calls, TTS time (CPU) and the stored audio size (~0.5 MB/min)
 _RANGE = re.compile(r"bytes=(\d*)-(\d*)")
 
 # Single in-process generation job, same pattern as routes/bank.py.
@@ -77,7 +77,7 @@ def _run_podcast_job(source: str, page_from: int, page_to: int) -> None:
         _JOB["running"] = False
 
 
-def _status_ctx(error_override: str | None = None) -> dict[str, object]:
+def status_ctx(error_override: str | None = None) -> dict[str, object]:
     done = cast(int, _JOB["done"])
     total = cast(int, _JOB["total"])
     return {
@@ -97,9 +97,9 @@ async def podcasts_page(request: Request) -> Response:
         "active_tab": "podcasts",
         "sources": await asyncio.to_thread(active_sources),
         "podcasts": await asyncio.to_thread(list_podcasts, active_subject()),
-        "max_pages": _MAX_PAGES,
+        "max_pages": MAX_PAGES,
         **sidebar_ctx(),
-        **_status_ctx(),
+        **status_ctx(),
     }
     return templates.TemplateResponse(request, "podcasts.html", ctx)
 
@@ -118,21 +118,21 @@ async def start_generation(
         error = "Choisis un document."
     elif page_from < 1 or page_to < page_from:
         error = "Plage de pages invalide."
-    elif page_to - page_from + 1 > _MAX_PAGES:
-        error = f"Plage trop large : {_MAX_PAGES} pages maximum."
+    elif page_to - page_from + 1 > MAX_PAGES:
+        error = f"Plage trop large : {MAX_PAGES} pages maximum."
     elif _try_start(source):
         background_tasks.add_task(_run_podcast_job, source, page_from, page_to)
     else:
         error = "Une génération est déjà en cours."
     return templates.TemplateResponse(
-        request, "partials/podcast_status.html", {"request": request, **_status_ctx(error)}
+        request, "partials/podcast_status.html", {"request": request, **status_ctx(error)}
     )
 
 
 @router.get("/podcasts/status", response_class=HTMLResponse)
 async def generation_status(request: Request) -> Response:
     return templates.TemplateResponse(
-        request, "partials/podcast_status.html", {"request": request, **_status_ctx()}
+        request, "partials/podcast_status.html", {"request": request, **status_ctx()}
     )
 
 
@@ -143,7 +143,7 @@ async def cancel_generation(request: Request) -> Response:
         if _JOB["running"]:
             _JOB["cancel"] = True
     return templates.TemplateResponse(
-        request, "partials/podcast_status.html", {"request": request, **_status_ctx()}
+        request, "partials/podcast_status.html", {"request": request, **status_ctx()}
     )
 
 

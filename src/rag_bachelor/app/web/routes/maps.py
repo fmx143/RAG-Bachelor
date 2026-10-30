@@ -18,7 +18,7 @@ from rag_bachelor.study.subjects import active_sources, active_subject
 
 router = APIRouter()
 
-_MAX_PAGES = 80  # bounds the number of LLM calls for one map
+MAX_PAGES = 80  # bounds the number of LLM calls for one map
 
 # Single in-process generation job, same pattern as routes/bank.py.
 _JOB_LOCK = threading.Lock()
@@ -70,7 +70,7 @@ def _run_map_job(source: str, page_from: int, page_to: int) -> None:
         _JOB["running"] = False
 
 
-def _status_ctx(error_override: str | None = None) -> dict[str, object]:
+def status_ctx(error_override: str | None = None) -> dict[str, object]:
     done = cast(int, _JOB["done"])
     total = cast(int, _JOB["total"])
     return {
@@ -90,9 +90,9 @@ async def maps_page(request: Request) -> Response:
         "active_tab": "maps",
         "sources": await asyncio.to_thread(active_sources),
         "maps": await asyncio.to_thread(list_maps, active_subject()),
-        "max_pages": _MAX_PAGES,
+        "max_pages": MAX_PAGES,
         **sidebar_ctx(),
-        **_status_ctx(),
+        **status_ctx(),
     }
     return templates.TemplateResponse(request, "maps.html", ctx)
 
@@ -111,21 +111,21 @@ async def start_generation(
         error = "Choisis un document."
     elif page_from < 1 or page_to < page_from:
         error = "Plage de pages invalide."
-    elif page_to - page_from + 1 > _MAX_PAGES:
-        error = f"Plage trop large : {_MAX_PAGES} pages maximum."
+    elif page_to - page_from + 1 > MAX_PAGES:
+        error = f"Plage trop large : {MAX_PAGES} pages maximum."
     elif _try_start(source):
         background_tasks.add_task(_run_map_job, source, page_from, page_to)
     else:
         error = "Une génération est déjà en cours."
     return templates.TemplateResponse(
-        request, "partials/map_status.html", {"request": request, **_status_ctx(error)}
+        request, "partials/map_status.html", {"request": request, **status_ctx(error)}
     )
 
 
 @router.get("/maps/status", response_class=HTMLResponse)
 async def generation_status(request: Request) -> Response:
     return templates.TemplateResponse(
-        request, "partials/map_status.html", {"request": request, **_status_ctx()}
+        request, "partials/map_status.html", {"request": request, **status_ctx()}
     )
 
 
@@ -136,7 +136,7 @@ async def cancel_generation(request: Request) -> Response:
         if _JOB["running"]:
             _JOB["cancel"] = True
     return templates.TemplateResponse(
-        request, "partials/map_status.html", {"request": request, **_status_ctx()}
+        request, "partials/map_status.html", {"request": request, **status_ctx()}
     )
 
 

@@ -79,21 +79,27 @@ def from_headings(chunks: Sequence[SourceChunk], page_count: int) -> list[Chapte
     return []
 
 
+def _read_pdf(source: str) -> tuple[int, list[list[object]]]:
+    """``(page count, bookmarks)`` of *source*'s PDF, ``(0, [])`` if it is not on disk."""
+    pdf = settings.pdfs_dir / source
+    if not pdf.is_file():
+        return 0, []
+    with fitz.open(pdf) as doc:
+        return doc.page_count, doc.get_toc(simple=True)
+
+
+def page_count(source: str) -> int:
+    """Pages of *source*'s PDF, else the last indexed page (at least 1)."""
+    pages, _ = _read_pdf(source)
+    return pages or max((c.page for c in get_source_chunks(source)), default=1)
+
+
 def detect_chapters(source: str) -> list[Chapter]:
     """Best-effort chapters of *source*; always at least one, covering the whole book."""
     chunks = get_source_chunks(source)
-    page_count = max((c.page for c in chunks), default=1)
-    toc: list[list[object]] = []
-    pdf = settings.pdfs_dir / source
-    if pdf.is_file():
-        with fitz.open(pdf) as doc:
-            page_count = doc.page_count or page_count
-            toc = doc.get_toc(simple=True)
-    return (
-        from_toc(toc, page_count)
-        or from_headings(chunks, page_count)
-        or [Chapter(WHOLE_BOOK, 1, page_count)]
-    )
+    pages, toc = _read_pdf(source)
+    pages = pages or max((c.page for c in chunks), default=1)
+    return from_toc(toc, pages) or from_headings(chunks, pages) or [Chapter(WHOLE_BOOK, 1, pages)]
 
 
 def chapters_for(source: str) -> list[Chapter]:

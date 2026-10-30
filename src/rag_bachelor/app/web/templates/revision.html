@@ -6,9 +6,13 @@
     <h1>Réviser</h1>
   </div>
 
+  {% if filter_pages %}
+  <p class="lede-sm">Chapitre de <a href="{{ filter_source | doc_url }}">{{ filter_source | label }}</a> : pages {{ filter_pages | replace("-", "–") }} · <a href="/revision?source={{ filter_source | url_encode }}">tout le document</a></p>
+  {% endif %}
   <details class="filters">
     <summary>Filtres</summary>
     <form id="revision-filter-form" hx-get="/revision/next" hx-trigger="change" hx-target="#revision-content" hx-swap="innerHTML">
+      <input type="hidden" name="pages" value="{{ filter_pages }}">
       <div class="form-group">
         <label for="filter_source">Document</label>
         <select id="filter_source" name="source">

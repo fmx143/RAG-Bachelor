@@ -862,11 +862,13 @@ def _sheet(row: Any) -> Sheet:
     )
 
 
-def list_sheets(subject: str | None = None) -> list[Sheet]:
-    """Every sheet, newest first, without its (large) content (of one subject, if given)."""
+def list_sheets(subject: str | None = None, source: str | None = None) -> list[Sheet]:
+    """Every sheet, newest first, without its (large) content (of one subject, if given, or of one document)."""
     clause = ""
     params: tuple[str, ...] = ()
-    if subject:
+    if source:
+        clause, params = " WHERE source = ?", (source,)
+    elif subject:
         cond, prefix = _in_subject("source", subject)
         clause, params = f" WHERE {cond}", (prefix,)
     rows = (
@@ -919,11 +921,13 @@ def add_map(source: str, page_from: int, page_to: int, content: str) -> int:
     return int(new_id)
 
 
-def list_maps(subject: str | None = None) -> list[Sheet]:
-    """Every mind map, newest first, without its content (of one subject, if given)."""
+def list_maps(subject: str | None = None, source: str | None = None) -> list[Sheet]:
+    """Every mind map, newest first, without its content (of one subject, if given, or of one document)."""
     clause = ""
     params: tuple[str, ...] = ()
-    if subject:
+    if source:
+        clause, params = " WHERE source = ?", (source,)
+    elif subject:
         cond, prefix = _in_subject("source", subject)
         clause, params = f" WHERE {cond}", (prefix,)
     rows = (
@@ -1042,11 +1046,13 @@ def _podcast(row: Any) -> Podcast:
     )
 
 
-def list_podcasts(subject: str | None = None) -> list[Podcast]:
-    """Every podcast, newest first, without script or audio (of one subject, if given)."""
+def list_podcasts(subject: str | None = None, source: str | None = None) -> list[Podcast]:
+    """Every podcast, newest first, without script or audio (of one subject, if given, or of one document)."""
     clause = ""
     params: tuple[str, ...] = ()
-    if subject:
+    if source:
+        clause, params = " WHERE source = ?", (source,)
+    elif subject:
         cond, prefix = _in_subject("source", subject)
         clause, params = f" WHERE {cond}", (prefix,)
     rows = (

@@ -438,6 +438,31 @@ blockquote { border-left: 2px solid var(--border-3) !important; }
 .bar .seg { display: block; }
 .bar-axis { display: flex; justify-content: space-between; margin-top: 6px; font: 400 11px var(--mono); color: var(--muted); }
 
+/* ── Document page (book or source) ─────────────────────────────────────── */
+
+.doc-path { font: 400 12px var(--mono); color: var(--dim); overflow-wrap: anywhere; margin: 6px 0 0; }
+.doc-tabs { display: flex; gap: 6px; overflow-x: auto; margin: 0 0 18px; padding-bottom: 4px; scrollbar-width: thin; }
+.doc-tabs a { flex: none; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--hair); color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px; }
+.doc-tabs a:hover { color: var(--text); }
+.doc-tabs a.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.range-pick { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; margin-bottom: 18px; }
+.range-pick .form-group { margin-bottom: 0; flex: 1 1 240px; min-width: 0; }
+.range-pick .form-group.pg { flex: 0 0 96px; }
+.gen-form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; margin-top: .75rem; }
+.gen-form .range-pick { flex: 1 1 100%; margin-bottom: 0; }
+.chap-list { display: flex; flex-direction: column; gap: 2px; margin: 14px 0; }
+.chap { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--hair); }
+.chap-main { flex: 1; min-width: 0; }
+.chap-title { font-weight: 700; overflow-wrap: anywhere; }
+.chap-meta { font: 400 12px var(--mono); color: var(--dim); margin-top: 3px; }
+.chap-bar { height: 6px; border-radius: 99px; background: var(--hair); margin-top: 8px; max-width: 360px; overflow: hidden; }
+.chap-bar span { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+.chap-edit { margin-top: 12px; }
+.chap-rows { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 8px; }
+.chap-row { display: grid; grid-template-columns: minmax(0, 1fr) 84px 84px; gap: 6px; }
+.chap-row.head span { font: 600 11px var(--sans); color: var(--dim); text-transform: uppercase; letter-spacing: .1em; }
+.chap-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 
 @media (max-width: 1020px) {

@@ -32,11 +32,12 @@ Local-first RAG study assistant for French bachelor PDFs.
 | `src/rag_bachelor/core/agent.py` | Agentic Ask: question searched as asked first, then a JSON `search`/`answer` loop; `agent_max_steps` searches in total |
 | `src/rag_bachelor/ingest/` | PDF → chunks → ChromaDB |
 | `src/rag_bachelor/ingest/layout.py` | Docling conversion + section-based chunking (tables split by row) |
+| `src/rag_bachelor/app/web/routes/document.py` | Document page `/document/<path>` (book or source): tabs Aperçu (chapters + per-chapter stats + chapter editor, revision by chapter via `/revision?source=…&pages=a-b`), Questions, Fiches, Mind maps, Audio — generation forms pick a chapter or a free page range and post to the existing /bank, /sheets, /maps, /podcasts endpoints |
 | `src/rag_bachelor/study/store.py` | SM-2 + question-bank persistence — dual backend: SQLite (default) or PostgreSQL (`POSTGRES_HOST` set) |
 | `src/rag_bachelor/study/` | SM-2, persistence store, stats |
 | `src/rag_bachelor/app/web/` | FastAPI server, route modules, Jinja2 templates, static assets |
 | `docker-compose.yml` | NAS deployment: `app` + isolated `postgres`/`chroma` data tier (no Ollama) |
-| `src/rag_bachelor/study/subjects.py` | Subjects = top-level folders of `data/pdfs/`; the active one (`app_settings.active_subject`) scopes every tab, Ask retrieval and progress |
+| `src/rag_bachelor/study/subjects.py` | Subjects = top-level folders of `data/pdfs/`; the active one (`app_settings.active_subject`) scopes every tab, Ask retrieval and progress. `doc_kind()`: `<Subject>/Livres/…` = book, `<Subject>/Sources/…` = source, anything else is unsorted (« à classer ») |
 | `data/pdfs/` | User-supplied PDFs, `data/pdfs/<Subject>/…` (root-level PDFs are moved into `Bachelor/` on the first sync; not tracked in git) |
 | `data/chroma/` | Local embedded vector index, used only when `CHROMA_HOST` is unset (not tracked in git) |
 | `data/app.db` | Local SQLite study DB, used only when `POSTGRES_HOST` is unset (not tracked in git) |
