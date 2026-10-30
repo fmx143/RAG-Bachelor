@@ -1,20 +1,20 @@
 <div class="metrics" style="margin-bottom:.75rem;">
   <div class="metric">
-    <div class="metric-label">🧠 Fournisseur actif</div>
+    <div class="metric-label">Fournisseur actif</div>
     <div class="metric-value" style="font-size:1rem; padding-top:.25rem;">
-      {% if active_provider == "openai" %}🤖 OpenAI (cloud){% else %}☁️ Ollama (cloud){% endif %}
+      {% if active_provider == "openai" %}OpenAI (cloud){% else %}Ollama (cloud){% endif %}
     </div>
   </div>
   <div class="metric">
-    <div class="metric-label">🤖 Modèle</div>
+    <div class="metric-label">Modèle</div>
     <div class="metric-value" style="font-size:1rem; padding-top:.25rem;">
       <code>{% if active_provider == "openai" %}{{ models.openai }}{% else %}{{ models.ollama }}{% endif %}</code>
     </div>
   </div>
   <div class="metric">
-    <div class="metric-label">🔑 Clés</div>
+    <div class="metric-label">Clés</div>
     <div class="metric-value" style="font-size:1rem; padding-top:.25rem;">
-      Ollama {% if ollama_key_configured %}✅{% else %}❌{% endif %} · OpenAI {% if openai_key_configured %}✅{% else %}❌{% endif %}
+      Ollama {% if ollama_key_configured %}configurée{% else %}manquante{% endif %} · OpenAI {% if openai_key_configured %}configurée{% else %}manquante{% endif %}
     </div>
   </div>
 </div>
@@ -31,7 +31,7 @@
         <input type="radio" name="provider" value="ollama"
                {% if active_provider == "ollama" %}checked{% endif %}
                {% if not ollama_key_configured %}disabled{% endif %}>
-        ☁️ Ollama (cloud)
+        Ollama (cloud)
         {% if not ollama_key_configured %}
         <small style="color:var(--muted);">(définis OLLAMA_API_KEY)</small>
         {% endif %}
@@ -40,7 +40,7 @@
         <input type="radio" name="provider" value="openai"
                {% if active_provider == "openai" %}checked{% endif %}
                {% if not openai_key_configured %}disabled{% endif %}>
-        🤖 OpenAI
+        OpenAI
         {% if not openai_key_configured %}
         <small style="color:var(--muted);">(définis OPENAI_API_KEY)</small>
         {% endif %}
