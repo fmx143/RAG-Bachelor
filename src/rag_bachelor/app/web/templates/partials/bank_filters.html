@@ -1,4 +1,4 @@
-{# Bank filter bar; with fixed_source set (document page) the document chips are replaced by a hidden field. #}
+{# Bank filter bar of the document page's Questions tab, fixed to that document (fixed_source). #}
 <form
   id="bank-filter-form"
   hx-get="/bank/list" hx-trigger="change, keyup changed delay:400ms from:#filter_search"
@@ -9,20 +9,10 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5"/></svg>
       <input type="search" id="filter_search" name="search" value="{{ filter_search }}" placeholder="Rechercher dans les questions…" aria-label="Rechercher">
     </label>
-    {% if not fixed_source %}<a class="o-btn-acc" href="/generate">+ Générer</a>{% endif %}
   </div>
 
   <div class="chipbar">
-    {% if fixed_source %}
     <input type="hidden" name="source" value="{{ fixed_source }}">
-    {% else %}
-    <div class="chipgroup" role="radiogroup" aria-label="Document">
-      <label class="chip-f dotchip"><input type="radio" name="source" value="" {% if not filter_source %}checked{% endif %}><span>Tous les documents</span></label>
-      {% for s in sources %}
-      <label class="chip-f dotchip" style="--h:{{ s | hue }}" title="{{ s }}"><input type="radio" name="source" value="{{ s }}" {% if s == filter_source %}checked{% endif %}><span><i></i>{{ s | label }}</span></label>
-      {% endfor %}
-    </div>
-    {% endif %}
     <div class="chipgroup" role="radiogroup" aria-label="Type de question">
       <label class="chip-f sm"><input type="radio" name="qtype" value="" {% if not filter_qtype %}checked{% endif %}><span>Tous types</span></label>
       {% for qt in qtypes %}

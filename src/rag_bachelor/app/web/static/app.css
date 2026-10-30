@@ -438,6 +438,18 @@ blockquote { border-left: 2px solid var(--border-3) !important; }
 .bar .seg { display: block; }
 .bar-axis { display: flex; justify-content: space-between; margin-top: 6px; font: 400 11px var(--mono); color: var(--muted); }
 
+/* ── Library grids (Livres / Mes sources) ───────────────────────────────── */
+
+.lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.lib-tile { display: flex; flex-direction: column; gap: 6px; min-height: 132px; padding: 18px; border: 1px solid var(--hair); border-radius: var(--r); background: linear-gradient(160deg, oklch(0.79 0.13 var(--h) / .12), transparent 60%), var(--card); color: inherit; text-decoration: none; transition: border-color .2s, transform .2s; }
+.lib-tile:hover { border-color: oklch(0.79 0.13 var(--h) / .6); transform: translateY(-2px); }
+.lib-tile .nm { font: var(--hw) 18px var(--disp); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.lib-tile .fd { font: 500 11px var(--mono); color: oklch(0.79 0.13 var(--h)); text-transform: uppercase; letter-spacing: .08em; }
+.lib-tile .mt { font: 400 12px var(--mono); color: var(--dim); margin-top: auto; }
+.lib-tile .br { display: block; height: 5px; border-radius: 99px; background: var(--hair); overflow: hidden; }
+.lib-tile .br i { display: block; height: 100%; background: oklch(0.79 0.13 var(--h)); }
+@media (prefers-reduced-motion: reduce) { .lib-tile:hover { transform: none; } }
+
 /* ── Document page (book or source) ─────────────────────────────────────── */
 
 .doc-path { font: 400 12px var(--mono); color: var(--dim); overflow-wrap: anywhere; margin: 6px 0 0; }

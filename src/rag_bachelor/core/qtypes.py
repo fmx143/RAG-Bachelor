@@ -6,9 +6,8 @@ Five question types are supported end to end (generation, storage, revision):
 ``tf`` (Vrai/Faux). The three structured types are auto-graded — no LLM call
 needed at review time; ``free`` and ``cloze`` are self-graded after the answer is shown.
 
-This module centralizes what used to be duplicated between
-``core/questions.py`` and ``core/bank.py``: the fence-strip + regex JSON
-parsing, and now the per-item validation for structured types.
+This module centralizes the fence-strip + regex JSON parsing used by the
+LLM generators and the per-item validation for structured types.
 """
 
 from __future__ import annotations

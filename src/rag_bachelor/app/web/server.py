@@ -28,8 +28,8 @@ from rag_bachelor.app.web.routes import (
     bank,
     document,
     documentation,
-    generate,
     home,
+    library,
     maps,
     podcasts,
     progress,
@@ -153,11 +153,11 @@ app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 # ── Routers ────────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
 app.include_router(home.router)
+app.include_router(library.router)
 app.include_router(documentation.router)
 app.include_router(subjects.router)
 app.include_router(ask.router)
 app.include_router(revision.router)
-app.include_router(generate.router)
 app.include_router(bank.router)
 app.include_router(document.router)
 app.include_router(sheets.router)

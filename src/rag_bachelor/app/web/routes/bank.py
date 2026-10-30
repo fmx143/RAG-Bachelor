@@ -10,7 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, Form, Request
 from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
-from rag_bachelor.app.web._deps import sidebar_ctx, templates
+from rag_bachelor.app.web._deps import templates
 from rag_bachelor.core.bank import generate_bank_for_source
 from rag_bachelor.core.qtypes import DIFFICULTIES as _DIFFICULTIES
 from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES, SELF_GRADED
@@ -177,7 +177,7 @@ async def list_ctx(
 
 
 def generation_ctx() -> dict[str, object]:
-    """Context for the whole-document generation form (rendered on /generate)."""
+    """Context for the bank generation form (the document page's Questions tab)."""
     return {
         "bank_sources": active_sources(),
         "default_target": _DEFAULT_TARGET,
@@ -185,22 +185,6 @@ def generation_ctx() -> dict[str, object]:
         "max_target": _MAX_TARGET,
         **_status_ctx(),
     }
-
-
-# ── Full page ────────────────────────────────────────────────────────────────
-
-
-@router.get("/bank", response_class=HTMLResponse)
-async def bank_page(request: Request) -> Response:
-    sources = await asyncio.to_thread(active_sources)
-    ctx: dict[str, object] = {
-        "request": request,
-        "active_tab": "bank",
-        "sources": sources,
-        **sidebar_ctx(),
-        **(await list_ctx(source="", difficulty="", search="", limit=_PAGE_SIZE)),
-    }
-    return templates.TemplateResponse(request, "bank.html", ctx)
 
 
 # ── Generation ─────────────────────────────────────────────────────────────────

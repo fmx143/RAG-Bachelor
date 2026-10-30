@@ -6,7 +6,7 @@
 </div>
 
 <div style="margin-bottom:.75rem;">
-  <a href="/podcasts" class="btn btn-ghost btn-sm">← Podcasts</a>
+  <a href="{{ podcast.source | doc_url }}?tab=audio" class="btn btn-ghost btn-sm">← {{ podcast.source | label }}</a>
 </div>
 
 <div class="o-card o-player" data-player>
@@ -37,7 +37,7 @@
   {% endfor %}
 </div>
 <div class="card" style="flex:1 1 260px;min-width:0;margin:0">
-  <div class="subheader">Leçons enregistrées</div>
+  <div class="subheader">Leçons de ce document</div>
   <div class="o-lessons">
   {% for pd in podcasts %}
   <a href="/podcasts/{{ pd.id }}" class="{{ 'on' if pd.id == podcast.id }}" style="--h:{{ pd.source | hue }}" title="{{ pd.source }}"><i></i>

@@ -8,7 +8,9 @@ Local-first RAG study assistant for French bachelor PDFs.
 - LLM: Ollama Cloud (`OLLAMA_API_KEY`, ollama.com) or OpenAI — provider and model per provider are
   chosen in ⚙️ Paramètres (persisted); `DEFAULT_LLM_PROVIDER` is only the startup default. No local Ollama.
 - Embeddings: always local (bge-m3) regardless of LLM provider
-- UI: FastAPI + HTMX, 10 tabs (docs, ask, revision, generate, bank, sheets, maps, podcasts, progress, settings)
+- UI: FastAPI + HTMX. Sidebar: Accueil, Livres, Réviser, Statistiques, Poser une question, Mes sources, Paramètres.
+  Everything made from a PDF (questions, sheets, mind maps, audio, per-chapter stats) lives on its document page;
+  the old list pages (/bank, /generate, /sheets, /maps, /podcasts) redirect to /livres
 - Study tracking: SM-2 spaced repetition, persisted to SQLite (local dev) or PostgreSQL
   (`POSTGRES_HOST` set — isolated data-tier container on the NAS)
 - Vector index: ChromaDB, embedded `PersistentClient` (local dev) or standalone server via
@@ -32,6 +34,7 @@ Local-first RAG study assistant for French bachelor PDFs.
 | `src/rag_bachelor/core/agent.py` | Agentic Ask: question searched as asked first, then a JSON `search`/`answer` loop; `agent_max_steps` searches in total |
 | `src/rag_bachelor/ingest/` | PDF → chunks → ChromaDB |
 | `src/rag_bachelor/ingest/layout.py` | Docling conversion + section-based chunking (tables split by row) |
+| `src/rag_bachelor/app/web/routes/library.py` | `/livres` and `/sources` grids of the active subject (+ « À classer »), redirects from the removed list pages |
 | `src/rag_bachelor/app/web/routes/document.py` | Document page `/document/<path>` (book or source): tabs Aperçu (chapters + per-chapter stats + chapter editor, revision by chapter via `/revision?source=…&pages=a-b`), Questions, Fiches, Mind maps, Audio — generation forms pick a chapter or a free page range and post to the existing /bank, /sheets, /maps, /podcasts endpoints |
 | `src/rag_bachelor/study/store.py` | SM-2 + question-bank persistence — dual backend: SQLite (default) or PostgreSQL (`POSTGRES_HOST` set) |
 | `src/rag_bachelor/study/` | SM-2, persistence store, stats |

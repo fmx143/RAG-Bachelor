@@ -11,10 +11,9 @@ from fastapi import APIRouter, BackgroundTasks, Form, Request
 from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
-from rag_bachelor.app.web._deps import sidebar_ctx, templates
+from rag_bachelor.app.web._deps import nav_tab, sidebar_ctx, templates
 from rag_bachelor.core.mindmap import BadTree, generate_map
-from rag_bachelor.study.store import delete_map, get_map, list_maps
-from rag_bachelor.study.subjects import active_sources, active_subject
+from rag_bachelor.study.store import delete_map, get_map
 
 router = APIRouter()
 
@@ -83,20 +82,6 @@ def status_ctx(error_override: str | None = None) -> dict[str, object]:
     }
 
 
-@router.get("/maps", response_class=HTMLResponse)
-async def maps_page(request: Request) -> Response:
-    ctx: dict[str, object] = {
-        "request": request,
-        "active_tab": "maps",
-        "sources": await asyncio.to_thread(active_sources),
-        "maps": await asyncio.to_thread(list_maps, active_subject()),
-        "max_pages": MAX_PAGES,
-        **sidebar_ctx(),
-        **status_ctx(),
-    }
-    return templates.TemplateResponse(request, "maps.html", ctx)
-
-
 @router.post("/maps/generate", response_class=HTMLResponse)
 async def start_generation(
     request: Request,
@@ -147,7 +132,7 @@ async def map_view(request: Request, map_id: int) -> Response:
         return Response(status_code=404)
     ctx: dict[str, object] = {
         "request": request,
-        "active_tab": "maps",
+        "active_tab": nav_tab(item.source),
         "map": item,
         "tree": json.loads(item.content),
         **sidebar_ctx(),
