@@ -11,7 +11,7 @@
 
 <div class="o-metrics">
   {% for label, value, unit in [("Total cartes", total_cards, ""), ("À réviser aujourd'hui", due_count, ""), ("Série", activity.streak, " j"), ("Réussite 30 j", activity.retention_pct if activity.retention_pct is not none else "—", " %" if activity.retention_pct is not none else "")] %}
-  <div class="o-card o-metric"><div class="o-lab" style="letter-spacing:.12em">{{ label }}</div><div class="v">{{ value }}<span>{{ unit }}</span></div></div>
+  <div class="o-card o-metric"><div class="o-lab">{{ label }}</div><div class="v">{{ value }}<span>{{ unit }}</span></div></div>
   {% endfor %}
 </div>
 
