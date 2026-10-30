@@ -28,9 +28,9 @@ from rag_bachelor.study.subjects import active_sources, active_subject
 
 router = APIRouter()
 
-_DIFF_LABELS = {"facile": "🟢 Facile", "moyen": "🟡 Moyen", "difficile": "🔴 Difficile"}
+_DIFF_LABELS = {"facile": "Facile", "moyen": "Moyen", "difficile": "Difficile"}
 _RESULTS = ("correct", "incorrect", "untried")
-_RESULT_LABELS = {"correct": "✅ Juste", "incorrect": "❌ Faux", "untried": "◯ Jamais tenté"}
+_RESULT_LABELS = {"correct": "Juste", "incorrect": "Faux", "untried": "◯ Jamais tenté"}
 _DECKS = ("in", "out")
 _DECK_LABELS = {"in": "Déjà en révision", "out": "Pas encore ajoutée"}
 _PAGE_SIZE = 20
@@ -95,7 +95,7 @@ def _run_bank_job(
         # Never surface the raw exception: the LLM SDKs can echo an API key on auth errors.
         _JOB["error"] = (
             "Erreur lors de la génération. Vérifie la configuration du fournisseur LLM "
-            "dans ⚙️ Paramètres."
+            "dans Paramètres."
         )
     finally:
         _JOB["running"] = False
@@ -340,7 +340,7 @@ async def add_bank_to_deck(bank_id: int) -> Response:
         )
     return HTMLResponse(
         f'<span class="alert alert-success" style="display:inline-block;padding:.2rem .6rem;">'
-        f"✅ Carte #{card_id} ajoutée !</span>"
+        f"Carte #{card_id} ajoutée !</span>"
     )
 
 

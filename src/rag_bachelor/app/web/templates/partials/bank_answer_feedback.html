@@ -1,8 +1,8 @@
 <div id="attempt-{{ bank_id }}">
   {% if is_correct %}
-  <div class="alert alert-success" style="margin-top:.5rem;">✅ Bonne réponse !</div>
+  <div class="alert alert-success" style="margin-top:.5rem;">Bonne réponse !</div>
   {% else %}
-  <div class="alert alert-error" style="margin-top:.5rem;">❌ Mauvaise réponse.</div>
+  <div class="alert alert-error" style="margin-top:.5rem;">Mauvaise réponse.</div>
   {% endif %}
 
   {% if q.qtype not in self_graded %}
@@ -16,7 +16,7 @@
       {% endif %}
     >
       {{ opt }}
-      {% if loop.index0 in q.correct %} ✓{% endif %}
+      {% if loop.index0 in q.correct %} (bonne réponse){% endif %}
       {% if loop.index0 in selected and loop.index0 not in q.correct %} (ta réponse){% endif %}
     </li>
     {% endfor %}
@@ -25,6 +25,6 @@
   {% endif %}
 
   {% if added %}
-  <div class="alert alert-info" style="margin-top:.5rem;">➕ Ajoutée à la révision.</div>
+  <div class="alert alert-info" style="margin-top:.5rem;">Ajoutée à la révision.</div>
   {% endif %}
 </div>

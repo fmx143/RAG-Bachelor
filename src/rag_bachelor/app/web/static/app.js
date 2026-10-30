@@ -136,7 +136,7 @@ document.addEventListener("input", (e) => {
         const prefix = parts.slice(0, d + 1).join("/") + "/";
         if (!seen.has(prefix)) {
           seen.add(prefix);
-          group(prefix, d + 1, `📁 ${seg}`);
+          group(prefix, d + 1, `${seg}`);
         }
       });
       const row = { file, path };
@@ -354,7 +354,7 @@ document.querySelectorAll("[data-kmap]").forEach((box) => {
     card.querySelector("[data-f=name]").textContent = d.name;
     card.querySelector("[data-f=file]").textContent = d.file;
     card.querySelector("[data-f=mastery]").textContent = `${d.mastery} %`;
-    card.querySelector(".trk i").style.width = `${d.mastery}%`;
+    card.querySelector(".trk i").style.setProperty("--p", d.mastery / 100);
     card.querySelector("[data-f=meta]").textContent = d.meta;
     card.querySelector("[data-f=href]").href = d.href;
   };

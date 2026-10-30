@@ -70,7 +70,7 @@ def _run_podcast_job(source: str, page_from: int, page_to: int) -> None:
         # Never surface the raw exception: the LLM SDKs can echo an API key on auth errors.
         _JOB["error"] = (
             "Erreur lors de la génération. Vérifie la configuration du fournisseur LLM "
-            "dans ⚙️ Paramètres."
+            "dans Paramètres."
         )
     finally:
         _JOB["running"] = False
