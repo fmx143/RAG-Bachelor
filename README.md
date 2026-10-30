@@ -14,9 +14,9 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 | ❓ **Q&A with citations** | Ask anything in French, get a sourced answer with file name + page number. Retrieval is hybrid (dense bge-m3 + BM25 keywords, fused with RRF, plus a fact-graph ranking once built) then reranked by a cross-encoder |
 | 🕸️ **Agentic search & graph** | LLM keyword extraction widens every search. Optional *deep search* agent searches the question as asked, then runs up to 2 more self-directed searches (query, keywords, target document) before answering. A HippoRAG-style fact graph (LLM triples per chunk → Personalized PageRank) helps multi-page questions |
 | 🔄 **Spaced repetition** | SM-2 algorithm (Anki-style) — review due cards, self-grade, auto-reschedule |
-| 🎯 **Question generation** | LLM-generated easy / medium / hard questions per topic, add them to your deck |
-| 🏦 **Question bank** | Generate a whole-document bank of free / cloze (texte à trous) / QCM (single/multi) / Vrai-Faux questions, semantic near-duplicate filtering, short answers (1–5 sentences) with the supporting passage from the course, filter by difficulty/type/result, auto-graded structured revision |
-| 📝 **Study aids** | For a document + page range: a cited **revision sheet** (printable), a collapsible **mind map**, and a two-voice **audio lesson** (local Phonon TTS). All three are persisted and re-openable — see [Study aids](#8--study-aids-sheets-mind-maps-audio) |
+| 📚 **Books & sources** | One page per document with its chapters (auto-detected, editable), questions, sheets, mind maps, audio lessons and per-chapter stats; revise a whole book or a single chapter |
+| 🏦 **Question bank** | Generate a bank for a document or one of its chapters of free / cloze (texte à trous) / QCM (single/multi) / Vrai-Faux questions, semantic near-duplicate filtering, short answers (1–5 sentences) with the supporting passage from the course, filter by difficulty/type/result, auto-graded structured revision |
+| 📝 **Study aids** | For a chapter or page range: a cited **revision sheet** (printable), a collapsible **mind map**, and a two-voice **audio lesson** (local Phonon TTS). All three are persisted and re-openable — see [Study aids](#8--study-aids-sheets-mind-maps-audio) |
 | 📊 **Progress tracking** | Per-topic mastery bars, weak vs strong subject overview |
 | ⚙️ **LLM & data** | Ollama Cloud or OpenAI for the LLM (provider and model chosen in Settings) — bge-m3 embeddings are always local |
 | 🔒 **Secrets via Doppler** | No API keys or passwords ever live in a `.env` file or the image — see [Configuration & sécurité](#configuration--sécurité-doppler) |
@@ -302,23 +302,27 @@ fetched from ollama.com. There is no local Ollama mode anymore.
 
 ---
 
-### 3 — Generate study questions
+### 3 — Books and sources
 
-**Tab: 🎯 Générer des questions**
+**Tabs: 📚 Livres · 📄 Mes sources**
 
-1. Select a **document** from the dropdown or type a **free topic** (e.g. *Complexité algorithmique*).
-2. Choose a difficulty: 🟢 **Facile** · 🟡 **Moyen** · 🔴 **Difficile**.
-3. Click **✨ Générer des questions** — 3 questions grounded in your course content are produced.
-4. Optionally write a model answer, then click **➕ Ajouter à la révision** to add the card to your deck.
+Every PDF is either a **book** (`<Subject>/Livres/…`) or a **source** (`<Subject>/Sources/…`,
+notes, articles…), sub-folders allowed. PDFs anywhere else are listed under **À classer** until
+moved. Each document opens its own page with tabs:
+
+- **Aperçu** — its chapters (detected from the PDF bookmarks or numbered headings, editable),
+  with questions, cards, due cards and mastery per chapter; revise the whole document or one chapter.
+- **Questions** · **Fiches** · **Mind maps** · **Audio** — generate for a chapter or any page
+  range, and find everything already made from this document.
 
 ---
 
-### 4 — Generate a question bank for a whole document
+### 4 — Generate a question bank
 
-**Tab: 🏦 Banque**
+**Document page › Questions**
 
-1. Pick an indexed **document**, a **question type** (libre, QCM simple, QCM multiple,
-   Vrai-Faux), and a target count (1–100).
+1. Pick a **chapter** (or the whole document, or any page range), a **question type** (libre,
+   texte à trous, QCM simple, QCM multiple, Vrai-Faux), and a target count (1–100).
 2. Click **Générer** — the app walks the document window by window (a few chunks at a
    time), asking the LLM for questions grounded in each window, until the target is
    reached. A progress bar polls itself until the job finishes; click **Arrêter** to stop early.
@@ -343,7 +347,7 @@ when ready, then grade yourself:
 | 😰 Raté / 🤔 Difficile | Resets the card — back to 1 day |
 | 😊 Bien / 🌟 Parfait | Advances the card — interval grows via SM-2 |
 
-Structured cards (QCM/Vrai-Faux) added from the 🏦 Banque are **auto-graded**: pick your
+Structured cards (QCM/Vrai-Faux) added from a document's questions are **auto-graded**: pick your
 answer(s), the app compares them to the stored correct set and applies the matching SM-2
 grade automatically — no self-assessment, no LLM call.
 
@@ -351,7 +355,7 @@ grade automatically — no self-assessment, no LLM call.
 
 ### 6 — Track your progress
 
-**Tab: 📊 Progrès**
+**Tab: 📊 Statistiques** (per chapter: the document page's Aperçu)
 
 - **Summary metrics:** total cards, due today, average ease factor.
 - **Per-topic mastery bars** (weakest first):
@@ -376,16 +380,16 @@ grade automatically — no self-assessment, no LLM call.
 
 ### 8 — Study aids (sheets, mind maps, audio)
 
-**Tabs: Fiches · Cartes · Audio**
+**Document page › Fiches · Mind maps · Audio**
 
-Pick a document and a page range (80 pages max for sheets, 20 for audio); a background job
+Pick a chapter or a page range (80 pages max for sheets and mind maps, 40 for audio); a background job
 builds the result with a progress bar and cancel button, then saves it for later.
 
 - **Fiches** — structured Markdown sheet; every `[p.N]` citation links to the page image and is
   validated against the range. *Imprimer / PDF* prints only the sheet.
-- **Cartes** — mind map as nested collapsible lists (depth and width are bounded by code).
+- **Mind maps** — nested collapsible lists (depth and width are bounded by code).
 - **Audio** — a dialogue between an expert (Baptiste) and a podcaster (Orianne), synthesised
-  locally by [Phonon](https://huggingface.co/gradium/phonon-40m-fr) (`ptts`, CPU) into one WAV.
+  locally by [Phonon](https://huggingface.co/gradium/phonon-40m-fr) (`ptts`, CPU) into one MP3.
   The model weights are **CC BY-NC 4.0** (non-commercial use only) and the Hugging Face repo is
   **gated**: accept its terms and download it once with your own HF token. The model is pinned to
   an audited revision (`podcast_model`) and runs offline afterwards.
@@ -433,12 +437,11 @@ RAG-Bachelor/
     │   ├── rerank.py             # Cross-encoder reranker (BAAI/bge-reranker-v2-m3)
     │   ├── llm.py                # Ollama Cloud + OpenAI providers (provider/model persisted)
     │   ├── qa.py                 # RAG Q&A with French system prompt + citations
-    │   ├── questions.py          # Easy / medium / hard question generation (per-topic)
     │   ├── qtypes.py             # Question types (free/cloze/mcq_single/mcq_multi/tf), JSON parsing
     │   ├── bank.py               # Whole-document question-bank generation + semantic dedup
     │   ├── sheet.py              # Chapter revision sheet (windowed notes → merged Markdown)
     │   ├── mindmap.py            # Chapter mind map (validated JSON tree)
-    │   └── podcast.py            # Two-voice audio lesson (dialogue → Phonon TTS → WAV)
+    │   └── podcast.py            # Two-voice audio lesson (dialogue → Phonon TTS → MP3)
     ├── eval/                     # rag-eval: recall@k / MRR on eval/questions.jsonl
     ├── study/
     │   ├── srs.py                # SM-2 spaced-repetition algorithm

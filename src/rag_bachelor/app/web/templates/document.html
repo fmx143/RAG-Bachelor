@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block content %}
+{% set durl = path | doc_url %}
+<div class="page-header">
+  <span class="eyebrow">{{ kind_labels[kind] }} · {{ pages }} page{{ "s" if pages > 1 }}</span>
+  <h1>{{ path | label }}</h1>
+  <p class="lede-sm doc-path" title="{{ path }}">{{ path }}</p>
+</div>
+
+{% if kind is none %}
+<div class="alert alert-warning">
+  Document à classer : déplace-le dans <strong>{{ subject }}/Livres/</strong> ou <strong>{{ subject }}/Sources/</strong>.
+</div>
+{% endif %}
+
+<nav class="doc-tabs" aria-label="Sections du document">
+  {% for key, label in tabs.items() %}
+  <a href="{{ durl }}?tab={{ key }}"{% if key == tab %} class="on" aria-current="page"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+
+{# Chapter picker filling the page_from / page_to fields of its form (see app.js). #}
+{% macro range_picker(prefix, whole_doc=false) %}
+<div class="range-pick">
+  <div class="form-group">
+    <label for="{{ prefix }}_chapter">Chapitre</label>
+    <select id="{{ prefix }}_chapter" data-chapter-pick>
+      {% if whole_doc %}<option data-from="1" data-to="{{ pages }}" selected>Tout le document (p.1–{{ pages }})</option>{% endif %}
+      {% for c in chapters %}
+      <option data-from="{{ c.page_from }}" data-to="{{ c.page_to }}"{% if loop.first and not whole_doc %} selected{% endif %}>{{ c.title }} (p.{{ c.page_from }}–{{ c.page_to }})</option>
+      {% endfor %}
+      <option data-custom>Pages au choix…</option>
+    </select>
+  </div>
+  {% set first = 1 if whole_doc else chapters[0].page_from %}
+  {% set last = pages if whole_doc else chapters[0].page_to %}
+  <div class="form-group pg"><label for="{{ prefix }}_from">Page de</label>
+    <input type="number" id="{{ prefix }}_from" name="page_from" min="1" max="{{ pages }}" value="{{ first }}" required></div>
+  <div class="form-group pg"><label for="{{ prefix }}_to">à</label>
+    <input type="number" id="{{ prefix }}_to" name="page_to" min="1" max="{{ pages }}" value="{{ last }}" required></div>
+</div>
+{% endmacro %}
+
+{% macro saved_list(base, noun) %}
+<div class="card">
+  <div class="subheader">{{ noun }} enregistrées ({{ items | length }})</div>
+  {% if not items %}<small style="color:var(--muted);">Rien pour l'instant.</small>{% endif %}
+  <div class="o-saved">
+  {% for it in items %}
+  <div class="o-saved-item" style="--h:{{ it.source | hue }}">
+    <a href="/{{ base }}/{{ it.id }}">
+      {% set ch = chapters | selectattr("page_from", "equalto", it.page_from) | selectattr("page_to", "equalto", it.page_to) | first %}
+      <div class="t"><i></i>{{ ch.title if ch else "Pages au choix" }}</div>
+      <div class="m">p.{{ it.page_from }}–{{ it.page_to }} · {{ it.created_at }}</div>
+    </a>
+    <button type="button" hx-post="/{{ base }}/{{ it.id }}/delete" hx-target="closest .o-saved-item" hx-swap="outerHTML" hx-confirm="Supprimer ?" class="x" aria-label="Supprimer">✕</button>
+  </div>
+  {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+{% if tab == "apercu" %}
+<div class="card">
+  <div class="o-between">
+    <div class="subheader" style="margin:0">Chapitres</div>
+    <a class="btn btn-primary btn-sm" href="/revision?source={{ path | url_encode }}">Réviser tout le document</a>
+  </div>
+  <div class="chap-list">
+    {% for st in chapter_stats %}
+    <div class="chap">
+      <div class="chap-main">
+        <div class="chap-title">{{ st.chapter.title }}</div>
+        <div class="chap-meta">p.{{ st.chapter.page_from }}–{{ st.chapter.page_to }} · {{ st.questions }} question{{ "s" if st.questions > 1 }} · {{ st.cards }} carte{{ "s" if st.cards > 1 }}{% if st.due %} · <strong>{{ st.due }} due{{ "s" if st.due > 1 }}</strong>{% endif %}</div>
+        {% if st.mastery_pct is not none %}
+        <div class="chap-bar" role="img" aria-label="Maîtrise {{ st.mastery_pct | int }} %"><span style="width:{{ st.mastery_pct | int }}%"></span></div>
+        {% endif %}
+      </div>
+      <div class="chap-actions">
+        {% if st.questions %}<a class="btn btn-ghost btn-sm" href="/revision?source={{ path | url_encode }}&pages={{ st.chapter.page_from }}-{{ st.chapter.page_to }}">Réviser</a>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if unplaced_cards %}<small style="color:var(--muted);">{{ unplaced_cards }} carte{{ "s" if unplaced_cards > 1 }} de ce document sans chapitre (créées hors de la banque).</small>{% endif %}
+
+  <details class="chap-edit">
+    <summary class="btn btn-ghost btn-sm">Modifier les chapitres</summary>
+    <form method="post" action="/document-chapters">
+      <input type="hidden" name="path" value="{{ path }}">
+      <div class="chap-rows">
+        <div class="chap-row head" aria-hidden="true"><span>Titre</span><span>De</span><span>À</span></div>
+        {% for c in chapters %}
+        <div class="chap-row">
+          <input type="text" name="title" value="{{ c.title }}" aria-label="Titre du chapitre {{ loop.index }}">
+          <input type="number" name="page_from" min="1" max="{{ pages }}" value="{{ c.page_from }}" aria-label="Première page">
+          <input type="number" name="page_to" min="1" max="{{ pages }}" value="{{ c.page_to }}" aria-label="Dernière page">
+        </div>
+        {% endfor %}
+        {% for _ in range(3) %}
+        <div class="chap-row">
+          <input type="text" name="title" placeholder="Nouveau chapitre" aria-label="Titre d'un nouveau chapitre">
+          <input type="number" name="page_from" min="1" max="{{ pages }}" aria-label="Première page">
+          <input type="number" name="page_to" min="1" max="{{ pages }}" aria-label="Dernière page">
+        </div>
+        {% endfor %}
+      </div>
+      <small style="color:var(--muted);">Vide une ligne pour supprimer un chapitre. Les chapitres sont triés par page et ne doivent pas se chevaucher.</small>
+      <div class="chap-btns">
+        <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+        <button type="submit" name="redetect" value="1" class="btn btn-ghost btn-sm" formnovalidate>Redétecter automatiquement</button>
+      </div>
+    </form>
+  </details>
+</div>
+
+{% elif tab == "questions" %}
+<div class="card">
+  <div class="subheader">Générer des questions</div>
+  <form hx-post="/bank/generate" hx-target="#bank-status" hx-swap="innerHTML">
+    <input type="hidden" name="source" value="{{ path }}">
+    {{ range_picker("bank", whole_doc=true) }}
+    <div class="form-group">
+      <label>Type de question</label>
+      <div class="chipgroup" role="radiogroup" aria-label="Type de question">
+        {% for qt in qtypes %}
+        <label class="chip-f"><input type="radio" name="qtype" value="{{ qt }}" {% if qt == "free" %}checked{% endif %}><span>{{ qtype_labels[qt] }}</span></label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="gen_count">Nombre de questions visées : <span id="gen-count-val">{{ default_target }}</span></label>
+      <input type="range" id="gen_count" name="count" min="{{ min_target }}" max="{{ max_target }}" step="5" value="{{ default_target }}" data-output="gen-count-val">
+    </div>
+    <button type="submit" class="btn btn-primary">Générer →</button>
+  </form>
+  <div id="bank-status" class="batch">{% include "partials/bank_status.html" %}</div>
+</div>
+{% set fixed_source = path %}
+{% include "partials/bank_filters.html" %}
+<div id="bank-list">{% include "partials/bank_list.html" %}</div>
+
+{% elif tab == "fiches" %}
+<div class="card">
+  <div class="subheader">Générer une fiche</div>
+  <small style="color:var(--muted);">Résumé de la plage choisie avec citations de pages, {{ max_pages }} pages maximum.</small>
+  <form hx-post="/sheets/generate" hx-target="#sheet-status" hx-swap="innerHTML" class="gen-form">
+    <input type="hidden" name="source" value="{{ path }}">
+    {{ range_picker("sheet") }}
+    <button type="submit" class="btn btn-primary">Générer la fiche →</button>
+  </form>
+  <div id="sheet-status" style="margin-top:.75rem;">{% include "partials/sheet_status.html" %}</div>
+</div>
+{{ saved_list("sheets", "Fiches") }}
+
+{% elif tab == "cartes" %}
+<div class="card">
+  <div class="subheader">Générer une mind map</div>
+  <small style="color:var(--muted);">Plan hiérarchique de la plage choisie, {{ max_pages }} pages maximum.</small>
+  <form hx-post="/maps/generate" hx-target="#map-status" hx-swap="innerHTML" class="gen-form">
+    <input type="hidden" name="source" value="{{ path }}">
+    {{ range_picker("map") }}
+    <button type="submit" class="btn btn-primary">Générer la mind map →</button>
+  </form>
+  <div id="map-status" style="margin-top:.75rem;">{% include "partials/map_status.html" %}</div>
+</div>
+{{ saved_list("maps", "Mind maps") }}
+
+{% elif tab == "audio" %}
+<div class="card">
+  <div class="subheader">Générer une leçon audio</div>
+  <small style="color:var(--muted);">Dialogue à deux voix sur la plage choisie, {{ max_pages }} pages maximum.</small>
+  <form hx-post="/podcasts/generate" hx-target="#podcast-status" hx-swap="innerHTML" class="gen-form">
+    <input type="hidden" name="source" value="{{ path }}">
+    {{ range_picker("podcast") }}
+    <button type="submit" class="btn btn-primary">Générer la leçon →</button>
+  </form>
+  <div id="podcast-status" style="margin-top:.75rem;">{% include "partials/podcast_status.html" %}</div>
+</div>
+{{ saved_list("podcasts", "Leçons audio") }}
+
+{% elif tab == "fichier" %}
+{% if job.running %}
+<div class="alert alert-info" id="file-job" hx-get="{{ durl }}?tab=fichier" hx-select="#file-job" hx-target="this" hx-swap="outerHTML" hx-trigger="every 3s">
+  {% if job.phase == "graph" %}🕸️ Construction du graphe{% else %}🔄 Indexation{% endif %} en cours ({{ job.pct }} %){% if job.current %} · {{ job.current }}{% endif %}. Elle continue si tu quittes la page.
+</div>
+{% endif %}
+<div class="card">
+  <div class="subheader">Index</div>
+  <p class="lede-sm">Relis le PDF (mise en page, découpage, embeddings) après l'avoir remplacé, ou construis son graphe de faits pour améliorer les questions qui croisent plusieurs pages.</p>
+  <div class="chap-btns">
+    <form method="post" action="/docs/file/index"><input type="hidden" name="path" value="{{ path }}"><button type="submit" class="btn btn-ghost btn-sm"{% if job.running %} disabled{% endif %}>Réindexer</button></form>
+    <form method="post" action="/docs/file/graph"><input type="hidden" name="path" value="{{ path }}"><button type="submit" class="btn btn-ghost btn-sm"{% if job.running %} disabled{% endif %}>Construire le graphe</button></form>
+    <a class="btn btn-ghost btn-sm" href="/docs/page.png?path={{ path | url_encode }}&page=1" target="_blank" rel="noopener">Voir la 1ʳᵉ page</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="subheader">Classer ou renommer</div>
+  <form method="post" action="/docs/file/move" class="gen-form">
+    <input type="hidden" name="path" value="{{ path }}">
+    <div class="form-group" style="margin-bottom:0">
+      <label>Type</label>
+      <div class="chipgroup" role="radiogroup" aria-label="Type de document">
+        <label class="chip-f"><input type="radio" name="kind" value="livre" {% if kind != "source" %}checked{% endif %}><span>Livre</span></label>
+        <label class="chip-f"><input type="radio" name="kind" value="source" {% if kind == "source" %}checked{% endif %}><span>Source</span></label>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:0;flex:1 1 200px">
+      <label for="move_folder">Sous-dossier <span style="color:var(--muted);">(optionnel)</span></label>
+      <input type="text" id="move_folder" name="folder" value="{{ file_folder }}" placeholder="ex. Semestre 3">
+    </div>
+    <div class="form-group" style="margin-bottom:0;flex:1 1 240px">
+      <label for="move_name">Nom du fichier</label>
+      <input type="text" id="move_name" name="name" value="{{ file_name }}" required>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Déplacer</button>
+  </form>
+  <small style="color:var(--muted);">Questions, fiches, mind maps, audio et cartes suivent le document.</small>
+</div>
+
+<div class="card">
+  <div class="subheader">Supprimer</div>
+  <details>
+    <summary class="btn btn-danger btn-sm">Supprimer ce document…</summary>
+    <form method="post" action="/docs/file/delete" style="margin-top:12px">
+      <input type="hidden" name="path" value="{{ path }}">
+      <p class="lede-sm">Le PDF, son index et son graphe sont supprimés. Les questions, fiches, mind maps et leçons audio restent en base mais ne seront plus rattachées à un document.</p>
+      <button type="submit" class="btn btn-danger btn-sm">Confirmer la suppression</button>
+    </form>
+  </details>
+</div>
+{% endif %}
+{% endblock %}

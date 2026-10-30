@@ -20,7 +20,7 @@
 </div>
 
 <div class="no-print mm-bar">
-  <a href="/maps" class="btn btn-ghost btn-sm">← Cartes</a>
+  <a href="{{ map.source | doc_url }}?tab=cartes" class="btn btn-ghost btn-sm">← {{ map.source | label }}</a>
   <button type="button" class="btn btn-ghost btn-sm" data-mm-all="open">Tout déplier</button>
   <button type="button" class="btn btn-ghost btn-sm" data-mm-all="close">Tout replier</button>
   <span class="zoom"><button type="button" data-mm-zoom="-0.1" aria-label="Dézoomer">−</button><span data-mm-pct>100 %</span><button type="button" data-mm-zoom="0.1" aria-label="Zoomer">+</button></span>

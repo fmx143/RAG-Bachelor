@@ -1,7 +1,8 @@
 """🔄 Revision routes — stateless SM-2 flashcard session.
 
 Each GET /revision shows the next due card from the database, optionally
-scoped to a source/difficulty/type filter. When nothing due matches the
+scoped to a source/difficulty/type filter, and to a page range of that source
+(a chapter: ``pages=12-30``, matched on the first page of the card's bank question). When nothing due matches the
 filter, the next matching question is pulled straight from the bank
 (materialized into a card first — see study.store.materialize_bank_question)
 so the bank behaves as an infinite filtered backlog rather than requiring a
@@ -25,6 +26,7 @@ from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.core.qtypes import DIFFICULTIES, QTYPE_LABELS, QTYPES, score_selection
 from rag_bachelor.study.srs import Card, update_card
 from rag_bachelor.study.store import (
+    bank_card_pages,
     bank_sources,
     get_card,
     get_due_cards,
@@ -66,7 +68,15 @@ def _counts() -> dict[str, int]:
     }
 
 
-def _next_card(source: str, difficulty: str, qtype: str) -> Card | None:
+def _page_range(pages: str) -> tuple[int, int] | None:
+    """``"12-30"`` → ``(12, 30)``; anything else → None (no page filter)."""
+    lo, sep, hi = pages.partition("-")
+    if not (sep and lo.isdigit() and hi.isdigit()) or int(lo) > int(hi):
+        return None
+    return int(lo), int(hi)
+
+
+def _next_card(source: str, difficulty: str, qtype: str, pages: str = "") -> Card | None:
     """Return the next card matching the filter: a due card first, else the
     next un-decked bank question for the same filter (materialized on the
     spot), else None.
@@ -74,23 +84,39 @@ def _next_card(source: str, difficulty: str, qtype: str) -> Card | None:
     src = source or None
     diff = difficulty if difficulty in DIFFICULTIES else None
     qt = qtype if qtype in QTYPES else None
+    span = _page_range(pages) if src else None
 
+    def in_span(page: int) -> bool:
+        return span is None or span[0] <= page <= span[1]
+
+    ids = [cid for cid, p in bank_card_pages(src).items() if in_span(p)] if src and span else None
     subject = active_subject()
-    due = get_due_cards(limit=1, source=src, difficulty=diff, qtype=qt, subject=subject)
+    due = get_due_cards(
+        limit=1, source=src, difficulty=diff, qtype=qt, subject=subject, card_ids=ids
+    )
     if due:
         return due[0]
 
     backlog = list_bank_questions(
-        source=src, difficulty=diff, qtype=qt, deck="out", order_asc=True, limit=1, subject=subject
+        source=src,
+        difficulty=diff,
+        qtype=qt,
+        deck="out",
+        order_asc=True,
+        limit=1 if span is None else 100_000,
+        subject=subject,
     )
-    if not backlog:
+    nxt = next((q for q in backlog if q.pages and in_span(min(q.pages))), None)
+    if nxt is None:
         return None
-    card_id = materialize_bank_question(backlog[0])
+    card_id = materialize_bank_question(nxt)
     return get_card(card_id)
 
 
-def _filter_ctx(source: str, difficulty: str, qtype: str) -> dict[str, object]:
+def _filter_ctx(source: str, difficulty: str, qtype: str, pages: str = "") -> dict[str, object]:
+    span = _page_range(pages) if source else None
     return {
+        "filter_pages": f"{span[0]}-{span[1]}" if span else "",
         "sources": bank_sources(active_subject()) or active_sources(),
         "difficulties": DIFFICULTIES,
         "qtypes": QTYPES,
@@ -103,10 +129,10 @@ def _filter_ctx(source: str, difficulty: str, qtype: str) -> dict[str, object]:
 
 @router.get("/revision", response_class=HTMLResponse)
 async def revision_page(
-    request: Request, source: str = "", difficulty: str = "", qtype: str = ""
+    request: Request, source: str = "", difficulty: str = "", qtype: str = "", pages: str = ""
 ) -> Response:
     def _sync() -> tuple[Card | None, dict[str, int]]:
-        return _next_card(source, difficulty, qtype), _counts()
+        return _next_card(source, difficulty, qtype, pages), _counts()
 
     card, counts = await asyncio.to_thread(_sync)
     ctx: dict[str, object] = {
@@ -114,7 +140,7 @@ async def revision_page(
         "active_tab": "revision",
         "card": card,
         **counts,
-        **_filter_ctx(source, difficulty, qtype),
+        **_filter_ctx(source, difficulty, qtype, pages),
         **sidebar_ctx(),
     }
     return templates.TemplateResponse(request, "revision.html", ctx)
@@ -122,19 +148,19 @@ async def revision_page(
 
 @router.get("/revision/next", response_class=HTMLResponse)
 async def next_card(
-    request: Request, source: str = "", difficulty: str = "", qtype: str = ""
+    request: Request, source: str = "", difficulty: str = "", qtype: str = "", pages: str = ""
 ) -> Response:
     """Return the next matching card's partial (used by "Suivant" and the filter form)."""
 
     def _sync() -> tuple[Card | None, dict[str, int]]:
-        return _next_card(source, difficulty, qtype), _counts()
+        return _next_card(source, difficulty, qtype, pages), _counts()
 
     card, counts = await asyncio.to_thread(_sync)
     ctx: dict[str, object] = {
         "request": request,
         "card": card,
         **counts,
-        **_filter_ctx(source, difficulty, qtype),
+        **_filter_ctx(source, difficulty, qtype, pages),
     }
     return templates.TemplateResponse(request, "partials/revision_card.html", ctx)
 
@@ -147,6 +173,7 @@ async def answer_card(
     source: Annotated[str, Form()] = "",
     difficulty: Annotated[str, Form()] = "",
     qtype: Annotated[str, Form()] = "",
+    pages: Annotated[str, Form()] = "",
 ) -> Response:
     """Auto-grade a structured (QCM/Vrai-Faux) card — no LLM call.
 
@@ -158,7 +185,7 @@ async def answer_card(
     card = await asyncio.to_thread(get_card, card_id)
     if card is None or card.correct is None:
         next_c, counts = await asyncio.to_thread(
-            lambda: (_next_card(source, difficulty, qtype), _counts())
+            lambda: (_next_card(source, difficulty, qtype, pages), _counts())
         )
         return templates.TemplateResponse(
             request,
@@ -167,7 +194,7 @@ async def answer_card(
                 "request": request,
                 "card": next_c,
                 **counts,
-                **_filter_ctx(source, difficulty, qtype),
+                **_filter_ctx(source, difficulty, qtype, pages),
             },
         )
 
@@ -190,7 +217,7 @@ async def answer_card(
         "is_correct": is_correct,
         "is_partial": is_partial,
         **counts,
-        **_filter_ctx(source, difficulty, qtype),
+        **_filter_ctx(source, difficulty, qtype, pages),
     }
     return templates.TemplateResponse(request, "partials/revision_feedback.html", ctx)
 
@@ -203,6 +230,7 @@ async def grade_card(
     source: Annotated[str, Form()] = "",
     difficulty: Annotated[str, Form()] = "",
     qtype: Annotated[str, Form()] = "",
+    pages: Annotated[str, Form()] = "",
 ) -> Response:
     """Grade a card and return the next-card partial (swapped into #revision-content)."""
     if grade not in _VALID_GRADES:
@@ -213,7 +241,7 @@ async def grade_card(
         if card is not None:
             updated = update_card(card, grade)
             save_review(updated, grade)
-        return _next_card(source, difficulty, qtype), _counts()
+        return _next_card(source, difficulty, qtype, pages), _counts()
 
     next_c, counts = await asyncio.to_thread(_sync)
 
@@ -221,6 +249,6 @@ async def grade_card(
         "request": request,
         "card": next_c,
         **counts,
-        **_filter_ctx(source, difficulty, qtype),
+        **_filter_ctx(source, difficulty, qtype, pages),
     }
     return templates.TemplateResponse(request, "partials/revision_card.html", ctx)

@@ -1,18 +1,4 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="page-header">
-  <span class="eyebrow">Questions enregistrées</span>
-  <h1>La <em>banque</em></h1>
-  <p class="lede">Toutes les questions générées sur tes documents. Réponds-y ici ou ajoute-les à la révision.</p>
-</div>
-
-{% if not sources %}
-<div class="alert alert-warning">
-  Aucun document indexé. Indexe d'abord tes cours dans
-  <a href="/docs">Sources</a>.
-</div>
-{% endif %}
-
+{# Bank filter bar of the document page's Questions tab, fixed to that document (fixed_source). #}
 <form
   id="bank-filter-form"
   hx-get="/bank/list" hx-trigger="change, keyup changed delay:400ms from:#filter_search"
@@ -23,16 +9,10 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5"/></svg>
       <input type="search" id="filter_search" name="search" value="{{ filter_search }}" placeholder="Rechercher dans les questions…" aria-label="Rechercher">
     </label>
-    <a class="o-btn-acc" href="/generate">+ Générer</a>
   </div>
 
   <div class="chipbar">
-    <div class="chipgroup" role="radiogroup" aria-label="Document">
-      <label class="chip-f dotchip"><input type="radio" name="source" value="" {% if not filter_source %}checked{% endif %}><span>Tous les documents</span></label>
-      {% for s in sources %}
-      <label class="chip-f dotchip" style="--h:{{ s | hue }}" title="{{ s }}"><input type="radio" name="source" value="{{ s }}" {% if s == filter_source %}checked{% endif %}><span><i></i>{{ s | label }}</span></label>
-      {% endfor %}
-    </div>
+    <input type="hidden" name="source" value="{{ fixed_source }}">
     <div class="chipgroup" role="radiogroup" aria-label="Type de question">
       <label class="chip-f sm"><input type="radio" name="qtype" value="" {% if not filter_qtype %}checked{% endif %}><span>Tous types</span></label>
       {% for qt in qtypes %}
@@ -69,8 +49,3 @@
     </div>
   </div>
 </form>
-
-<div id="bank-list">
-  {% include "partials/bank_list.html" %}
-</div>
-{% endblock %}

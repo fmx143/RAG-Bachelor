@@ -16,7 +16,7 @@ from markupsafe import Markup
 from rag_bachelor.core.llm import active_model, get_provider
 from rag_bachelor.core.qtypes import SELF_GRADED
 from rag_bachelor.study.store import get_due_cards
-from rag_bachelor.study.subjects import active_subject, list_subjects
+from rag_bachelor.study.subjects import active_subject, doc_kind, list_subjects
 
 _HERE = Path(__file__).parent
 templates = Jinja2Templates(directory=str(_HERE / "templates"))
@@ -62,6 +62,11 @@ def _url_encode_filter(value: str) -> str:
     return quote(value, safe="")
 
 
+def _doc_url_filter(path: str) -> str:
+    """URL of a document's page (books and sources alike)."""
+    return "/document/" + quote(path, safe="/")
+
+
 def asset_url(path: str) -> str:
     """Return a /static URL stamped with the file's mtime so browsers never
     serve a stale cached copy after the file changes on disk."""
@@ -94,10 +99,16 @@ templates.env.filters["md_cite"] = _md_cite_filter
 templates.env.filters["hue"] = _hue_filter
 templates.env.filters["label"] = _label_filter
 templates.env.filters["url_encode"] = _url_encode_filter
+templates.env.filters["doc_url"] = _doc_url_filter
 templates.env.globals["asset_url"] = asset_url
 templates.env.globals["cos"] = math.cos
 templates.env.globals["sin"] = math.sin
 templates.env.globals["self_graded"] = SELF_GRADED
+
+
+def nav_tab(path: str) -> str:
+    """Sidebar entry a document's pages belong to: Mes sources for sources, else Livres."""
+    return "sources" if doc_kind(path) == "source" else "books"
 
 
 def sidebar_ctx() -> dict[str, object]:

@@ -5,6 +5,23 @@ document.addEventListener("input", (e) => {
   if (out) document.getElementById(out).textContent = e.target.value;
 });
 
+// Chapter pickers (document page): choosing a chapter fills its form's page range;
+// typing a page switches the picker to "Pages au choix…".
+document.addEventListener("change", (e) => {
+  const pick = e.target.closest && e.target.closest("[data-chapter-pick]");
+  if (!pick) return;
+  const opt = pick.selectedOptions[0];
+  if (!opt || opt.hasAttribute("data-custom")) return;
+  pick.form.elements.page_from.value = opt.dataset.from;
+  pick.form.elements.page_to.value = opt.dataset.to;
+});
+document.addEventListener("input", (e) => {
+  const form = e.target.form;
+  const pick = form && form.querySelector("[data-chapter-pick]");
+  if (!pick || !["page_from", "page_to"].includes(e.target.name)) return;
+  pick.value = pick.querySelector("[data-custom]").value;
+});
+
 // Document upload: one XHR per file (relative path kept), so no request grows past one PDF.
 // Sequential on purpose: the server hashes, moves and queues each file before the next arrives.
 // Picking files or a folder first shows a checklist: import and index, per file or per folder.
@@ -137,7 +154,9 @@ document.addEventListener("input", (e) => {
       return;
     }
     // Subject first, then the optional folders typed in the destination field.
-    const base = [btn.dataset.subject, ...dest.value.split("/").map((s) => s.trim()).filter(Boolean)].join("/");
+    const kind = document.querySelector('input[name="import-kind"]:checked');
+    const folders = dest.value.split("/").map((s) => s.trim()).filter(Boolean);
+    const base = [btn.dataset.subject, ...(kind ? [kind.value] : []), ...folders].join("/");
     btn.disabled = true;
     log.replaceChildren();
     bar.max = todo.length;
@@ -263,10 +282,25 @@ document.querySelectorAll("[data-player]").forEach((box) => {
   box.querySelector("[data-play]").addEventListener("click", () => (au.paused ? au.play() : au.pause()));
   au.addEventListener("play", () => icon.setAttribute("d", "M6 5h4v14H6zM14 5h4v14h-4z"));
   au.addEventListener("pause", () => icon.setAttribute("d", "M8 5v14l11-7z"));
+  // Transcript lines: a click seeks to the line, playback highlights the current one.
+  const lines = [...document.querySelectorAll("[data-line]")];
+  let current = null;
+  lines.forEach((l) => l.addEventListener("click", () => {
+    au.currentTime = parseFloat(l.dataset.start) || 0;
+    au.play();
+  }));
   au.addEventListener("timeupdate", () => {
     box.querySelector("[data-cur]").textContent = fmt(au.currentTime);
     const k = au.duration ? Math.round((au.currentTime / au.duration) * bars.length) : 0;
     bars.forEach((b, i) => b.classList.toggle("on", i < k));
+    const line = lines.findLast((l) => parseFloat(l.dataset.start) <= au.currentTime + 0.05) || null;
+    if (line === current) return;
+    if (current) current.classList.remove("on");
+    current = line;
+    if (line) {
+      line.classList.add("on");
+      if (!au.paused) line.scrollIntoView({ block: "nearest" });
+    }
   });
   box.querySelector("[data-wave]").addEventListener("click", (e) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -330,3 +364,26 @@ document.querySelectorAll("[data-kmap]").forEach((box) => {
   });
   chips.forEach((c) => c.addEventListener("click", () => show(+c.dataset.focus)));
 });
+
+// Phone menu: the sidebar slides in as a drawer (button, backdrop, Escape or a link close it).
+(() => {
+  const btn = document.querySelector(".menu-btn");
+  const backdrop = document.querySelector(".menu-backdrop");
+  if (!btn || !backdrop) return;
+  const set = (open) => {
+    document.body.classList.toggle("menu-open", open);
+    btn.setAttribute("aria-expanded", String(open));
+    btn.setAttribute("aria-label", open ? "Fermer le menu" : "Ouvrir le menu");
+    backdrop.hidden = !open;
+  };
+  document.querySelectorAll("[data-menu-toggle]").forEach((el) =>
+    el.addEventListener("click", () => set(!document.body.classList.contains("menu-open")))
+  );
+  document.querySelectorAll("#sidenav a").forEach((a) => a.addEventListener("click", () => set(false)));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && document.body.classList.contains("menu-open")) {
+      set(false);
+      btn.focus();
+    }
+  });
+})();

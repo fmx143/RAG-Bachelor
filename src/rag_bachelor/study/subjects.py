@@ -7,11 +7,23 @@ from rag_bachelor.ingest.index import list_sources
 from rag_bachelor.study.store import get_setting, set_setting
 
 DEFAULT_SUBJECT = "Bachelor"
+BOOKS_DIR = "Livres"  # <subject>/Livres/… holds course books
+SOURCES_DIR = "Sources"  # <subject>/Sources/… holds other documents (notes, articles…)
 
 
 def subject_of(path: str) -> str:
     """The subject a document path (or card topic) belongs to: its first segment."""
     return path.split("/", 1)[0]
+
+
+def doc_kind(path: str) -> str | None:
+    """``"livre"`` / ``"source"`` from the document's folder, ``None`` while it is unsorted."""
+    parts = path.split("/")
+    if len(parts) >= 3 and parts[1] == BOOKS_DIR:
+        return "livre"
+    if len(parts) >= 3 and parts[1] == SOURCES_DIR:
+        return "source"
+    return None
 
 
 def list_subjects() -> list[str]:
