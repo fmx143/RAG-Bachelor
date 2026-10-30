@@ -58,7 +58,8 @@
 
 body {
   font-family: var(--sans);
-  background: var(--bg);
+  background: radial-gradient(70% 55% at 80% -10%, oklch(0.45 0.12 262 / .28), transparent 60%), radial-gradient(45% 40% at 0% 105%, oklch(0.5 0.12 78 / .10), transparent 60%), var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   line-height: 1.6;
   overflow-wrap: break-word;
@@ -322,7 +323,8 @@ progress::-moz-progress-bar      { background: var(--primary); }
 /* ── Flashcard (revision) ────────────────────────────────────────────────── */
 
 /* flashcard: see Revision */
-.flashcard { position: relative; isolation: isolate; background: var(--bg);
+.flashcard { position: relative; background: var(--bg); box-shadow: 0 30px 70px rgba(0,0,0,.35);
+  background-image: linear-gradient(160deg, oklch(0.79 0.13 var(--h, 78) / .12), transparent 45%);
   border: 1px solid var(--hair); border-radius: 30px; padding: 34px 38px; min-height: 340px; margin-bottom: 26px; }
 .flashcard::before, .flashcard::after { content: ""; position: absolute; z-index: -1; border-radius: 30px; background: var(--card); border: 1px solid var(--hair); }
 .flashcard::before { left: 14px; right: 14px; top: 10px; bottom: -10px; opacity: .8; }
@@ -602,6 +604,17 @@ blockquote { border-left: 0 !important; background: var(--card); border-radius: 
 .filters .form-group { flex: 1 1 180px; margin: 0; }
 .pinfo { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--dim); font-weight: 700; }
 .pinfo span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.revwrap #revision-content { position: relative; isolation: isolate; }
+.rstats { display: flex; justify-content: flex-end; gap: 8px; margin: -6px 0 14px; font: 500 12px var(--mono); }
+.rstats span { padding: 5px 12px; border-radius: 999px; border: 1px solid; }
+.rstats .ok { color: var(--ok); border-color: oklch(0.79 0.13 165 / .4); }
+.rstats .ko { color: var(--bad); border-color: oklch(0.72 0.15 22 / .45); }
+.pdoc { display: flex; align-items: center; gap: 6px; }
+.pdoc i { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.segs { display: flex; gap: 3px; margin: 12px 0 26px; }
+.segs span { flex: 1; height: 4px; border-radius: 9px; background: var(--hair); transition: background .3s; }
+.segs .ok { background: var(--ok); } .segs .ko { background: var(--bad); } .segs .cur { background: var(--accent); }
+.ftag.doc { color: oklch(0.79 0.13 var(--h, 78)); background: oklch(0.79 0.13 var(--h, 78) / .12); }
 .track { height: 4px; border-radius: 99px; background: var(--hair); overflow: hidden; margin: 12px 0 26px; }
 .track > div { height: 100%; background: var(--accent); border-radius: 99px; }
 .ftags { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
@@ -932,7 +945,7 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .o-graph .gnode { cursor: pointer; outline: none; }
 .o-graph .gnode:hover .node, .o-graph .gnode:focus-visible .node, .o-graph .gnode.on .node { fill-opacity: .6; stroke-width: 3; }
 .o-graph .gnode:focus-visible .node { stroke: var(--text); }
-.o-graph .xlink { stroke: var(--blue); stroke-opacity: .28; stroke-linecap: round; transition: stroke-opacity .2s; }
+.o-graph .xlink { fill: none; stroke: var(--accent); stroke-opacity: .55; stroke-dasharray: 3 5; stroke-linecap: round; transition: stroke-opacity .2s; }
 .o-graph .xlink.hot { stroke-opacity: .9; }
 .o-graph.focus .gnode:not(.on) { opacity: .45; }
 .o-chip { background: none; color: var(--text-2); font: 600 12px var(--sans); cursor: pointer; }

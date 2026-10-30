@@ -14,7 +14,7 @@
 {% endmacro %}
 
 {% macro doc_row(d) %}
-<div class="file-row" style="--h:{{ d.name | hue }}">
+<div class="file-row" style="--h:{{ d.path | hue }}">
   <span class="pdf">PDF</span>
   <span class="file-name">{{ d.name }}</span>
   <span class="badge {% if d.indexed %}badge-green{% else %}badge-yellow{% endif %}">{% if d.indexed %}Indexé{% else %}Non indexé{% endif %}</span>

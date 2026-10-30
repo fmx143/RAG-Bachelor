@@ -1,4 +1,5 @@
-{# Session header: "Carte n / N" and the progress track. `current` = 1-based index of the card shown. #}
+{# Session header: counters, "Carte n / N" and one segment per card. `current` = 1-based index of the card shown. #}
 {% set total = [done_today + due_count, current, 1] | max %}
-<div class="pinfo"><span>Carte {{ current }} / {{ total }}</span><span>{{ card.topic.rsplit('/', 1)[-1] }}</span></div>
-<div class="track"><div style="width:{{ (current - 1) * 100 / total }}%"></div></div>
+<div class="rstats"><span class="ok">{{ ok_today }} réussies</span><span class="ko">{{ done_today - ok_today }} ratées</span></div>
+<div class="pinfo"><span>Carte {{ current }} / {{ total }}</span><span class="pdoc">{% if hues[card.topic] is defined %}<i style="background:oklch(0.79 0.13 {{ hues[card.topic] }})"></i>{% endif %}{{ card.topic.rsplit('/', 1)[-1] }}</span></div>
+<div class="segs">{% for i in range(1, total + 1) %}<span class="{{ 'ok' if i <= ok_today else 'ko' if i <= done_today else 'cur' if i == current else '' }}"></span>{% endfor %}</div>

@@ -9,8 +9,9 @@
 {% set current = done_today + 1 %}
 {% include "partials/revision_head.html" %}
 
-<div class="flashcard">
+<div class="flashcard"{% if hues[card.topic] is defined %} style="--h:{{ hues[card.topic] }}"{% endif %}>
   <div class="ftags">
+    <span class="ftag doc">{{ card.topic | label }}</span>
     <span class="ftag" data-t="{{ card.qtype }}">{{ qtype_labels.get(card.qtype, card.qtype) }}</span>
     <span class="ftag dim">{{ card.difficulty | capitalize }}</span>
   </div>

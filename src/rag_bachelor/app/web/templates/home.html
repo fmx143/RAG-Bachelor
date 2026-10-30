@@ -62,7 +62,7 @@
     <div class="o-lab sect">À retravailler</div>
     <div class="o-card o-list">
       {% for t in weak %}
-      <a href="/revision?source={{ t.topic | url_encode }}" class="o-weak" style="--h:{{ t.topic | hue }}">
+      <a href="/revision?source={{ t.topic | url_encode }}" class="o-weak" style="--h:{{ hues[t.topic] }}">
         <span class="pct">{{ t.mastery_pct | int }}</span>
         <div class="mid"><div class="nm">{{ t.topic | label }}</div><div class="o-bar"><i style="width:{{ t.mastery_pct | int }}%"></i></div></div>
         <span class="due">{{ t.due_cards }} à réviser</span><span class="chev">›</span>
@@ -83,19 +83,20 @@
       <div class="o-mono">{{ n_docs }} document{{ "s" if n_docs != 1 }} · {{ graph.total_facts }} faits extraits · {{ graph.links | length }} lien{{ "s" if graph.links | length != 1 }} entre documents</div>
     </div>
     <div class="o-chips">
-      {% for nd in graph.nodes %}<button type="button" class="o-chip" style="--h:{{ nd.t.topic | hue }}" data-focus="{{ loop.index0 }}"><i class="dot"></i>{{ nd.t.topic | label }}</button>{% endfor %}
+      {% for nd in graph.nodes %}<button type="button" class="o-chip" style="--h:{{ nd.h }}" data-focus="{{ loop.index0 }}"><i class="dot"></i>{{ nd.t.topic | label }}</button>{% endfor %}
     </div>
   </div>
   <svg class="o-graph" viewBox="0 0 760 300" role="img" aria-label="Carte du savoir">
     {% for nd in graph.nodes %}
-    <line x1="380" y1="150" x2="{{ nd.x | round(1) }}" y2="{{ nd.y | round(1) }}" class="spoke" style="--h:{{ nd.t.topic | hue }}"/>
+    <line x1="380" y1="150" x2="{{ nd.x | round(1) }}" y2="{{ nd.y | round(1) }}" class="spoke" style="--h:{{ nd.h }}"/>
     {% endfor %}
     {% for i, j, k in graph.links %}
-    <line x1="{{ graph.nodes[i].x | round(1) }}" y1="{{ graph.nodes[i].y | round(1) }}" x2="{{ graph.nodes[j].x | round(1) }}" y2="{{ graph.nodes[j].y | round(1) }}" class="xlink" data-a="{{ i }}" data-b="{{ j }}" style="stroke-width:{{ [1, 0.6 + k / 4] | max | round(1) if k < 20 else 5 }}"><title>{{ k }} notion(s) en commun</title></line>
+    {% set a = graph.nodes[i] %}{% set b = graph.nodes[j] %}
+    <path d="M{{ a.x | round(1) }} {{ a.y | round(1) }} Q{{ ((a.x + b.x) / 2 + (380 - (a.x + b.x) / 2) * 0.35) | round(1) }} {{ ((a.y + b.y) / 2 + (150 - (a.y + b.y) / 2) * 0.35) | round(1) }} {{ b.x | round(1) }} {{ b.y | round(1) }}" class="xlink" data-a="{{ i }}" data-b="{{ j }}" style="stroke-width:{{ [1.3, 0.6 + k / 4] | max | round(1) if k < 20 else 5 }}"><title>{{ k }} notion(s) en commun</title></path>
     {% endfor %}
     {% for nd in graph.nodes %}
     {% set t = nd.t %}
-    <g class="gnode" tabindex="0" role="button" aria-label="{{ t.topic | label }}" style="--h:{{ t.topic | hue }}" data-i="{{ loop.index0 }}"
+    <g class="gnode" tabindex="0" role="button" aria-label="{{ t.topic | label }}" style="--h:{{ nd.h }}" data-i="{{ loop.index0 }}"
        data-name="{{ t.topic | label }}" data-file="{{ t.topic }}" data-mastery="{{ t.mastery_pct | int }}" data-href="/revision?source={{ t.topic | url_encode }}"
        data-meta="{{ t.total_cards }} cartes · {{ t.due_cards }} à réviser{% if nd.facts %} · {{ nd.facts }} faits{% endif %}">
       <circle cx="{{ nd.x | round(1) }}" cy="{{ nd.y | round(1) }}" r="{{ nd.r | round(1) }}" class="node" fill-opacity="{{ 0.15 + t.mastery_pct / 140 }}"/>
