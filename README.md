@@ -385,7 +385,7 @@ builds the result with a progress bar and cancel button, then saves it for later
   validated against the range. *Imprimer / PDF* prints only the sheet.
 - **Cartes** — mind map as nested collapsible lists (depth and width are bounded by code).
 - **Audio** — a dialogue between an expert (Baptiste) and a podcaster (Orianne), synthesised
-  locally by [Phonon](https://huggingface.co/gradium/phonon-40m-fr) (`ptts`, CPU) into one WAV.
+  locally by [Phonon](https://huggingface.co/gradium/phonon-40m-fr) (`ptts`, CPU) into one MP3.
   The model weights are **CC BY-NC 4.0** (non-commercial use only) and the Hugging Face repo is
   **gated**: accept its terms and download it once with your own HF token. The model is pinned to
   an audited revision (`podcast_model`) and runs offline afterwards.
@@ -438,7 +438,7 @@ RAG-Bachelor/
     │   ├── bank.py               # Whole-document question-bank generation + semantic dedup
     │   ├── sheet.py              # Chapter revision sheet (windowed notes → merged Markdown)
     │   ├── mindmap.py            # Chapter mind map (validated JSON tree)
-    │   └── podcast.py            # Two-voice audio lesson (dialogue → Phonon TTS → WAV)
+    │   └── podcast.py            # Two-voice audio lesson (dialogue → Phonon TTS → MP3)
     ├── eval/                     # rag-eval: recall@k / MRR on eval/questions.jsonl
     ├── study/
     │   ├── srs.py                # SM-2 spaced-repetition algorithm

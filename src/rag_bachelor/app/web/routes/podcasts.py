@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
-from rag_bachelor.core.podcast import generate_podcast, line_starts
+from rag_bachelor.core.podcast import audio_mime, generate_podcast, line_starts
 from rag_bachelor.study.store import (
     delete_podcast,
     get_podcast,
@@ -26,7 +26,7 @@ from rag_bachelor.study.subjects import active_sources, active_subject
 
 router = APIRouter()
 
-_MAX_PAGES = 40  # bounds LLM calls, TTS time (CPU) and the stored audio size (~3 MB/min)
+_MAX_PAGES = 40  # bounds LLM calls, TTS time (CPU) and the stored audio size (~0.5 MB/min)
 _RANGE = re.compile(r"bytes=(\d*)-(\d*)")
 
 # Single in-process generation job, same pattern as routes/bank.py.
@@ -188,12 +188,15 @@ def _byte_range(header: str | None, size: int) -> tuple[int, int] | None:
     return start, end
 
 
-@router.get("/podcasts/{podcast_id}/audio.wav")
+@router.get("/podcasts/{podcast_id}/audio")
+@router.get("/podcasts/{podcast_id}/audio.wav")  # links from before MP3 storage
 async def podcast_audio(request: Request, podcast_id: int) -> Response:
-    """Serve the WAV with byte-range support: Safari needs it to play, Chrome to seek."""
+    """Serve the audio with byte-range support: Safari needs it to play, Chrome to seek."""
     size = await asyncio.to_thread(get_podcast_audio_size, podcast_id)
-    if size is None:
+    head = await asyncio.to_thread(get_podcast_audio_slice, podcast_id, 0, 4)
+    if size is None or head is None:
         return Response(status_code=404)
+    mime = audio_mime(head)
     headers = {"Accept-Ranges": "bytes"}
     try:
         span = _byte_range(request.headers.get("range"), size)
@@ -205,9 +208,9 @@ async def podcast_audio(request: Request, podcast_id: int) -> Response:
     if body is None:  # deleted in between
         return Response(status_code=404)
     if span is None:
-        return Response(content=body, media_type="audio/wav", headers=headers)
+        return Response(content=body, media_type=mime, headers=headers)
     headers["Content-Range"] = f"bytes {start}-{end}/{size}"
-    return Response(content=body, status_code=206, media_type="audio/wav", headers=headers)
+    return Response(content=body, status_code=206, media_type=mime, headers=headers)
 
 
 @router.post("/podcasts/{podcast_id}/delete", response_class=HTMLResponse)

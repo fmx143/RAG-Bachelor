@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     podcast_quant: str = "q8"
     podcast_voice_a: str = "Baptiste"  # the expert who answers
     podcast_voice_b: str = "Orianne"  # the podcaster who leads and asks
+    podcast_bitrate: int = 64  # kb/s, constant-bitrate mono MP3 (~0.5 MB/min)
 
     # ── Ollama Cloud ──────────────────────────────────────────────────────
     # Same SecretStr rule as the OpenAI key: only read at client construction.
