@@ -8,7 +8,9 @@ Local-first RAG study assistant for French bachelor PDFs.
 - LLM: Ollama Cloud (`OLLAMA_API_KEY`, ollama.com) or OpenAI — provider and model per provider are
   chosen in ⚙️ Paramètres (persisted); `DEFAULT_LLM_PROVIDER` is only the startup default. No local Ollama.
 - Embeddings: always local (bge-m3) regardless of LLM provider
-- UI: FastAPI + HTMX, 10 tabs (docs, ask, revision, generate, bank, sheets, maps, podcasts, progress, settings)
+- UI: FastAPI + HTMX. Sidebar: Accueil, Livres, Réviser, Statistiques, Poser une question, Mes sources, Paramètres.
+  Everything made from a PDF (questions, sheets, mind maps, audio, per-chapter stats) lives on its document page;
+  the old list pages (/bank, /generate, /sheets, /maps, /podcasts) redirect to /livres
 - Study tracking: SM-2 spaced repetition, persisted to SQLite (local dev) or PostgreSQL
   (`POSTGRES_HOST` set — isolated data-tier container on the NAS)
 - Vector index: ChromaDB, embedded `PersistentClient` (local dev) or standalone server via
@@ -25,17 +27,21 @@ Local-first RAG study assistant for French bachelor PDFs.
 | `src/rag_bachelor/core/bank.py` | Whole-document question-bank generation, windowed LLM calls, semantic near-duplicate filtering |
 | `src/rag_bachelor/core/sheet.py` | Chapter revision sheet (doc + page range): windowed notes → merged Markdown, `[p.N]` citations validated against the range; stored in `revision_sheets` |
 | `src/rag_bachelor/core/mindmap.py` | Chapter mind map (doc + page range): windowed outlines → one validated JSON tree (depth/width bounded), rendered as nested `<details>`; stored in `mind_maps` |
-| `src/rag_bachelor/core/podcast.py` | Two-voice audio lesson (doc + page range): windowed JSON dialogue → local Phonon TTS (`ptts`, weights CC BY-NC) → one WAV stored in `podcasts` (BYTEA/BLOB); voices/model in `settings.podcast_*` |
+| `src/rag_bachelor/core/chapters.py` | Book chapters (page ranges): detected once from PDF bookmarks, else numbered headings ("Chapitre N", "N Titre" in 1,2,3… order), else whole book; stored in `chapters`, user-editable. A deck card's chapter = first page of its bank question (`store.bank_card_pages`) |
+| `src/rag_bachelor/core/podcast.py` | Two-voice audio lesson (doc + page range): windowed JSON dialogue → local Phonon TTS (`ptts`, weights CC BY-NC) → one constant-bitrate MP3 (`lameenc`; older rows are WAV) stored in `podcasts` (BYTEA/BLOB), served with HTTP Range; transcript lines carry their `start` second; voices/model/bitrate in `settings.podcast_*` |
 | `src/rag_bachelor/core/keywords.py` | LightRAG-style query keywords (one LLM call) feeding BM25 and the graph |
 | `src/rag_bachelor/core/graph.py` | HippoRAG-style fact graph: triples in Chroma `bachelor_facts`, Personalized PageRank → 3rd RRF ranking (`graph_enabled`, `graph_auto_build`) |
 | `src/rag_bachelor/core/agent.py` | Agentic Ask: question searched as asked first, then a JSON `search`/`answer` loop; `agent_max_steps` searches in total |
 | `src/rag_bachelor/ingest/` | PDF → chunks → ChromaDB |
 | `src/rag_bachelor/ingest/layout.py` | Docling conversion + section-based chunking (tables split by row) |
+| `src/rag_bachelor/app/web/routes/library.py` | `/livres` and `/sources` grids of the active subject (+ « À classer »), redirects from the removed list pages |
+| `src/rag_bachelor/app/web/routes/document.py` | Document page `/document/<path>` (book or source): tabs Aperçu (chapters + per-chapter stats + chapter editor, revision by chapter via `/revision?source=…&pages=a-b`), Questions, Fiches, Mind maps, Audio — generation forms pick a chapter or a free page range and post to the existing /bank, /sheets, /maps, /podcasts endpoints — and Fichier (re-index, graph, move between Livres/Sources, delete via `/docs/file/*` in `documentation.py`) |
+| `src/rag_bachelor/app/web/routes/documentation.py` | « Ajouter des documents » (`/docs`, the + button): upload as Livres or Sources (+ sub-folder), the subject's file tree (unindexed files, folder operations, index the whole subject), the indexing/graph job, page images |
 | `src/rag_bachelor/study/store.py` | SM-2 + question-bank persistence — dual backend: SQLite (default) or PostgreSQL (`POSTGRES_HOST` set) |
 | `src/rag_bachelor/study/` | SM-2, persistence store, stats |
 | `src/rag_bachelor/app/web/` | FastAPI server, route modules, Jinja2 templates, static assets |
 | `docker-compose.yml` | NAS deployment: `app` + isolated `postgres`/`chroma` data tier (no Ollama) |
-| `src/rag_bachelor/study/subjects.py` | Subjects = top-level folders of `data/pdfs/`; the active one (`app_settings.active_subject`) scopes every tab, Ask retrieval and progress |
+| `src/rag_bachelor/study/subjects.py` | Subjects = top-level folders of `data/pdfs/`; the active one (`app_settings.active_subject`) scopes every tab, Ask retrieval and progress. `doc_kind()`: `<Subject>/Livres/…` = book, `<Subject>/Sources/…` = source, anything else is unsorted (« à classer ») |
 | `data/pdfs/` | User-supplied PDFs, `data/pdfs/<Subject>/…` (root-level PDFs are moved into `Bachelor/` on the first sync; not tracked in git) |
 | `data/chroma/` | Local embedded vector index, used only when `CHROMA_HOST` is unset (not tracked in git) |
 | `data/app.db` | Local SQLite study DB, used only when `POSTGRES_HOST` is unset (not tracked in git) |
@@ -73,6 +79,9 @@ mypy src/
 - SM-2: implemented from scratch in `study/srs.py` — no external SRS library
 - Blocking DB/file/CPU work in async route handlers must be wrapped in `asyncio.to_thread`
 - htmx.min.js is vendored locally in `app/web/static/`; do NOT load from a CDN
+- Phone layout (≤ 760px, `app.css`): top bar with ☰, the sidebar becomes a drawer, bottom tab bar
+  (Réviser · + Ajouter des documents · Livres). PWA: `static/manifest.json` + `static/icons/` (no service
+  worker, no offline mode)
 - The custom htmx.min.js uses XHR (not fetch) for multipart/form-data to avoid Firefox file-upload bugs
 
 ## Port

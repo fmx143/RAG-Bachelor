@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <span class="eyebrow">{{ subject }} · {{ docs | length }} document{{ "s" if docs | length > 1 }}</span>
+  <h1>{{ heading | safe }}</h1>
+  <a class="btn btn-primary btn-sm lib-add" href="/docs?kind={{ kind }}">+ Ajouter</a>
+</div>
+
+{% macro tile(d) %}
+<a href="{{ d.path | doc_url }}" class="lib-tile" style="--h:{{ d.path | hue }}" title="{{ d.path }}">
+  <span class="nm">{{ d.path | label }}</span>
+  {% if d.folder %}<span class="fd">{{ d.folder }}</span>{% endif %}
+  <span class="mt">{{ d.questions }} question{{ "s" if d.questions > 1 }}{% if d.stats %} · {{ d.stats.total_cards }} carte{{ "s" if d.stats.total_cards > 1 }}{% if d.stats.due_cards %} · <b>{{ d.stats.due_cards }} due{{ "s" if d.stats.due_cards > 1 }}</b>{% endif %}{% endif %}</span>
+  {% if d.stats %}<span class="br" role="img" aria-label="Maîtrise {{ d.stats.mastery_pct | int }} %"><i style="width:{{ d.stats.mastery_pct | int }}%"></i></span>{% endif %}
+</a>
+{% endmacro %}
+
+{% if docs %}
+<div class="lib-grid">{% for d in docs %}{{ tile(d) }}{% endfor %}</div>
+{% else %}
+<div class="card o-empty">
+  Aucun document ici. Les {{ title | lower }} se rangent dans <strong>{{ subject }}/{{ folder }}/</strong> (sous-dossiers possibles).
+</div>
+{% endif %}
+
+{% if unsorted %}
+<div class="sect">À classer</div>
+<p class="lede-sm">Déplace ces documents dans <strong>{{ subject }}/Livres/</strong> ou <strong>{{ subject }}/Sources/</strong> depuis l'onglet <em>Fichier</em> de chaque document.</p>
+<div class="lib-grid">{% for d in unsorted %}{{ tile(d) }}{% endfor %}</div>
+{% endif %}
+{% endblock %}

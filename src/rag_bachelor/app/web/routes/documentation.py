@@ -11,10 +11,11 @@ import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, cast
+from urllib.parse import quote
 
 import fitz  # pymupdf
 from fastapi import APIRouter, BackgroundTasks, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
@@ -39,7 +40,14 @@ from rag_bachelor.study.store import (
     document_paths,
     rename_document,
 )
-from rag_bachelor.study.subjects import DEFAULT_SUBJECT, active_subject, subject_of
+from rag_bachelor.study.subjects import (
+    BOOKS_DIR,
+    DEFAULT_SUBJECT,
+    SOURCES_DIR,
+    active_subject,
+    doc_kind,
+    subject_of,
+)
 
 router = APIRouter()
 
@@ -494,10 +502,12 @@ async def _start_indexing(
 
 
 @router.get("/docs", response_class=HTMLResponse)
-async def docs_page(request: Request) -> Response:
+async def docs_page(request: Request, kind: str = "livre") -> Response:
+    """« Ajouter des documents » (the + button): import as a book or a source, plus the tree."""
     ctx: dict[str, object] = {
         "request": request,
         "active_tab": "docs",
+        "import_kind": kind if kind in ("livre", "source") else "livre",
         "job_running": _JOB["running"],
         "job": _JOB,
         "pct": _job_pct(),
@@ -738,6 +748,96 @@ async def move_path(
     except Exception as exc:  # noqa: BLE001 — shown in the list, never echoing the message
         return await _list_response(request, error=f"❌ Échec du déplacement ({_describe(exc)})")
     return await _list_response(request, message or None, error or None, open_path=new)
+
+
+# ── One document, from its own page (POST → redirect back to that page) ────────
+
+
+def job_status() -> dict[str, object]:
+    """The indexing/graph job as the document page shows it."""
+    return {**_JOB, "pct": _job_pct()}
+
+
+def _file_url(path: str, err: str = "") -> str:
+    return f"/document/{quote(path, safe='/')}?tab=fichier" + (f"&err={err}" if err else "")
+
+
+def _indexed_rel(path: str) -> str | None:
+    try:
+        rel = _safe_relpath(path)
+    except ValueError:
+        return None
+    return rel if rel in list_sources() else None
+
+
+@router.post("/docs/file/index")
+async def file_index(background_tasks: BackgroundTasks, path: Annotated[str, Form()]) -> Response:
+    """Re-index one document (Docling + embeddings), back on its page."""
+    rel = await asyncio.to_thread(_indexed_rel, path)
+    if rel is None or not _resolve(rel).is_file():
+        return Response(status_code=404)
+    if _enqueue([rel]):
+        background_tasks.add_task(_run_queue)
+    return RedirectResponse(_file_url(rel), status_code=303)
+
+
+@router.post("/docs/file/graph")
+async def file_graph(background_tasks: BackgroundTasks, path: Annotated[str, Form()]) -> Response:
+    """Build one document's fact graph, back on its page."""
+    rel = await asyncio.to_thread(_indexed_rel, path)
+    if rel is None:
+        return Response(status_code=404)
+    if not _try_start(1):
+        return RedirectResponse(_file_url(rel, "busy"), status_code=303)
+    background_tasks.add_task(_run_graph_job, rel)
+    return RedirectResponse(_file_url(rel), status_code=303)
+
+
+@router.post("/docs/file/move")
+async def file_move(
+    path: Annotated[str, Form()],
+    kind: Annotated[str, Form()],
+    folder: Annotated[str, Form()] = "",
+    name: Annotated[str, Form()] = "",
+) -> Response:
+    """Move a document between Livres/ and Sources/ (and sub-folders) of its subject, or rename it."""
+    rel = await asyncio.to_thread(_indexed_rel, path)
+    if rel is None:
+        return Response(status_code=404)
+    top = {"livre": BOOKS_DIR, "source": SOURCES_DIR}.get(kind)
+    parts = [subject_of(rel), top or "", *folder.split("/"), name.strip() or rel.rsplit("/", 1)[-1]]
+    try:
+        if top is None or "/" in name:
+            raise ValueError("type ou nom invalide")
+        new = _safe_relpath("/".join(p.strip() for p in parts if p.strip()))
+    except ValueError:
+        return RedirectResponse(_file_url(rel, "invalid"), status_code=303)
+    if new == rel:
+        return RedirectResponse(_file_url(rel), status_code=303)
+    if _busy(rel):
+        return RedirectResponse(_file_url(rel, "busy"), status_code=303)
+    if new in await asyncio.to_thread(_sync_documents) or _resolve(new).exists():
+        return RedirectResponse(_file_url(rel, "exists"), status_code=303)
+    try:
+        _message, error = await asyncio.to_thread(_move_paths, rel, new, folder=False)
+    except Exception:  # noqa: BLE001 — never echo the message
+        error = "move"
+    if error:
+        return RedirectResponse(_file_url(rel, "move"), status_code=303)
+    return RedirectResponse(_file_url(new), status_code=303)
+
+
+@router.post("/docs/file/delete")
+async def file_delete(path: Annotated[str, Form()]) -> Response:
+    """Delete a document (PDF, index, graph), then show its grid."""
+    rel = await asyncio.to_thread(_indexed_rel, path)
+    if rel is None:
+        return Response(status_code=404)
+    if _busy(rel):
+        return RedirectResponse(_file_url(rel, "busy"), status_code=303)
+    grid = "/sources" if doc_kind(rel) == "source" else "/livres"
+    await asyncio.to_thread(_delete_docs, [rel])
+    return RedirectResponse(grid, status_code=303)
 
 
 # ── Form helper — chunk count via GET (for the counter badge) ─────────────────

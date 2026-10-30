@@ -105,6 +105,14 @@ CREATE TABLE IF NOT EXISTS podcasts (
     duration   REAL NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS chapters (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    source     TEXT NOT NULL,
+    ord        INTEGER NOT NULL,
+    title      TEXT NOT NULL,
+    page_from  INTEGER NOT NULL,
+    page_to    INTEGER NOT NULL
+);
 """
 
 _POSTGRES_SCHEMA = """
@@ -187,6 +195,14 @@ CREATE TABLE IF NOT EXISTS podcasts (
     audio      BYTEA NOT NULL,
     duration   DOUBLE PRECISION NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS chapters (
+    id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    source     TEXT NOT NULL,
+    ord        INTEGER NOT NULL,
+    title      TEXT NOT NULL,
+    page_from  INTEGER NOT NULL,
+    page_to    INTEGER NOT NULL
 );
 """
 
@@ -363,6 +379,7 @@ def add_document(path: str, sha: str) -> None:
 def delete_document(path: str) -> None:
     conn = get_conn()
     conn.execute(_adapt("DELETE FROM documents WHERE path = ?"), (path,))
+    conn.execute(_adapt("DELETE FROM chapters WHERE source = ?"), (path,))
     conn.commit()
 
 
@@ -376,6 +393,7 @@ def rename_document(old: str, new: str) -> None:
             "UPDATE revision_sheets SET source = ? WHERE source = ?",
             "UPDATE mind_maps SET source = ? WHERE source = ?",
             "UPDATE podcasts SET source = ? WHERE source = ?",
+            "UPDATE chapters SET source = ? WHERE source = ?",
             "UPDATE cards SET topic = ? WHERE topic = ?",
         ):
             conn.execute(_adapt(sql), (new, old))
@@ -437,17 +455,24 @@ def get_due_cards(
     difficulty: str | None = None,
     qtype: str | None = None,
     subject: str | None = None,
+    card_ids: list[int] | None = None,
 ) -> list[Card]:
     """Return cards whose due_date ≤ today, ordered by due_date ASC.
 
     ``source`` filters on ``topic`` — the PDF path a bank-derived card was
     stamped with at materialization time (see :func:`materialize_bank_question`);
-    ``subject`` keeps the topics under that top-level folder.
+    ``subject`` keeps the topics under that top-level folder; ``card_ids`` (e.g. a
+    chapter's cards, see :func:`bank_card_pages`) keeps only those cards.
     """
+    if card_ids is not None and not card_ids:
+        return []
     conn = get_conn()
     today = date.today().isoformat()
     clauses = ["due_date <= ?"]
     params: list[Any] = [today]
+    if card_ids:
+        clauses.append(f"id IN ({','.join('?' * len(card_ids))})")
+        params.extend(card_ids)
     if source:
         clauses.append("topic = ?")
         params.append(source)
@@ -711,6 +736,29 @@ def get_bank_question(bank_id: int) -> BankQuestion | None:
     return _row_to_bank_question(row) if row else None
 
 
+def bank_card_pages(source: str) -> dict[int, int]:
+    """``{card id: first cited page}`` for the deck cards made from *source*'s bank questions.
+
+    A card belongs to the chapter holding that page (cards made outside the bank have none).
+    """
+    rows = (
+        get_conn()
+        .execute(
+            _adapt(
+                "SELECT card_id, pages FROM question_bank WHERE source = ? AND card_id IS NOT NULL"
+            ),
+            (source,),
+        )
+        .fetchall()
+    )
+    out: dict[int, int] = {}
+    for r in rows:
+        pages = [int(p) for p in json.loads(r["pages"]) if isinstance(p, int)]
+        if pages:
+            out[int(r["card_id"])] = min(pages)
+    return out
+
+
 def link_bank_card(bank_id: int, card_id: int) -> None:
     """Record that a bank question was copied into the SRS deck as *card_id*."""
     conn = get_conn()
@@ -814,11 +862,13 @@ def _sheet(row: Any) -> Sheet:
     )
 
 
-def list_sheets(subject: str | None = None) -> list[Sheet]:
-    """Every sheet, newest first, without its (large) content (of one subject, if given)."""
+def list_sheets(subject: str | None = None, source: str | None = None) -> list[Sheet]:
+    """Every sheet, newest first, without its (large) content (of one subject, if given, or of one document)."""
     clause = ""
     params: tuple[str, ...] = ()
-    if subject:
+    if source:
+        clause, params = " WHERE source = ?", (source,)
+    elif subject:
         cond, prefix = _in_subject("source", subject)
         clause, params = f" WHERE {cond}", (prefix,)
     rows = (
@@ -871,11 +921,13 @@ def add_map(source: str, page_from: int, page_to: int, content: str) -> int:
     return int(new_id)
 
 
-def list_maps(subject: str | None = None) -> list[Sheet]:
-    """Every mind map, newest first, without its content (of one subject, if given)."""
+def list_maps(subject: str | None = None, source: str | None = None) -> list[Sheet]:
+    """Every mind map, newest first, without its content (of one subject, if given, or of one document)."""
     clause = ""
     params: tuple[str, ...] = ()
-    if subject:
+    if source:
+        clause, params = " WHERE source = ?", (source,)
+    elif subject:
         cond, prefix = _in_subject("source", subject)
         clause, params = f" WHERE {cond}", (prefix,)
     rows = (
@@ -903,7 +955,49 @@ def delete_map(map_id: int) -> None:
     conn.commit()
 
 
-# ── Podcasts (two-voice audio lessons: transcript JSON + WAV bytes) ────────────
+# ── Chapters (a book's page ranges: detected once by core.chapters, then editable) ──
+
+
+@dataclass
+class Chapter:
+    title: str
+    page_from: int
+    page_to: int
+
+
+def list_chapters(source: str) -> list[Chapter]:
+    """*source*'s stored chapters in reading order (empty if never detected)."""
+    rows = (
+        get_conn()
+        .execute(
+            _adapt("SELECT title, page_from, page_to FROM chapters WHERE source = ? ORDER BY ord"),
+            (source,),
+        )
+        .fetchall()
+    )
+    return [Chapter(r["title"], int(r["page_from"]), int(r["page_to"])) for r in rows]
+
+
+def set_chapters(source: str, chapters: list[Chapter]) -> None:
+    """Replace *source*'s chapters, atomically."""
+    conn = get_conn()
+    try:
+        conn.execute(_adapt("DELETE FROM chapters WHERE source = ?"), (source,))
+        for i, c in enumerate(chapters):
+            conn.execute(
+                _adapt(
+                    "INSERT INTO chapters (source, ord, title, page_from, page_to) "
+                    "VALUES (?,?,?,?,?)"
+                ),
+                (source, i, c.title, c.page_from, c.page_to),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
+# ── Podcasts (two-voice audio lessons: transcript JSON + MP3/WAV bytes) ────────
 
 
 @dataclass
@@ -952,11 +1046,13 @@ def _podcast(row: Any) -> Podcast:
     )
 
 
-def list_podcasts(subject: str | None = None) -> list[Podcast]:
-    """Every podcast, newest first, without script or audio (of one subject, if given)."""
+def list_podcasts(subject: str | None = None, source: str | None = None) -> list[Podcast]:
+    """Every podcast, newest first, without script or audio (of one subject, if given, or of one document)."""
     clause = ""
     params: tuple[str, ...] = ()
-    if subject:
+    if source:
+        clause, params = " WHERE source = ?", (source,)
+    elif subject:
         cond, prefix = _in_subject("source", subject)
         clause, params = f" WHERE {cond}", (prefix,)
     rows = (
@@ -996,6 +1092,30 @@ def get_podcast_audio(podcast_id: int) -> bytes | None:
         .fetchone()
     )
     return bytes(row["audio"]) if row else None
+
+
+def get_podcast_audio_size(podcast_id: int) -> int | None:
+    """Byte length of the stored audio, without reading it."""
+    row = (
+        get_conn()
+        .execute(_adapt("SELECT length(audio) AS n FROM podcasts WHERE id = ?"), (podcast_id,))
+        .fetchone()
+    )
+    return int(row["n"]) if row else None
+
+
+def get_podcast_audio_slice(podcast_id: int, start: int, length: int) -> bytes | None:
+    """``length`` bytes of the stored audio from byte ``start`` (HTTP Range requests)."""
+    row = (
+        get_conn()
+        .execute(
+            # substr() on a BLOB (SQLite) / bytea (Postgres) is byte-based and 1-indexed.
+            _adapt("SELECT substr(audio, ?, ?) AS part FROM podcasts WHERE id = ?"),
+            (start + 1, length, podcast_id),
+        )
+        .fetchone()
+    )
+    return bytes(row["part"]) if row else None
 
 
 def delete_podcast(podcast_id: int) -> None:

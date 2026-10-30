@@ -2,35 +2,43 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#080a10">
   <title>Bachelor — Assistant de révision</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
   <link rel="stylesheet" href="{{ asset_url('app.css') }}">
   <script src="{{ asset_url('htmx.min.js') }}" defer></script>
   <script src="{{ asset_url('app.js') }}" defer></script>
 </head>
 <body>
 <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+{# Phone layout (see app.css): top bar with the menu button, the sidebar becomes a drawer. #}
+<header class="topbar">
+  <a href="/" class="brand">RAG<i>Bachelor</i></a>
+  <button type="button" class="menu-btn" data-menu-toggle aria-controls="sidenav" aria-expanded="false" aria-label="Ouvrir le menu">
+    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+</header>
 <div class="shell">
-  <aside class="side">
+  {# Inside .shell (its own stacking context) so the drawer can sit above it. #}
+  <div class="menu-backdrop" data-menu-toggle hidden></div>
+  <aside class="side" id="sidenav">
     <a href="/" class="brand">RAG<i>Bachelor</i></a>
     <span class="provider-badge">{{ provider_label }}</span>
     {% macro item(href, tab, label, icon, count=0) %}
     <a href="{{ href }}" class="nav-link {% if active_tab == tab %}active{% endif %}" title="{{ label }}"><svg aria-hidden="true" viewBox="0 0 24 24">{{ icon | safe }}</svg><span class="lbl">{{ label }}</span>{% if count %}<span class="count">{{ count }}</span>{% endif %}</a>
     {% endmacro %}
     <nav aria-label="Navigation principale">
-      <div class="navlabel">Réviser</div>
+      <div class="navlabel">Étudier</div>
       {{ item("/", "home", "Accueil", '<path d="M3.5 10.6 12 3.4l8.5 7.2"/><path d="M5.5 9.4V20.5h5.2v-5.4h2.6v5.4h5.2V9.4"/>') }}
+      {{ item("/livres", "books", "Livres", '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/>') }}
       {{ item("/revision", "revision", "Réviser", '<path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 3.5V8h-4.5"/>', nav_due) }}
-      {{ item("/progress", "progress", "Progrès", '<path d="M6 20v-6.5M12 20V6.5M18 20v-9.5"/><path d="M3.5 20.5h17"/>') }}
+      {{ item("/progress", "progress", "Statistiques", '<path d="M6 20v-6.5M12 20V6.5M18 20v-9.5"/><path d="M3.5 20.5h17"/>') }}
       <div class="navlabel">Explorer</div>
-      {{ item("/bank", "bank", "Banque", '<path d="M4.5 20.5V8.5M9.75 20.5V8.5M15 20.5V8.5M20 20.5V8.5"/><path d="M2.8 20.5h18.4M2.8 8.5l9.2-5 9.2 5z"/>') }}
       {{ item("/ask", "ask", "Poser une question", '<path d="M4 4.5h16v11.5H10l-5.5 4.2z"/><path d="M8.5 9h7M8.5 12h4.5"/>') }}
-      {{ item("/generate", "generate", "Génération", '<path d="M12 4.5l1.6 4 4 1.6-4 1.6-1.6 4-1.6-4-4-1.6 4-1.6z"/><circle cx="18.5" cy="5.5" r="1.1"/>') }}
-      {{ item("/docs", "docs", "Sources", '<path d="M7 3h8l4 4v13H7z"/><path d="M14 3v5h5"/>') }}
-      <div class="navlabel">Supports</div>
-      {{ item("/sheets", "sheets", "Fiches", '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h6M9 16h6"/>') }}
-      {{ item("/maps", "maps", "Mind maps", '<circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="5" cy="18" r="1.8"/><circle cx="19" cy="18" r="1.8"/><path d="M10.8 10.9 6 7.2M13.2 10.9 18 7.2M10.8 13.1 6 16.8M13.2 13.1 18 16.8"/>') }}
-      {{ item("/podcasts", "podcasts", "Leçons audio", '<path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="13" width="4" height="7" rx="2"/><rect x="17" y="13" width="4" height="7" rx="2"/>') }}
+      {{ item("/sources", "sources", "Mes sources", '<path d="M7 3h8l4 4v13H7z"/><path d="M14 3v5h5"/>') }}
       <div class="navlabel">Configurer</div>
       {{ item("/settings", "settings", "Paramètres", '<circle cx="12" cy="12" r="3"/><path d="M12 3.5v2.6M12 17.9v2.6M3.5 12h2.6M17.9 12h2.6M6 6l1.8 1.8M16.2 16.2 18 18M18 6l-1.8 1.8M7.8 16.2 6 18"/>') }}
     </nav>
@@ -55,5 +63,10 @@
     {% block content %}{% endblock %}
   </div></main>
 </div>
+<nav class="tabbar" aria-label="Navigation rapide">
+  <a href="/revision" class="{% if active_tab == 'revision' %}on{% endif %}"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 3.5V8h-4.5"/></svg><span>Réviser</span>{% if nav_due %}<b class="count">{{ nav_due }}</b>{% endif %}</a>
+  <a href="/docs" class="add{% if active_tab == 'docs' %} on{% endif %}" aria-label="Ajouter des documents"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></a>
+  <a href="/livres" class="{% if active_tab == 'books' %}on{% endif %}"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg><span>Livres</span></a>
+</nav>
 </body>
 </html>

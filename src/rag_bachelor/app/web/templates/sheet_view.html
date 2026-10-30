@@ -6,7 +6,7 @@
 </div>
 
 <div class="no-print" style="display:flex; gap:.5rem; margin-bottom:.75rem;">
-  <a href="/sheets" class="btn btn-ghost btn-sm">← Fiches</a>
+  <a href="{{ sheet.source | doc_url }}?tab=fiches" class="btn btn-ghost btn-sm">← {{ sheet.source | label }}</a>
   <button type="button" class="btn btn-primary btn-sm" data-print>🖨️ Imprimer / PDF</button>
 </div>
 
