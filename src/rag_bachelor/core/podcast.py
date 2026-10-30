@@ -1,8 +1,9 @@
-"""Two-voice audio lesson of a page range: windowed dialogue script → local TTS → one WAV.
+"""Two-voice audio lesson of a page range: windowed dialogue script → local TTS → one MP3.
 
 Script lines are validated by code (speaker, length, no stray citations); the audio is
-synthesized with Phonon (``ptts``), imported lazily so the app starts without it. Each stored
-line carries its ``start`` second so the transcript can seek the audio.
+synthesized with Phonon (``ptts``), imported lazily so the app starts without it, and stored
+as constant-bitrate MP3 (podcasts made before that are WAV). Each stored line carries its
+``start`` second so the transcript can seek the audio.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ import wave
 from collections.abc import Callable
 from typing import Any
 
+import lameenc
 import numpy as np
 
 from rag_bachelor.config import settings
@@ -68,8 +70,28 @@ def _clean_lines(raw: str) -> list[dict[str, str]]:
     return lines
 
 
+def _pcm16(samples: np.ndarray) -> np.ndarray:
+    pcm: np.ndarray = (np.clip(samples, -1.0, 1.0) * 32767).astype("<i2")
+    return pcm
+
+
+def _mp3_bytes(samples: np.ndarray, rate: int) -> bytes:
+    """Constant bitrate keeps byte offsets proportional to time, so browsers seek accurately."""
+    enc = lameenc.Encoder()
+    enc.set_bit_rate(settings.podcast_bitrate)
+    enc.set_in_sample_rate(rate)
+    enc.set_channels(1)
+    enc.set_quality(2)
+    return bytes(enc.encode(_pcm16(samples).tobytes()) + enc.flush())
+
+
+def audio_mime(head: bytes) -> str:
+    """Media type of stored audio from its first bytes: older podcasts are WAV, newer MP3."""
+    return "audio/wav" if head.startswith(b"RIFF") else "audio/mpeg"
+
+
 def _wav_bytes(samples: np.ndarray, rate: int) -> bytes:
-    pcm = (np.clip(samples, -1.0, 1.0) * 32767).astype("<i2")
+    pcm = _pcm16(samples)
     buf = io.BytesIO()
     with wave.open(buf, "wb") as w:
         w.setnchannels(1)
@@ -146,13 +168,13 @@ def generate_podcast(
         page_from,
         page_to,
         json.dumps(timed, ensure_ascii=False),
-        _wav_bytes(samples, tts.sample_rate),
+        _mp3_bytes(samples, tts.sample_rate),
         len(samples) / tts.sample_rate,
     )
 
 
 def line_starts(lines: list[dict[str, Any]], audio: bytes) -> list[float]:
-    """Start second of each script line, for podcasts stored before ``start`` was recorded.
+    """Start second of each script line, for (WAV) podcasts stored before ``start`` was recorded.
 
     Every line is followed by exactly ``_PAUSE_S`` of digital silence, so when the WAV holds
     one such zero run per line, each run's end is the next line's start. Otherwise the

@@ -25,7 +25,7 @@ Local-first RAG study assistant for French bachelor PDFs.
 | `src/rag_bachelor/core/bank.py` | Whole-document question-bank generation, windowed LLM calls, semantic near-duplicate filtering |
 | `src/rag_bachelor/core/sheet.py` | Chapter revision sheet (doc + page range): windowed notes → merged Markdown, `[p.N]` citations validated against the range; stored in `revision_sheets` |
 | `src/rag_bachelor/core/mindmap.py` | Chapter mind map (doc + page range): windowed outlines → one validated JSON tree (depth/width bounded), rendered as nested `<details>`; stored in `mind_maps` |
-| `src/rag_bachelor/core/podcast.py` | Two-voice audio lesson (doc + page range): windowed JSON dialogue → local Phonon TTS (`ptts`, weights CC BY-NC) → one WAV stored in `podcasts` (BYTEA/BLOB); voices/model in `settings.podcast_*` |
+| `src/rag_bachelor/core/podcast.py` | Two-voice audio lesson (doc + page range): windowed JSON dialogue → local Phonon TTS (`ptts`, weights CC BY-NC) → one constant-bitrate MP3 (`lameenc`; older rows are WAV) stored in `podcasts` (BYTEA/BLOB), served with HTTP Range; transcript lines carry their `start` second; voices/model/bitrate in `settings.podcast_*` |
 | `src/rag_bachelor/core/keywords.py` | LightRAG-style query keywords (one LLM call) feeding BM25 and the graph |
 | `src/rag_bachelor/core/graph.py` | HippoRAG-style fact graph: triples in Chroma `bachelor_facts`, Personalized PageRank → 3rd RRF ranking (`graph_enabled`, `graph_auto_build`) |
 | `src/rag_bachelor/core/agent.py` | Agentic Ask: question searched as asked first, then a JSON `search`/`answer` loop; `agent_max_steps` searches in total |

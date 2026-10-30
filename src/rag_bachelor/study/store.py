@@ -903,7 +903,7 @@ def delete_map(map_id: int) -> None:
     conn.commit()
 
 
-# ── Podcasts (two-voice audio lessons: transcript JSON + WAV bytes) ────────────
+# ── Podcasts (two-voice audio lessons: transcript JSON + MP3/WAV bytes) ────────
 
 
 @dataclass
@@ -999,7 +999,7 @@ def get_podcast_audio(podcast_id: int) -> bytes | None:
 
 
 def get_podcast_audio_size(podcast_id: int) -> int | None:
-    """Byte length of the stored WAV, without reading it."""
+    """Byte length of the stored audio, without reading it."""
     row = (
         get_conn()
         .execute(_adapt("SELECT length(audio) AS n FROM podcasts WHERE id = ?"), (podcast_id,))
@@ -1009,7 +1009,7 @@ def get_podcast_audio_size(podcast_id: int) -> int | None:
 
 
 def get_podcast_audio_slice(podcast_id: int, start: int, length: int) -> bytes | None:
-    """``length`` bytes of the stored WAV from byte ``start`` (HTTP Range requests)."""
+    """``length`` bytes of the stored audio from byte ``start`` (HTTP Range requests)."""
     row = (
         get_conn()
         .execute(
