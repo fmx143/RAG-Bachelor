@@ -26,7 +26,7 @@ def test_streak_retention_forecast_and_maturity() -> None:
         TODAY - timedelta(days=3): (5, 5),  # gap yesterday-1 breaks the streak
     }
     cards = [
-        _card(),  # new, due today
+        _card(due_date=TODAY),  # new, due today
         _card(repetitions=3, interval=30, due_date=TODAY + timedelta(days=2)),  # mature
         _card(repetitions=1, interval=3, due_date=TODAY - timedelta(days=5)),  # overdue
     ]
