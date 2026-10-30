@@ -71,7 +71,7 @@ def test_routes_render_link_citations_and_delete() -> None:
         "Bachelor/Cours/a b.pdf", 1, 5, "## Titre\n\nUn fait [p.2] <script>x</script>"
     )
     with TestClient(server.app) as client:
-        assert "Bachelor/Cours/a b.pdf" in client.get("/sheets").text
+        assert client.get("/sheets", follow_redirects=False).headers["location"] == "/livres"
         page = client.get(f"/sheets/{sid}").text
         assert "/docs/page.png?path=Bachelor%2FCours%2Fa%20b.pdf&amp;page=2" in page
         assert "<script>x" not in page

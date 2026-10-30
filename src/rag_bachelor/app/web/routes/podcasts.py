@@ -12,7 +12,7 @@ from fastapi import APIRouter, BackgroundTasks, Form, Request
 from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
-from rag_bachelor.app.web._deps import sidebar_ctx, templates
+from rag_bachelor.app.web._deps import nav_tab, sidebar_ctx, templates
 from rag_bachelor.core.podcast import audio_mime, generate_podcast, line_starts
 from rag_bachelor.study.store import (
     delete_podcast,
@@ -22,7 +22,6 @@ from rag_bachelor.study.store import (
     get_podcast_audio_slice,
     list_podcasts,
 )
-from rag_bachelor.study.subjects import active_sources, active_subject
 
 router = APIRouter()
 
@@ -90,20 +89,6 @@ def status_ctx(error_override: str | None = None) -> dict[str, object]:
     }
 
 
-@router.get("/podcasts", response_class=HTMLResponse)
-async def podcasts_page(request: Request) -> Response:
-    ctx: dict[str, object] = {
-        "request": request,
-        "active_tab": "podcasts",
-        "sources": await asyncio.to_thread(active_sources),
-        "podcasts": await asyncio.to_thread(list_podcasts, active_subject()),
-        "max_pages": MAX_PAGES,
-        **sidebar_ctx(),
-        **status_ctx(),
-    }
-    return templates.TemplateResponse(request, "podcasts.html", ctx)
-
-
 @router.post("/podcasts/generate", response_class=HTMLResponse)
 async def start_generation(
     request: Request,
@@ -161,10 +146,10 @@ async def podcast_view(request: Request, podcast_id: int) -> Response:
         lines = [{**line, "start": t} for line, t in zip(lines, starts, strict=True)]
     ctx: dict[str, object] = {
         "request": request,
-        "active_tab": "podcasts",
+        "active_tab": nav_tab(item.source),
         "podcast": item,
         "lines": lines,
-        "podcasts": await asyncio.to_thread(list_podcasts, active_subject()),
+        "podcasts": await asyncio.to_thread(list_podcasts, None, item.source),
         **sidebar_ctx(),
     }
     return templates.TemplateResponse(request, "podcast_view.html", ctx)

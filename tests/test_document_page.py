@@ -115,3 +115,32 @@ def test_revision_by_chapter_and_bank_generation_by_range() -> None:
             client.post("/bank/generate", data={"source": DOC})
         assert gen.call_args_list[0].kwargs["page_range"] == (4, 6)
         assert gen.call_args_list[1].kwargs["page_range"] is None
+
+
+def test_library_grids_sort_documents_by_kind_and_old_pages_redirect() -> None:
+    _index()
+    _index("Bachelor/Sources/Notes/article.pdf", 2)
+    _index("Bachelor/vrac.pdf", 1)
+    _index("Autre/Livres/ailleurs.pdf", 1)  # another subject: hidden
+    with TestClient(server.app) as client:
+        books = client.get("/livres").text
+        assert "/document/Bachelor/Livres/Cours%20un.pdf" in books
+        assert "article" not in books and "ailleurs" not in books
+        assert "À classer" in books and "/document/Bachelor/vrac.pdf" in books
+        sources = client.get("/sources").text
+        assert "/document/Bachelor/Sources/Notes/article.pdf" in sources and "Notes" in sources
+        for old in ("/bank", "/generate", "/sheets", "/maps", "/podcasts"):
+            r = client.get(old, follow_redirects=False)
+            assert r.status_code == 303 and r.headers["location"] == "/livres"
+        nav = client.get("/").text
+        for label in (
+            "Accueil",
+            "Livres",
+            "Réviser",
+            "Statistiques",
+            "Poser une question",
+            "Mes sources",
+            "Paramètres",
+        ):
+            assert f'<span class="lbl">{label}</span>' in nav
+        assert '<span class="lbl">Génération</span>' not in nav

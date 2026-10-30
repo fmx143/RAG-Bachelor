@@ -13,10 +13,9 @@ from fastapi.responses import HTMLResponse
 from markupsafe import Markup
 from starlette.responses import Response
 
-from rag_bachelor.app.web._deps import sidebar_ctx, templates
+from rag_bachelor.app.web._deps import nav_tab, sidebar_ctx, templates
 from rag_bachelor.core.sheet import generate_sheet
-from rag_bachelor.study.store import delete_sheet, get_sheet, list_sheets
-from rag_bachelor.study.subjects import active_sources, active_subject
+from rag_bachelor.study.store import delete_sheet, get_sheet
 
 router = APIRouter()
 
@@ -101,20 +100,6 @@ def _render_sheet(content: str, source: str) -> Markup:
     return Markup("".join(p if i % 2 else _CITE_HTML.sub(link, p) for i, p in enumerate(parts)))
 
 
-@router.get("/sheets", response_class=HTMLResponse)
-async def sheets_page(request: Request) -> Response:
-    ctx: dict[str, object] = {
-        "request": request,
-        "active_tab": "sheets",
-        "sources": await asyncio.to_thread(active_sources),
-        "sheets": await asyncio.to_thread(list_sheets, active_subject()),
-        "max_pages": MAX_PAGES,
-        **sidebar_ctx(),
-        **status_ctx(),
-    }
-    return templates.TemplateResponse(request, "sheets.html", ctx)
-
-
 @router.post("/sheets/generate", response_class=HTMLResponse)
 async def start_generation(
     request: Request,
@@ -165,7 +150,7 @@ async def sheet_view(request: Request, sheet_id: int) -> Response:
         return Response(status_code=404)
     ctx: dict[str, object] = {
         "request": request,
-        "active_tab": "sheets",
+        "active_tab": nav_tab(sheet.source),
         "sheet": sheet,
         "html": _render_sheet(sheet.content, sheet.source),
         **sidebar_ctx(),
