@@ -226,14 +226,21 @@ document.addEventListener("click", (e) => {
 // Revision shortcuts: Space reveals the answer, 1-4 grade it, Enter-less "next" button gets focus.
 document.addEventListener("keydown", (e) => {
   if (!document.getElementById("revision-content") || e.metaKey || e.ctrlKey || e.altKey) return;
-  if (e.target.closest && e.target.closest("input, textarea, select, summary, button")) return;
+  if (e.target.closest && e.target.closest(e.key === " " ? "input, textarea, select, summary, button" : "input, textarea, select")) return;
   const reveal = document.querySelector("#revision-content details.reveal:not([open])");
   if (e.key === " " && reveal) {
     e.preventDefault();
     reveal.open = true;
   } else if (e.key >= "1" && e.key <= "4") {
-    document.querySelector(`#revision-content .gradebar .g${+e.key - 1}`)?.click();
+    const n = +e.key - 1;
+    (document.querySelector(`#revision-content .gradebar .g${n}`) || document.querySelectorAll("#revision-content .opt input")[n])?.click();
   }
+});
+
+// Chapter editor: the × button blanks its row (a blank row is deleted on save).
+document.addEventListener("click", (e) => {
+  const rm = e.target.closest && e.target.closest(".chap-row .rm");
+  if (rm) rm.closest(".chap-row").querySelectorAll("input").forEach((i) => { i.value = ""; });
 });
 
 // Ask: Ctrl/Cmd+Enter in the question box submits the form.

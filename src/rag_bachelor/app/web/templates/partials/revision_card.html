@@ -11,7 +11,7 @@
 
 <div class="flashcard">
   <div class="ftags">
-    <span class="ftag">{{ qtype_labels.get(card.qtype, card.qtype) }}</span>
+    <span class="ftag" data-t="{{ card.qtype }}">{{ qtype_labels.get(card.qtype, card.qtype) }}</span>
     <span class="ftag dim">{{ card.difficulty | capitalize }}</span>
   </div>
 
@@ -23,7 +23,7 @@
     {% for opt in card.options %}
     <label class="opt">
       <input type="{{ 'checkbox' if card.qtype == 'mcq_multi' else 'radio' }}" name="selected" value="{{ loop.index0 }}">
-      <span class="dot"></span>{{ opt }}
+      <span class="dot"></span>{{ opt }}<small class="key">{{ loop.index }}</small>
     </label>
     {% endfor %}
     <button type="submit" class="btn btn-ghost">Valider</button>

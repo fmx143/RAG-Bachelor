@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block title %}Statistiques{% endblock %}
 {% block content %}
 {% set week = activity.bars[-7:] %}
 {% set wmax = week | map(attribute=1) | max %}
