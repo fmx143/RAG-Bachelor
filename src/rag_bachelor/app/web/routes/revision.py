@@ -22,9 +22,10 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
-from rag_bachelor.app.web._deps import sidebar_ctx, templates
+from rag_bachelor.app.web._deps import doc_hues, sidebar_ctx, templates
 from rag_bachelor.core.qtypes import DIFFICULTIES, QTYPE_LABELS, QTYPES, score_selection
 from rag_bachelor.study.srs import Card, update_card
+from rag_bachelor.study.stats import get_topic_stats
 from rag_bachelor.study.store import (
     bank_card_pages,
     bank_sources,
@@ -65,6 +66,7 @@ def _counts() -> dict[str, int]:
     return {
         "due_count": len(get_due_cards(limit=200, subject=subject)),
         "done_today": today[0][1] if today else 0,
+        "ok_today": today[0][2] if today else 0,
     }
 
 
@@ -117,6 +119,7 @@ def _filter_ctx(source: str, difficulty: str, qtype: str, pages: str = "") -> di
     span = _page_range(pages) if source else None
     return {
         "filter_pages": f"{span[0]}-{span[1]}" if span else "",
+        "hues": doc_hues([t for t in get_topic_stats(active_subject()) if t.total_cards]),
         "sources": bank_sources(active_subject()) or active_sources(),
         "difficulties": DIFFICULTIES,
         "qtypes": QTYPES,
