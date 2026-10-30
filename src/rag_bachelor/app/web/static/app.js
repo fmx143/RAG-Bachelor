@@ -364,3 +364,26 @@ document.querySelectorAll("[data-kmap]").forEach((box) => {
   });
   chips.forEach((c) => c.addEventListener("click", () => show(+c.dataset.focus)));
 });
+
+// Phone menu: the sidebar slides in as a drawer (button, backdrop, Escape or a link close it).
+(() => {
+  const btn = document.querySelector(".menu-btn");
+  const backdrop = document.querySelector(".menu-backdrop");
+  if (!btn || !backdrop) return;
+  const set = (open) => {
+    document.body.classList.toggle("menu-open", open);
+    btn.setAttribute("aria-expanded", String(open));
+    btn.setAttribute("aria-label", open ? "Fermer le menu" : "Ouvrir le menu");
+    backdrop.hidden = !open;
+  };
+  document.querySelectorAll("[data-menu-toggle]").forEach((el) =>
+    el.addEventListener("click", () => set(!document.body.classList.contains("menu-open")))
+  );
+  document.querySelectorAll("#sidenav a").forEach((a) => a.addEventListener("click", () => set(false)));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && document.body.classList.contains("menu-open")) {
+      set(false);
+      btn.focus();
+    }
+  });
+})();

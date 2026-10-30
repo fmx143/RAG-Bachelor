@@ -79,6 +79,9 @@ mypy src/
 - SM-2: implemented from scratch in `study/srs.py` — no external SRS library
 - Blocking DB/file/CPU work in async route handlers must be wrapped in `asyncio.to_thread`
 - htmx.min.js is vendored locally in `app/web/static/`; do NOT load from a CDN
+- Phone layout (≤ 760px, `app.css`): top bar with ☰, the sidebar becomes a drawer, bottom tab bar
+  (Réviser · + Ajouter des documents · Livres). PWA: `static/manifest.json` + `static/icons/` (no service
+  worker, no offline mode)
 - The custom htmx.min.js uses XHR (not fetch) for multipart/form-data to avoid Firefox file-upload bugs
 
 ## Port
