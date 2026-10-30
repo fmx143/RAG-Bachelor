@@ -440,6 +440,7 @@ blockquote { border-left: 2px solid var(--border-3) !important; }
 
 /* ── Library grids (Livres / Mes sources) ───────────────────────────────── */
 
+.page-header .lib-add { margin-top: 14px; }
 .lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 24px; }
 .lib-tile { display: flex; flex-direction: column; gap: 6px; min-height: 132px; padding: 18px; border: 1px solid var(--hair); border-radius: var(--r); background: linear-gradient(160deg, oklch(0.79 0.13 var(--h) / .12), transparent 60%), var(--card); color: inherit; text-decoration: none; transition: border-color .2s, transform .2s; }
 .lib-tile:hover { border-color: oklch(0.79 0.13 var(--h) / .6); transform: translateY(-2px); }

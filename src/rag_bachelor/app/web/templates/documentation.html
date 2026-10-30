@@ -2,8 +2,8 @@
 {% block content %}
 <div class="page-header">
   <span class="eyebrow">{{ chunk_count }} passages indexés</span>
-  <h1>Tes <em>sources</em></h1>
-  <p class="lede">Sujet <strong>{{ subject }}</strong> : dépose tes PDF de cours, ou un dossier entier. Tout est lu, découpé par section et indexé en local.</p>
+  <h1>Ajouter des <em>documents</em></h1>
+  <p class="lede">Sujet <strong>{{ subject }}</strong> : dépose un livre ou une source (notes, articles…), ou un dossier entier. Tout est lu, découpé par section et indexé en local.</p>
 </div>
 
 <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start;">
@@ -17,6 +17,17 @@
     <span>ou clique pour parcourir · plusieurs fichiers possibles</span>
   </label>
   <div class="card rise d2" style="margin:0">
+    <div class="form-group" style="margin:0 0 16px;">
+      <label>Ce sont des…</label>
+      <div class="chipgroup" role="radiogroup" aria-label="Type des documents importés">
+        <label class="chip-f"><input type="radio" name="import-kind" value="Livres" {% if import_kind == "livre" %}checked{% endif %}><span>Livres</span></label>
+        <label class="chip-f"><input type="radio" name="import-kind" value="Sources" {% if import_kind == "source" %}checked{% endif %}><span>Sources</span></label>
+      </div>
+    </div>
+    <div class="form-group" style="margin:0 0 16px;">
+      <label for="import-dest">Sous-dossier <span style="color:var(--muted);">(optionnel, créé s'il n'existe pas)</span></label>
+      <input type="text" id="import-dest" placeholder="ex. Semestre 3/Compta" autocomplete="off">
+    </div>
     <div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap;">
       <div class="form-group" style="flex:1; min-width:240px; margin-bottom:0;">
         <label for="upload-files">Des fichiers PDF</label>
@@ -28,10 +39,6 @@
       </div>
       <button type="button" id="upload-btn" class="btn btn-primary" data-subject="{{ subject }}">Importer la sélection</button>
     </div>
-    <div class="form-group" style="margin:16px 0 0;">
-      <label for="import-dest">Dossier de destination dans « {{ subject }} » <span style="color:var(--muted);">(optionnel, créé s'il n'existe pas)</span></label>
-      <input type="text" id="import-dest" list="import-folders" placeholder="ex. Semestre 3/Compta" autocomplete="off">
-    </div>
     <div id="import-plan" class="import-plan"></div>
     <progress id="upload-progress" value="0" max="1" hidden style="width:100%; margin-top:16px;"></progress>
     <div id="upload-status" aria-live="polite" style="margin-top:10px; font-size:14px; color:var(--muted);"></div>
@@ -40,7 +47,7 @@
 
   <!-- ── Document tree (HTMX target) ───────────────────────────────────── -->
   <div class="card rise d3" style="margin:0">
-    <h2 class="subheader">Fichiers</h2>
+    <h2 class="subheader">Tous les fichiers du sujet</h2>
     <input type="search" name="q" placeholder="Filtrer par nom…" aria-label="Filtrer les documents"
            hx-get="/docs/list" hx-trigger="input changed delay:300ms" hx-target="#doc-list"
            hx-swap="innerHTML" style="margin-bottom:16px;">

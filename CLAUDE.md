@@ -35,7 +35,8 @@ Local-first RAG study assistant for French bachelor PDFs.
 | `src/rag_bachelor/ingest/` | PDF → chunks → ChromaDB |
 | `src/rag_bachelor/ingest/layout.py` | Docling conversion + section-based chunking (tables split by row) |
 | `src/rag_bachelor/app/web/routes/library.py` | `/livres` and `/sources` grids of the active subject (+ « À classer »), redirects from the removed list pages |
-| `src/rag_bachelor/app/web/routes/document.py` | Document page `/document/<path>` (book or source): tabs Aperçu (chapters + per-chapter stats + chapter editor, revision by chapter via `/revision?source=…&pages=a-b`), Questions, Fiches, Mind maps, Audio — generation forms pick a chapter or a free page range and post to the existing /bank, /sheets, /maps, /podcasts endpoints |
+| `src/rag_bachelor/app/web/routes/document.py` | Document page `/document/<path>` (book or source): tabs Aperçu (chapters + per-chapter stats + chapter editor, revision by chapter via `/revision?source=…&pages=a-b`), Questions, Fiches, Mind maps, Audio — generation forms pick a chapter or a free page range and post to the existing /bank, /sheets, /maps, /podcasts endpoints — and Fichier (re-index, graph, move between Livres/Sources, delete via `/docs/file/*` in `documentation.py`) |
+| `src/rag_bachelor/app/web/routes/documentation.py` | « Ajouter des documents » (`/docs`, the + button): upload as Livres or Sources (+ sub-folder), the subject's file tree (unindexed files, folder operations, index the whole subject), the indexing/graph job, page images |
 | `src/rag_bachelor/study/store.py` | SM-2 + question-bank persistence — dual backend: SQLite (default) or PostgreSQL (`POSTGRES_HOST` set) |
 | `src/rag_bachelor/study/` | SM-2, persistence store, stats |
 | `src/rag_bachelor/app/web/` | FastAPI server, route modules, Jinja2 templates, static assets |
