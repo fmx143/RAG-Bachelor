@@ -30,10 +30,10 @@
 <div class="card" style="flex:1.6 1 460px;min-width:0;margin:0">
   <div class="subheader">Transcription</div>
   {% for l in lines %}
-  <div class="o-line">
-    <span class="av" style="--h:{{ 235 if l.speaker == 'A' else 305 }}">{{ "E" if l.speaker == "A" else "P" }}</span>
-    <div><div class="who">{{ "Expert" if l.speaker == "A" else "Podcasteuse" }}</div>{{ l.text }}</div>
-  </div>
+  <button type="button" class="o-line" data-line data-start="{{ l.start }}" title="Écouter à partir d'ici">
+    <span class="av" aria-hidden="true" style="--h:{{ 235 if l.speaker == 'A' else 305 }}">{{ "E" if l.speaker == "A" else "P" }}</span>
+    <span class="txt"><span class="who">{{ "Expert" if l.speaker == "A" else "Podcasteuse" }} · {{ (l.start // 60) | int }}:{{ '%02d' | format((l.start % 60) | int) }}</span>{{ l.text }}</span>
+  </button>
   {% endfor %}
 </div>
 <div class="card" style="flex:1 1 260px;min-width:0;margin:0">

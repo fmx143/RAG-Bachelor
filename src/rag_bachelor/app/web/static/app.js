@@ -263,10 +263,25 @@ document.querySelectorAll("[data-player]").forEach((box) => {
   box.querySelector("[data-play]").addEventListener("click", () => (au.paused ? au.play() : au.pause()));
   au.addEventListener("play", () => icon.setAttribute("d", "M6 5h4v14H6zM14 5h4v14h-4z"));
   au.addEventListener("pause", () => icon.setAttribute("d", "M8 5v14l11-7z"));
+  // Transcript lines: a click seeks to the line, playback highlights the current one.
+  const lines = [...document.querySelectorAll("[data-line]")];
+  let current = null;
+  lines.forEach((l) => l.addEventListener("click", () => {
+    au.currentTime = parseFloat(l.dataset.start) || 0;
+    au.play();
+  }));
   au.addEventListener("timeupdate", () => {
     box.querySelector("[data-cur]").textContent = fmt(au.currentTime);
     const k = au.duration ? Math.round((au.currentTime / au.duration) * bars.length) : 0;
     bars.forEach((b, i) => b.classList.toggle("on", i < k));
+    const line = lines.findLast((l) => parseFloat(l.dataset.start) <= au.currentTime + 0.05) || null;
+    if (line === current) return;
+    if (current) current.classList.remove("on");
+    current = line;
+    if (line) {
+      line.classList.add("on");
+      if (!au.paused) line.scrollIntoView({ block: "nearest" });
+    }
   });
   box.querySelector("[data-wave]").addEventListener("click", (e) => {
     const r = e.currentTarget.getBoundingClientRect();

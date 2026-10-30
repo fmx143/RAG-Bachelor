@@ -998,6 +998,30 @@ def get_podcast_audio(podcast_id: int) -> bytes | None:
     return bytes(row["audio"]) if row else None
 
 
+def get_podcast_audio_size(podcast_id: int) -> int | None:
+    """Byte length of the stored WAV, without reading it."""
+    row = (
+        get_conn()
+        .execute(_adapt("SELECT length(audio) AS n FROM podcasts WHERE id = ?"), (podcast_id,))
+        .fetchone()
+    )
+    return int(row["n"]) if row else None
+
+
+def get_podcast_audio_slice(podcast_id: int, start: int, length: int) -> bytes | None:
+    """``length`` bytes of the stored WAV from byte ``start`` (HTTP Range requests)."""
+    row = (
+        get_conn()
+        .execute(
+            # substr() on a BLOB (SQLite) / bytea (Postgres) is byte-based and 1-indexed.
+            _adapt("SELECT substr(audio, ?, ?) AS part FROM podcasts WHERE id = ?"),
+            (start + 1, length, podcast_id),
+        )
+        .fetchone()
+    )
+    return bytes(row["part"]) if row else None
+
+
 def delete_podcast(podcast_id: int) -> None:
     conn = get_conn()
     conn.execute(_adapt("DELETE FROM podcasts WHERE id = ?"), (podcast_id,))

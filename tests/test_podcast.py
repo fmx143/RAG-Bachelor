@@ -92,3 +92,64 @@ def test_store_list_delete_and_rename() -> None:
     assert renamed is not None and renamed.source == "b.pdf"
     store.delete_podcast(pid)
     assert store.get_podcast_audio(pid) is None
+
+
+def test_generate_records_line_starts_and_silence_recovers_them() -> None:
+    reply = json.dumps(
+        {"lines": [{"speaker": "A", "text": "Un."}, {"speaker": "B", "text": "Deux, plus long."}]}
+    )
+    pid = _run(reply)
+    assert pid is not None
+    saved = store.get_podcast(pid)
+    audio = store.get_podcast_audio(pid)
+    assert saved is not None and audio is not None
+    lines = json.loads(saved.script)
+    assert [line["start"] for line in lines] == [0.0, 0.8]  # 0.5 s speech + 0.3 s pause
+    legacy = [{"speaker": line["speaker"], "text": line["text"]} for line in lines]
+    assert podcast.line_starts(legacy, audio) == [0.0, 0.8]
+
+
+def test_line_starts_falls_back_to_text_length() -> None:
+    samples = np.full(1000, 0.5, dtype=np.float32)  # 1 s, no silence at all
+    lines = [{"speaker": "A", "text": "x" * 9}, {"speaker": "B", "text": "y" * 9}]
+    assert podcast.line_starts(lines, podcast._wav_bytes(samples, 1000)) == [0.0, 0.5]
+    assert podcast.line_starts([], podcast._wav_bytes(samples, 1000)) == []
+
+
+def test_audio_route_serves_byte_ranges() -> None:
+    from fastapi.testclient import TestClient
+
+    from rag_bachelor.app.web import server
+
+    data = bytes(range(256)) * 4  # 1024 bytes
+    pid = store.add_podcast("a.pdf", 1, 2, "[]", data, 1.0)
+    url = f"/podcasts/{pid}/audio.wav"
+    with TestClient(server.app) as client:
+        full = client.get(url)
+        assert full.status_code == 200 and full.content == data
+        assert full.headers["accept-ranges"] == "bytes"
+        part = client.get(url, headers={"Range": "bytes=10-19"})
+        assert part.status_code == 206 and part.content == data[10:20]
+        assert part.headers["content-range"] == "bytes 10-19/1024"
+        assert client.get(url, headers={"Range": "bytes=1000-"}).content == data[1000:]
+        assert client.get(url, headers={"Range": "bytes=-4"}).content == data[-4:]
+        assert client.get(url, headers={"Range": "bytes=1020-5000"}).content == data[1020:]
+        bad = client.get(url, headers={"Range": "bytes=2000-"})
+        assert bad.status_code == 416 and bad.headers["content-range"] == "bytes */1024"
+        assert client.get(url, headers={"Range": "bytes=0-1,5-6"}).status_code == 200
+        assert client.get("/podcasts/999/audio.wav").status_code == 404
+
+
+def test_view_makes_transcript_lines_seekable() -> None:
+    from fastapi.testclient import TestClient
+
+    from rag_bachelor.app.web import server
+
+    samples = np.concatenate([np.full(500, 0.5), np.zeros(300), np.full(500, 0.5), np.zeros(300)])
+    legacy = json.dumps([{"speaker": "A", "text": "Un."}, {"speaker": "B", "text": "Deux."}])
+    pid = store.add_podcast(
+        "a.pdf", 1, 2, legacy, podcast._wav_bytes(samples.astype(np.float32), 1000), 1.6
+    )
+    with TestClient(server.app) as client:
+        page = client.get(f"/podcasts/{pid}").text
+    assert 'data-start="0.0"' in page and 'data-start="0.8"' in page
