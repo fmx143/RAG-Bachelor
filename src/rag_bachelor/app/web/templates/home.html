@@ -36,7 +36,7 @@
     <div class="o-btns">
       {% if due %}<a href="/revision" class="o-btn-acc">Commencer la session
         <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>{% endif %}
-      <a href="/{{ 'bank' if total_cards else 'docs' }}" class="o-btn-ghost">{{ "Piocher dans la banque" if total_cards else "Importer un cours" }}</a>
+      <a href="/{{ 'livres' if total_cards else 'docs' }}" class="o-btn-ghost">{{ "Voir mes livres" if total_cards else "Importer un cours" }}</a>
     </div>
   </div>
 
