@@ -6,7 +6,15 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from rag_bachelor.study.srs import Card
-from rag_bachelor.study.store import get_review_days, get_topic_stats_rows
+from rag_bachelor.study.store import (
+    Chapter,
+    bank_card_pages,
+    count_bank_questions,
+    get_all_cards,
+    get_review_days,
+    get_topic_stats_rows,
+    list_bank_questions,
+)
 
 # Ease factor bounds used for mastery normalisation (SM-2 range ≈ 1.3–3.5)
 _EASE_MIN = 1.3
@@ -23,6 +31,51 @@ class TopicStats:
     mastery_pct: float  # 0–100; higher = more mastered
 
 
+def _mastery(avg_ease: float) -> float:
+    """Normalise an average SM-2 ease factor into 0–100 % mastery."""
+    return min(100.0, max(0.0, (avg_ease - _EASE_MIN) / (_EASE_MAX - _EASE_MIN) * 100.0))
+
+
+@dataclass
+class ChapterStats:
+    chapter: Chapter
+    questions: int  # bank questions generated from the chapter's pages
+    cards: int  # of which in the revision deck
+    due: int
+    mastery_pct: float | None  # None while the chapter has no card
+
+
+def chapter_stats(source: str, chapters: list[Chapter]) -> tuple[list[ChapterStats], int]:
+    """Per-chapter bank/deck figures of *source*, plus its deck cards outside every chapter.
+
+    A card or question belongs to the chapter holding its first cited page.
+    """
+    today = date.today()
+    cards = {c.id: c for c in get_all_cards(topic=source)}
+    card_page = bank_card_pages(source)
+    total = count_bank_questions(source=source)
+    q_pages = [min(q.pages) for q in list_bank_questions(source=source, limit=total) if q.pages]
+    out: list[ChapterStats] = []
+    placed: set[int] = set()
+    for ch in chapters:
+        mine = [
+            cards[i] for i, p in card_page.items() if i in cards and ch.page_from <= p <= ch.page_to
+        ]
+        placed.update(c.id for c in mine if c.id is not None)
+        out.append(
+            ChapterStats(
+                chapter=ch,
+                questions=sum(1 for p in q_pages if ch.page_from <= p <= ch.page_to),
+                cards=len(mine),
+                due=sum(1 for c in mine if c.due_date <= today),
+                mastery_pct=_mastery(sum(c.ease_factor for c in mine) / len(mine))
+                if mine
+                else None,
+            )
+        )
+    return out, len(cards) - len(placed)
+
+
 def get_topic_stats(subject: str | None = None) -> list[TopicStats]:
     """Return one :class:`TopicStats` per topic, sorted by mastery ascending.
 
@@ -34,9 +87,7 @@ def get_topic_stats(subject: str | None = None) -> list[TopicStats]:
     stats: list[TopicStats] = []
     for r in rows:
         avg_ease = r["avg_ease"] or _EASE_MIN
-        # Normalise ease into 0–100 % mastery
-        mastery = (avg_ease - _EASE_MIN) / (_EASE_MAX - _EASE_MIN) * 100.0
-        mastery = min(100.0, max(0.0, mastery))
+        mastery = _mastery(avg_ease)
 
         stats.append(
             TopicStats(

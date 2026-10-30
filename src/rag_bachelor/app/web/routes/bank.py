@@ -74,8 +74,10 @@ def _try_start(source: str, qtype: str, target: int) -> bool:
         return True
 
 
-def _run_bank_job(source: str, qtype: str, target: int) -> None:
-    """Generate the bank for *source* in the background, updating _JOB as it goes."""
+def _run_bank_job(
+    source: str, qtype: str, target: int, pages: tuple[int, int] | None = None
+) -> None:
+    """Generate the bank for *source* (or its *pages* range) in the background."""
 
     def _progress(inserted: int, tgt: int, skipped: int) -> None:
         _JOB.update(inserted=inserted, target=tgt, skipped=skipped)
@@ -87,6 +89,7 @@ def _run_bank_job(source: str, qtype: str, target: int) -> None:
             target=target,
             progress_cb=_progress,
             should_stop=lambda: bool(_JOB["cancel"]),
+            page_range=pages,
         )
     except Exception:
         # Never surface the raw exception: the LLM SDKs can echo an API key on auth errors.
@@ -113,7 +116,7 @@ def _status_ctx(error_override: str | None = None) -> dict[str, object]:
     }
 
 
-async def _list_ctx(
+async def list_ctx(
     source: str,
     difficulty: str,
     search: str,
@@ -195,7 +198,7 @@ async def bank_page(request: Request) -> Response:
         "active_tab": "bank",
         "sources": sources,
         **sidebar_ctx(),
-        **(await _list_ctx(source="", difficulty="", search="", limit=_PAGE_SIZE)),
+        **(await list_ctx(source="", difficulty="", search="", limit=_PAGE_SIZE)),
     }
     return templates.TemplateResponse(request, "bank.html", ctx)
 
@@ -210,15 +213,21 @@ async def start_generation(
     source: Annotated[str, Form()] = "",
     qtype: Annotated[str, Form()] = "free",
     count: Annotated[int, Form()] = _DEFAULT_TARGET,
+    page_from: Annotated[int, Form()] = 0,
+    page_to: Annotated[int, Form()] = 0,
 ) -> Response:
+    """Start a bank run over the whole document, or pages ``page_from..page_to`` if given."""
     source = source.strip()
     qt = qtype if qtype in QTYPES else "free"
     target = min(max(count, _MIN_TARGET), _MAX_TARGET)
+    pages = (page_from, page_to) if page_from or page_to else None
     error: str | None = None
     if not source:
         error = "Choisis un document."
+    elif pages and (page_from < 1 or page_to < page_from):
+        error = "Plage de pages invalide."
     elif _try_start(source, qt, target):
-        background_tasks.add_task(_run_bank_job, source, qt, target)
+        background_tasks.add_task(_run_bank_job, source, qt, target, pages)
     else:
         error = "Une génération est déjà en cours."
     return templates.TemplateResponse(
@@ -260,7 +269,7 @@ async def list_bank(
 ) -> Response:
     ctx = {
         "request": request,
-        **(await _list_ctx(source, difficulty, search, limit, qtype, result, deck)),
+        **(await list_ctx(source, difficulty, search, limit, qtype, result, deck)),
     }
     return templates.TemplateResponse(request, "partials/bank_list.html", ctx)
 
@@ -307,7 +316,7 @@ async def add_all_bank_to_deck(
     ctx = {
         "request": request,
         "added_count": added,
-        **(await _list_ctx(source, difficulty, search, _PAGE_SIZE, qtype, result, deck)),
+        **(await list_ctx(source, difficulty, search, _PAGE_SIZE, qtype, result, deck)),
     }
     return templates.TemplateResponse(request, "partials/bank_list.html", ctx)
 
@@ -326,7 +335,7 @@ async def delete_selected_bank(
     await asyncio.to_thread(delete_bank_questions, ids)
     ctx = {
         "request": request,
-        **(await _list_ctx(source, difficulty, search, _PAGE_SIZE, qtype, result, deck)),
+        **(await list_ctx(source, difficulty, search, _PAGE_SIZE, qtype, result, deck)),
     }
     return templates.TemplateResponse(request, "partials/bank_list.html", ctx)
 

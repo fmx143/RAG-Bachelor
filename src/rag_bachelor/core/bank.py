@@ -131,6 +131,7 @@ def generate_bank_for_source(
     target: int = 999_999,
     progress_cb: Callable[[int, int, int], None] | None = None,
     should_stop: Callable[[], bool] | None = None,
+    page_range: tuple[int, int] | None = None,
 ) -> int:
     """Generate up to *target* unique bank questions covering *source*.
 
@@ -148,9 +149,12 @@ def generate_bank_for_source(
     unbounded, i.e. cover the whole document).
     *progress_cb* receives ``(inserted_so_far, target, skipped_so_far)``.
     *should_stop* is polled before each window to support cancellation.
+    *page_range* ``(first, last)`` limits the run to those pages (a chapter).
     Returns the total number of questions inserted.
     """
     chunks = get_source_chunks(source)
+    if page_range:
+        chunks = [c for c in chunks if page_range[0] <= c.page <= page_range[1]]
     windows = [chunks[i : i + _WINDOW_SIZE] for i in range(0, len(chunks), _WINDOW_SIZE)]
 
     system_prompt = _system_prompt(qtype)

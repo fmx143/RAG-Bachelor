@@ -5,6 +5,23 @@ document.addEventListener("input", (e) => {
   if (out) document.getElementById(out).textContent = e.target.value;
 });
 
+// Chapter pickers (document page): choosing a chapter fills its form's page range;
+// typing a page switches the picker to "Pages au choix…".
+document.addEventListener("change", (e) => {
+  const pick = e.target.closest && e.target.closest("[data-chapter-pick]");
+  if (!pick) return;
+  const opt = pick.selectedOptions[0];
+  if (!opt || opt.hasAttribute("data-custom")) return;
+  pick.form.elements.page_from.value = opt.dataset.from;
+  pick.form.elements.page_to.value = opt.dataset.to;
+});
+document.addEventListener("input", (e) => {
+  const form = e.target.form;
+  const pick = form && form.querySelector("[data-chapter-pick]");
+  if (!pick || !["page_from", "page_to"].includes(e.target.name)) return;
+  pick.value = pick.querySelector("[data-custom]").value;
+});
+
 // Document upload: one XHR per file (relative path kept), so no request grows past one PDF.
 // Sequential on purpose: the server hashes, moves and queues each file before the next arrives.
 // Picking files or a folder first shows a checklist: import and index, per file or per folder.
