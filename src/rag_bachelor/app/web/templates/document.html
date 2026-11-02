@@ -184,6 +184,38 @@
 </div>
 {{ saved_list("podcasts", "Leçons audio") }}
 
+{% elif tab == "masquage" %}
+<div class="card">
+  <div class="subheader">Masquer des zones d'un schéma</div>
+  <small style="color:var(--muted);">Dessine des rectangles sur la page (légende, valeur, nom d'un élément) : une carte est créée par zone, toutes les zones sont cachées et l'une d'elles est à retrouver.</small>
+  {% if created %}<div class="alert alert-info" style="margin-top:.75rem;">{{ created }} carte{{ "s" if created > 1 }} ajoutée{{ "s" if created > 1 }} à la révision.</div>{% endif %}
+  <div class="occ-nav">
+    {% if occ_page > 1 %}<a class="btn btn-ghost btn-sm" href="{{ durl }}?tab=masquage&page={{ occ_page - 1 }}">← Page précédente</a>{% endif %}
+    <form method="get" action="{{ durl }}">
+      <input type="hidden" name="tab" value="masquage">
+      <label for="occ_page">Page</label>
+      <input id="occ_page" type="number" name="page" min="1" max="{{ pages }}" value="{{ occ_page }}">
+      <button type="submit" class="btn btn-ghost btn-sm">Aller</button>
+    </form>
+    {% if occ_page < pages %}<a class="btn btn-ghost btn-sm" href="{{ durl }}?tab=masquage&page={{ occ_page + 1 }}">Page suivante →</a>{% endif %}
+  </div>
+  <form method="post" action="/occlusion/create" data-occ-edit>
+    <input type="hidden" name="source" value="{{ path }}">
+    <input type="hidden" name="page" value="{{ occ_page }}">
+    <input type="hidden" name="rects" value="[]">
+    <div class="occ-stage" data-stage>
+      <img src="/docs/page.png?path={{ path | url_encode }}&page={{ occ_page }}" alt="Page {{ occ_page }}" draggable="false">
+    </div>
+    <ol class="occ-list" data-list></ol>
+    <div class="form-group">
+      <label for="occ_title">Consigne de la carte (facultatif)</label>
+      <input id="occ_title" type="text" name="title" maxlength="200" placeholder="Que représente la zone cachée ?">
+    </div>
+    <button type="submit" class="btn btn-primary" data-submit disabled>Créer les cartes</button>
+  </form>
+</div>
+<script src="{{ asset_url('occlusion.js') }}" defer></script>
+
 {% elif tab == "fichier" %}
 {% if job.running %}
 <div class="alert alert-info" id="file-job" hx-get="{{ durl }}?tab=fichier" hx-select="#file-job" hx-target="this" hx-swap="outerHTML" hx-trigger="every 3s">

@@ -18,7 +18,21 @@
 
   <div class="fq">{{ card.question }}</div>
 
-  {% if card.qtype not in self_graded %}
+  {% if card.qtype == "occlusion" %}
+  <!-- Image occlusion: every zone is hidden, the target one is marked "?" until the answer is shown -->
+  <div class="occ">
+    <img src="/docs/page.png?path={{ card.topic | url_encode }}&page={{ card.occlusion.page }}" alt="Page {{ card.occlusion.page }} du document">
+    {% for r in card.occlusion.rects %}
+    <i class="occ-box {{ 'target' if loop.index0 == card.occlusion.target else 'other' }}" style="left:{{ r[0] }}%;top:{{ r[1] }}%;width:{{ r[2] }}%;height:{{ r[3] }}%">{% if loop.index0 == card.occlusion.target %}?{% endif %}</i>
+    {% endfor %}
+  </div>
+  <details class="reveal">
+    <summary class="btn btn-ghost">Afficher la zone</summary>
+    {% if card.answer %}<div class="answer">{{ card.answer }}</div>{% endif %}
+    {% include "partials/revision_gradebar.html" %}
+  </details>
+
+  {% elif card.qtype not in self_graded %}
   <!-- Structured type (QCM/Vrai-Faux): auto-graded, no LLM call -->
   <form hx-post="/revision/answer/{{ card.id }}" hx-include="#revision-filter-form" hx-target="#revision-content" hx-swap="innerHTML">
     {% for opt in card.options %}

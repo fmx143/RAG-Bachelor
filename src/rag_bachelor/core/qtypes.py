@@ -27,6 +27,8 @@ QTYPE_LABELS: dict[str, str] = {
     "mcq_single": "QCM — une réponse",
     "mcq_multi": "QCM — plusieurs réponses",
     "tf": "Vrai / Faux",
+    # Not generated (so not in QTYPES): made by hand from a page image, see routes/document.py.
+    "occlusion": "Masquage d'image",
 }
 
 DIFFICULTIES: tuple[str, ...] = ("facile", "moyen", "difficile")
