@@ -1082,3 +1082,7 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .btn-blue:hover { background: color-mix(in oklch, var(--blue) 28%, transparent); }
 .rate-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
 .rate-row .btn.on { border-color: var(--primary); color: var(--primary); }
+.saved-more { margin-top: 14px; }
+.saved-more > summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.saved-more .form-group { margin-top: 12px; max-width: 420px; }
+.o-saved-item[hidden] { display: none; }

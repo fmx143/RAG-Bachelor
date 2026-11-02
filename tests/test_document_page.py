@@ -144,3 +144,15 @@ def test_library_grids_sort_documents_by_kind_and_old_pages_redirect() -> None:
         ):
             assert f'<span class="lbl">{label}</span>' in nav
         assert '<span class="lbl">Génération</span>' not in nav
+
+
+def test_saved_sheets_are_in_book_order_with_a_fold_after_two() -> None:
+    _index()
+    ids = [store.add_sheet(DOC, a, b, "## F") for a, b in [(4, 6), (1, 3), (2, 2), (5, 5)]]
+    with TestClient(server.app) as client:
+        html = client.get("/document/Bachelor/Livres/Cours%20un.pdf?tab=fiches").text
+    order = [int(x.split('"')[0]) for x in html.split('href="/sheets/')[1:]]
+    assert order == [ids[1], ids[2], ids[0], ids[3]]  # p.1, p.2, p.4, p.5
+    head, fold = html.split("saved-more", 1)[0], html.split("saved-more", 1)[1]
+    assert f'href="/sheets/{ids[2]}"' in head and f'href="/sheets/{ids[0]}"' in fold
+    assert "data-saved-filter" in fold and "Tout le livre" in fold
