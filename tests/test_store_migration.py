@@ -10,6 +10,7 @@ Postgres path has no test container here).
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
 
 from rag_bachelor.config import settings
 from rag_bachelor.study import store
@@ -110,3 +111,31 @@ def test_migrate_adds_passage_to_old_question_bank() -> None:
 
     conn = store.get_conn()
     assert conn.execute("SELECT passage FROM question_bank").fetchone()["passage"] == ""
+
+
+def test_migrate_replays_sm2_history_into_fsrs_state() -> None:
+    """Cards reviewed before FSRS get a memory state from their `reviews`, once."""
+    conn = store.get_conn()
+    card_id = store.add_card("Q ?", "R.", topic="Sujet", difficulty="moyen")
+    new_id = store.add_card("Jamais revue ?", "R.", topic="Sujet", difficulty="moyen")
+    for grade, day in ((4, "2026-01-01"), (4, "2026-01-04"), (0, "2026-01-15")):
+        conn.execute(
+            "INSERT INTO reviews (card_id, grade, reviewed_at) VALUES (?, ?, ?)",
+            (card_id, grade, f"{day} 10:00:00"),
+        )
+    conn.commit()
+
+    store._migrate(conn)
+
+    card = store.get_card(card_id)
+    assert card is not None
+    assert card.stability > 0 and card.last_review == date(2026, 1, 15)
+    assert (card.repetitions, card.interval) == (0, 1)  # the last review was a lapse
+    assert card.due_date == date(2026, 1, 16)
+    untouched = store.get_card(new_id)
+    assert untouched is not None and untouched.stability == 0
+
+    before = card.stability
+    store._migrate(conn)  # idempotent: not replayed a second time
+    again = store.get_card(card_id)
+    assert again is not None and again.stability == before

@@ -1,24 +1,19 @@
-"""Per-topic mastery statistics derived from the SM-2 card state."""
+"""Per-topic mastery statistics derived from the FSRS card state."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from rag_bachelor.study.srs import Card
+from rag_bachelor.study.srs import Card, retention
 from rag_bachelor.study.store import (
     Chapter,
     bank_card_pages,
     count_bank_questions,
     get_all_cards,
     get_review_days,
-    get_topic_stats_rows,
     list_bank_questions,
 )
-
-# Ease factor bounds used for mastery normalisation (SM-2 range ≈ 1.3–3.5)
-_EASE_MIN = 1.3
-_EASE_MAX = 3.5
 
 
 @dataclass
@@ -26,14 +21,13 @@ class TopicStats:
     topic: str
     total_cards: int
     due_cards: int  # cards due today or overdue
-    avg_ease: float  # average ease factor across all cards in this topic
     avg_interval: float  # average current interval (days)
     mastery_pct: float  # 0–100; higher = more mastered
 
 
-def _mastery(avg_ease: float) -> float:
-    """Normalise an average SM-2 ease factor into 0–100 % mastery."""
-    return min(100.0, max(0.0, (avg_ease - _EASE_MIN) / (_EASE_MAX - _EASE_MIN) * 100.0))
+def _mastery(cards: list[Card], today: date) -> float:
+    """Mean predicted recall of *cards* today, as 0–100 % (cards never reviewed count 0)."""
+    return 100 * sum(retention(c, today) for c in cards) / len(cards)
 
 
 @dataclass
@@ -68,9 +62,7 @@ def chapter_stats(source: str, chapters: list[Chapter]) -> tuple[list[ChapterSta
                 questions=sum(1 for p in q_pages if ch.page_from <= p <= ch.page_to),
                 cards=len(mine),
                 due=sum(1 for c in mine if c.due_date <= today),
-                mastery_pct=_mastery(sum(c.ease_factor for c in mine) / len(mine))
-                if mine
-                else None,
+                mastery_pct=_mastery(mine, today) if mine else None,
             )
         )
     return out, len(cards) - len(placed)
@@ -82,23 +74,21 @@ def get_topic_stats(subject: str | None = None) -> list[TopicStats]:
     Topics with lower mastery are listed first so weak subjects are prominent
     in the UI.
     """
-    rows = get_topic_stats_rows(subject)
+    today = date.today()
+    by_topic: dict[str, list[Card]] = {}
+    for c in get_all_cards(subject=subject):
+        by_topic.setdefault(c.topic, []).append(c)
 
-    stats: list[TopicStats] = []
-    for r in rows:
-        avg_ease = r["avg_ease"] or _EASE_MIN
-        mastery = _mastery(avg_ease)
-
-        stats.append(
-            TopicStats(
-                topic=r["topic"],
-                total_cards=r["total"],
-                due_cards=r["due"] or 0,
-                avg_ease=avg_ease,
-                avg_interval=r["avg_interval"] or 1.0,
-                mastery_pct=mastery,
-            )
+    stats = [
+        TopicStats(
+            topic=topic,
+            total_cards=len(cards),
+            due_cards=sum(1 for c in cards if c.due_date <= today),
+            avg_interval=sum(c.interval for c in cards) / len(cards),
+            mastery_pct=_mastery(cards, today),
         )
+        for topic, cards in sorted(by_topic.items())
+    ]
 
     # Weakest first
     stats.sort(key=lambda s: s.mastery_pct)

@@ -20,7 +20,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 from rag_bachelor.config import settings
-from rag_bachelor.study.srs import Card
+from rag_bachelor.study.srs import Card, update_card
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +215,10 @@ _COLUMNS_ADDED = {
         "qtype": "TEXT NOT NULL DEFAULT 'free'",
         "options": "TEXT",
         "correct": "TEXT",
+        # FSRS memory state (replaces the SM-2 `ease_factor`, which stays as an unused column).
+        "stability": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "fsrs_difficulty": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "last_review": "TEXT",
     },
     # Same for `question_bank`: the supporting excerpt shown under each answer.
     "question_bank": {"passage": "TEXT NOT NULL DEFAULT ''"},
@@ -248,7 +252,40 @@ def _migrate(conn: sqlite3.Connection | psycopg.Connection[dict[str, Any]]) -> N
                 if name not in existing:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
     _retag_single_answer_multi(conn)
+    _replay_fsrs(conn)
     conn.commit()
+
+
+def _replay_fsrs(conn: sqlite3.Connection | psycopg.Connection[dict[str, Any]]) -> None:
+    """Give cards reviewed under SM-2 (stability 0) an FSRS state by replaying their `reviews`.
+
+    Idempotent: replayed cards get a stability > 0 and are skipped next time.
+    """
+    rows = conn.execute(
+        "SELECT card_id, grade, reviewed_at FROM reviews WHERE card_id IN "
+        "(SELECT id FROM cards WHERE stability = 0) ORDER BY card_id, id"
+    ).fetchall()
+    cards: dict[int, Card] = {}
+    for r in rows:
+        # Only the schedule fields matter for a replay, hence the blank text fields.
+        card = cards.setdefault(r["card_id"], Card(r["card_id"], "", "", "", ""))
+        update_card(card, r["grade"], today=date.fromisoformat(str(r["reviewed_at"])[:10]))
+    for c in cards.values():
+        conn.execute(
+            _adapt(
+                "UPDATE cards SET interval = ?, repetitions = ?, due_date = ?, stability = ?, "
+                "fsrs_difficulty = ?, last_review = ? WHERE id = ?"
+            ),
+            (
+                c.interval,
+                c.repetitions,
+                c.due_date.isoformat(),
+                c.stability,
+                c.fsrs_difficulty,
+                c.last_review.isoformat() if c.last_review else None,
+                c.id,
+            ),
+        )
 
 
 def _retag_single_answer_multi(
@@ -518,20 +555,23 @@ def get_all_cards(topic: str | None = None, subject: str | None = None) -> list[
 
 
 def save_review(card: Card, grade: int) -> None:
-    """Persist a review result and update the card's SM-2 state in one transaction."""
+    """Persist a review result and update the card's schedule state in one transaction."""
     conn = get_conn()
     conn.execute(_adapt("INSERT INTO reviews (card_id, grade) VALUES (?,?)"), (card.id, grade))
     conn.execute(
         _adapt(
             """UPDATE cards
-               SET interval = ?, repetitions = ?, ease_factor = ?, due_date = ?
+               SET interval = ?, repetitions = ?, due_date = ?,
+                   stability = ?, fsrs_difficulty = ?, last_review = ?
                WHERE id = ?"""
         ),
         (
             card.interval,
             card.repetitions,
-            card.ease_factor,
             card.due_date.isoformat(),
+            card.stability,
+            card.fsrs_difficulty,
+            card.last_review.isoformat() if card.last_review else None,
             card.id,
         ),
     )
@@ -1137,42 +1177,6 @@ def delete_podcast(podcast_id: int) -> None:
 # ── Stats (used by rag_bachelor.study.stats) ────────────────────────────────
 
 
-def get_topic_stats_rows(subject: str | None = None) -> list[dict[str, Any]]:
-    """Return one raw row per topic with the aggregates :mod:`study.stats` needs."""
-    conn = get_conn()
-    today = date.today().isoformat()
-    clause, prefix = _in_subject("topic", subject) if subject else ("1 = 1", None)
-    rows = conn.execute(
-        _adapt(
-            f"""
-            SELECT
-                topic,
-                COUNT(*)                                          AS total,
-                SUM(CASE WHEN due_date <= ? THEN 1 ELSE 0 END)     AS due,
-                AVG(ease_factor)                                   AS avg_ease,
-                AVG(interval)                                      AS avg_interval
-            FROM cards
-            WHERE {clause}
-            GROUP BY topic
-            ORDER BY topic
-            """
-        ),
-        (today, prefix) if prefix else (today,),
-    ).fetchall()
-    return [
-        {
-            "topic": r["topic"],
-            "total": r["total"],
-            "due": r["due"],
-            # Postgres' AVG() on an integer column returns Decimal; normalise to
-            # float so callers see the same type regardless of backend.
-            "avg_ease": float(r["avg_ease"]) if r["avg_ease"] is not None else None,
-            "avg_interval": float(r["avg_interval"]) if r["avg_interval"] is not None else None,
-        }
-        for r in rows
-    ]
-
-
 def get_review_days(since: date, subject: str | None = None) -> list[tuple[date, int, int]]:
     """``(day, reviews, successes)`` per day since *since* (grade >= 3 is a success)."""
     clause, prefix = _in_subject("c.topic", subject) if subject else ("1 = 1", None)
@@ -1239,6 +1243,8 @@ def _row_to_card(row: sqlite3.Row | dict[str, Any]) -> Card:
         correct=_load_json_col(row["correct"]),
         interval=row["interval"],
         repetitions=row["repetitions"],
-        ease_factor=row["ease_factor"],
         due_date=date.fromisoformat(row["due_date"]),
+        stability=row["stability"],
+        fsrs_difficulty=row["fsrs_difficulty"],
+        last_review=date.fromisoformat(row["last_review"]) if row["last_review"] else None,
     )
