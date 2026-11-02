@@ -26,6 +26,17 @@
   <div class="times"><span data-cur>0:00</span><span data-dur>{{ (podcast.duration // 60) | int }}:{{ '%02d' | format((podcast.duration % 60) | int) }}</span></div>
 </div>
 
+<form class="o-ask" hx-post="/podcasts/{{ podcast.id }}/ask" hx-target="#live-answer" hx-indicator="#ask-wait" data-ask>
+  <input type="hidden" name="t" value="0" data-ask-t>
+  <button type="button" class="btn btn-ghost btn-sm" data-ask-open>🙋 Poser une question</button>
+  <span class="ask-fields" hidden>
+    <input type="text" name="question" maxlength="500" placeholder="Ta question sur ce passage…" aria-label="Ta question" autocomplete="off">
+    <button type="submit" class="btn btn-sm">Demander</button>
+  </span>
+  <span id="ask-wait" class="htmx-indicator">L'expert réfléchit…</span>
+</form>
+<div id="live-answer"></div>
+
 <div class="o-row">
 <div class="card" style="flex:1.6 1 460px;min-width:0;margin:0">
   <div class="subheader">Transcription</div>

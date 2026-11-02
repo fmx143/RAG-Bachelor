@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
+import logging
 import re
 import threading
 from typing import Annotated, Any, cast
@@ -13,7 +15,7 @@ from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import nav_tab, sidebar_ctx, templates
-from rag_bachelor.core.podcast import audio_mime, generate_podcast, line_starts
+from rag_bachelor.core.podcast import answer_live, audio_mime, generate_podcast, line_starts
 from rag_bachelor.study.store import (
     delete_podcast,
     get_podcast,
@@ -24,6 +26,7 @@ from rag_bachelor.study.store import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 MAX_PAGES = 40  # bounds LLM calls, TTS time (CPU) and the stored audio size (~0.5 MB/min)
 _RANGE = re.compile(r"bytes=(\d*)-(\d*)")
@@ -196,6 +199,42 @@ async def podcast_audio(request: Request, podcast_id: int) -> Response:
         return Response(content=body, media_type=mime, headers=headers)
     headers["Content-Range"] = f"bytes {start}-{end}/{size}"
     return Response(content=body, status_code=206, media_type=mime, headers=headers)
+
+
+@router.post("/podcasts/{podcast_id}/ask", response_class=HTMLResponse)
+async def podcast_ask(
+    request: Request,
+    podcast_id: int,
+    question: Annotated[str, Form()],
+    t: Annotated[float, Form()] = 0.0,
+) -> Response:
+    """Answer a question asked while listening: spoken reply returned inline, nothing stored."""
+    item = await asyncio.to_thread(get_podcast, podcast_id)
+    if item is None:
+        return Response(status_code=404)
+    lines: list[dict[str, str]] = []
+    clip = ""
+    error = ""
+    if not question.strip():
+        error = "Pose ta question d'abord."
+    else:
+        try:
+            lines, mp3 = await asyncio.to_thread(answer_live, item, question, t)
+            clip = base64.b64encode(mp3).decode()
+        except Exception:  # model/TTS failure: say so instead of a 500
+            logger.exception("Live podcast answer failed for podcast %s", podcast_id)
+            error = "L'expert n'a pas pu répondre, réessaie dans un instant."
+    return templates.TemplateResponse(
+        request,
+        "partials/podcast_answer.html",
+        {
+            "request": request,
+            "question": question.strip(),
+            "lines": lines,
+            "clip": clip,
+            "error": error,
+        },
+    )
 
 
 @router.post("/podcasts/{podcast_id}/delete", response_class=HTMLResponse)
