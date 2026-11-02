@@ -449,3 +449,9 @@ document.addEventListener("change", (e) => {
     it.hidden = e.target.value !== "" && it.dataset.chap !== e.target.value;
   });
 });
+
+// Revision sheet: tag the standard sub-headings so the CSS can colour their list (definitions, key points, traps).
+document.querySelectorAll(".sheet-content h3").forEach((h) => {
+  const t = h.textContent.toLowerCase();
+  h.dataset.kind = /définition|repère/.test(t) ? "def" : /point.*clé|retenir|essentiel/.test(t) ? "key" : /piège|erreur|attention/.test(t) ? "trap" : "";
+});
