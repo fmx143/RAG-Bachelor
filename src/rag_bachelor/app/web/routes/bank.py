@@ -30,9 +30,9 @@ router = APIRouter()
 
 _DIFF_LABELS = {"facile": "Facile", "moyen": "Moyen", "difficile": "Difficile"}
 _RESULTS = ("correct", "incorrect", "untried")
-_RESULT_LABELS = {"correct": "Juste", "incorrect": "Faux", "untried": "◯ Jamais tenté"}
+_RESULT_LABELS = {"correct": "Juste", "incorrect": "Faux", "untried": "Jamais tenté"}
 _DECKS = ("in", "out", "bad")
-_DECK_LABELS = {"in": "Déjà en révision", "out": "Pas encore ajoutée", "bad": "Mal conçues"}
+_DECK_LABELS = {"bad": "Mal conçues"}  # every question is in revision except those flagged
 _PAGE_SIZE = 20
 _MIN_TARGET = 1
 _MAX_TARGET = 100

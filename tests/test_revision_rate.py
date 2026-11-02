@@ -48,3 +48,10 @@ def test_delete_removes_card_and_its_bank_question(client: TestClient) -> None:
         conn.execute("SELECT COUNT(*) FROM question_bank WHERE card_id = ?", (cid,)).fetchone()[0]
         == 0
     )
+
+
+def test_flagged_card_is_no_longer_due() -> None:
+    cid = _card_id()
+    assert [c.id for c in store.get_due_cards()] == [cid]
+    store.set_relevance(cid, -1)
+    assert store.get_due_cards() == []
