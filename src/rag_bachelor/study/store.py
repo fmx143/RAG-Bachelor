@@ -510,7 +510,10 @@ def get_due_cards(
         return []
     conn = get_conn()
     today = date.today().isoformat()
-    clauses = ["due_date <= ?", "(relevance IS NULL OR relevance <> -1)"]  # flagged = out of revision
+    clauses = [
+        "due_date <= ?",
+        "(relevance IS NULL OR relevance <> -1)",
+    ]  # flagged = out of revision
     params: list[Any] = [today]
     if card_ids:
         clauses.append(f"id IN ({','.join('?' * len(card_ids))})")
@@ -828,6 +831,18 @@ def bank_card_pages(source: str) -> dict[int, int]:
         pages = [int(p) for p in json.loads(r["pages"]) if isinstance(p, int)]
         if pages:
             out[int(r["card_id"])] = min(pages)
+    return out
+
+
+def bank_chunk_cards() -> dict[str, set[int]]:
+    """``{chunk id: deck card ids}`` for every bank question that became a card."""
+    rows = (
+        get_conn().execute("SELECT chunk_ids, card_id FROM question_bank WHERE card_id IS NOT NULL")
+    ).fetchall()
+    out: dict[str, set[int]] = {}
+    for r in rows:
+        for chunk_id in json.loads(r["chunk_ids"]):
+            out.setdefault(str(chunk_id), set()).add(int(r["card_id"]))
     return out
 
 
