@@ -1,0 +1,57 @@
+<link rel="stylesheet" href="{{ asset_url('carte-savoir/carte-savoir.css') }}">
+
+<section class="cs-racine"
+         data-carte-savoir
+         data-source="{{ url_for('api_carte_savoir') }}"
+         data-revision-url="/carte-savoir/reviser?concept={id}"
+         aria-label="Carte du savoir">
+
+  <canvas class="cs-canvas" data-cs="canvas" role="img" aria-label="Carte du savoir"></canvas>
+
+  <header class="cs-titre">
+    <h1>Ma carte du savoir</h1>
+    <p data-cs="resume">Chargement de la carte…</p>
+  </header>
+
+  <div class="cs-outils">
+    <input class="cs-recherche" data-cs="recherche" type="search" placeholder="Chercher un concept" aria-label="Chercher un concept" autocomplete="off">
+    <button class="cs-btn" data-cs="zoom-moins" type="button" aria-label="Dézoomer">−</button>
+    <button class="cs-btn" data-cs="zoom-plus" type="button" aria-label="Zoomer">+</button>
+    <button class="cs-btn" data-cs="recentrer" type="button">Recentrer</button>
+  </div>
+
+  <aside class="cs-modules cs-panneau" aria-label="Modules">
+    <h2>Modules</h2>
+    <ul data-cs="liste-modules"></ul>
+  </aside>
+
+  <aside class="cs-detail cs-panneau" data-cs="detail" hidden aria-live="polite">
+    <button class="cs-fermer" data-cs="fermer" type="button" aria-label="Fermer">×</button>
+    <p class="cs-ligne-module"><span class="cs-pastille" data-cs="d-pastille"></span><span data-cs="d-module"></span></p>
+    <h2 data-cs="d-nom"></h2>
+    <span class="cs-barre"><span data-cs="d-barre"></span></span>
+    <dl>
+      <dt>Maîtrise</dt><dd data-cs="d-maitrise"></dd>
+      <dt>Prochaine révision</dt><dd data-cs="d-revision"></dd>
+    </dl>
+    <h3>Concepts liés</h3>
+    <ul class="cs-voisins" data-cs="d-voisins"></ul>
+    <button class="cs-primaire" data-cs="reviser" type="button">Réviser ce concept</button>
+  </aside>
+
+  <details class="cs-legende cs-panneau">
+    <summary>Légende</summary>
+    <ul>
+      <li><span class="cs-sym cs-arc"></span>Anneau rempli : niveau de maîtrise</li>
+      <li><span class="cs-sym cs-vide"></span>Cercle pointillé : jamais révisé</li>
+      <li><span class="cs-sym cs-halo"></span>Halo qui pulse : à revoir aujourd’hui</li>
+      <li><span class="cs-sym cs-zone"></span>Zone colorée : module</li>
+    </ul>
+    <p>Glissez pour déplacer la carte, molette pour zoomer. Survolez un concept pour voir ses liens.</p>
+  </details>
+
+  <div class="cs-etat cs-panneau" data-cs="etat" hidden role="alert"></div>
+  <div class="cs-toast" data-cs="toast" role="status"></div>
+</section>
+
+<script src="{{ asset_url('carte-savoir/carte-savoir.js') }}" defer></script>
