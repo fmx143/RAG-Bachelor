@@ -313,6 +313,27 @@ document.querySelectorAll("[data-player]").forEach((box) => {
     const r = e.currentTarget.getBoundingClientRect();
     if (au.duration) au.currentTime = ((e.clientX - r.left) / r.width) * au.duration;
   });
+  // Ask the expert: pause at second t, play the spoken reply, then resume at t.
+  const ask = document.querySelector("[data-ask]");
+  if (ask) {
+    let t = 0, wasPlaying = false;
+    ask.querySelector("[data-ask-open]").addEventListener("click", () => {
+      wasPlaying = !au.paused;
+      au.pause();
+      t = au.currentTime;
+      ask.querySelector("[data-ask-t]").value = t.toFixed(1);
+      ask.querySelector(".ask-fields").hidden = false;
+      ask.querySelector("[name=question]").focus();
+    });
+    document.body.addEventListener("htmx:afterSwap", (e) => {
+      const reply = e.target.id === "live-answer" && e.target.querySelector("[data-reply-audio]");
+      if (!reply) return;
+      reply.addEventListener("ended", () => {
+        au.currentTime = t;
+        if (wasPlaying) au.play();
+      });
+    });
+  }
   box.querySelectorAll("[data-speed]").forEach((b) => b.addEventListener("click", () => {
     au.playbackRate = parseFloat(b.dataset.speed);
     box.querySelectorAll("[data-speed]").forEach((x) => x.classList.toggle("on", x === b));

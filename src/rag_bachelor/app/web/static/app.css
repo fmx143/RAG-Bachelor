@@ -1059,3 +1059,13 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .occ-list { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 8px; }
 .occ-list li { display: flex; gap: 8px; align-items: center; }
 .occ-list input { flex: 1; }
+
+/* Podcast: ask the expert while listening */
+.o-ask { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .75rem 0; }
+.o-ask .ask-fields { display: flex; gap: .5rem; flex: 1 1 320px; }
+.o-ask .ask-fields[hidden] { display: none; }
+.o-ask input[type=text] { flex: 1; min-width: 0; }
+.o-reply { margin: 0 0 .75rem; }
+.o-reply-q { color: var(--muted, #8b93a7); font-style: italic; }
+.o-reply audio { width: 100%; margin-top: .5rem; }
+.o-ask-err { color: var(--bad, #f87171); margin: 0 0 .75rem; }

@@ -1,0 +1,12 @@
+{% if error %}
+<p class="o-ask-err" role="alert">{{ error }}</p>
+{% else %}
+<div class="card o-reply" data-reply>
+  <div class="subheader">Réponse à ta question</div>
+  <p class="o-reply-q">« {{ question }} »</p>
+  {% for l in lines %}
+  <p><b>{{ "Expert" if l.speaker == "A" else "Podcasteuse" }} :</b> {{ l.text }}</p>
+  {% endfor %}
+  <audio controls autoplay src="data:audio/mpeg;base64,{{ clip }}" data-reply-audio></audio>
+</div>
+{% endif %}

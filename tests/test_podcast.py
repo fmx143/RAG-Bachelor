@@ -161,3 +161,64 @@ def test_view_makes_transcript_lines_seekable() -> None:
     with TestClient(server.app) as client:
         page = client.get(f"/podcasts/{pid}").text
     assert 'data-start="0.0"' in page and 'data-start="0.8"' in page
+
+
+def _live(reply: str, question: str = "C'est quoi TCP ?", t: float = 5.0):  # type: ignore[no-untyped-def]
+    """Run ``answer_live`` on a stored two-line podcast with a fake model, retriever and TTS."""
+    from rag_bachelor.core.retriever import SearchResult
+
+    script = [
+        {"speaker": "A", "text": "Avant.", "start": 0.0},
+        {"speaker": "B", "text": "Après.", "start": 9.0},
+    ]
+    pid = store.add_podcast("a.pdf", 2, 3, json.dumps(script), b"ID3", 10.0)
+    item = store.get_podcast(pid)
+    assert item is not None
+    provider = MagicMock()
+    provider.chat = MagicMock(return_value=reply)
+    hits = [SearchResult(f"texte {p}", "a.pdf", p, 0.9) for p in (1, 2, 3)]
+    with (
+        patch.object(podcast, "retrieve", return_value=hits),
+        patch.object(podcast, "get_provider", return_value=(provider, "ollama")),
+        patch.object(podcast, "_load_tts", return_value=FakeTTS()),
+    ):
+        return pid, podcast.answer_live(item, question, t), provider
+
+
+def test_answer_live_uses_heard_lines_and_page_range_only() -> None:
+    reply = json.dumps({"lines": [{"speaker": "A", "text": "TCP est fiable."}] * 4})
+    _, (lines, mp3), provider = _live(reply)
+    prompt = provider.chat.call_args.args[0][1]["content"]
+    assert "Avant." in prompt and "Après." not in prompt  # only what was heard before t=5
+    assert "texte 2" in prompt and "texte 3" in prompt and "texte 1" not in prompt
+    assert "C'est quoi TCP ?" in prompt
+    assert len(lines) == 3 and mp3[:1] == b"\xff"  # capped at 3 lines, MP3 frame sync
+
+
+def test_answer_live_without_usable_reply_raises() -> None:
+    with pytest.raises(ValueError):
+        _live("{}")
+
+
+def test_ask_route_returns_inline_audio_and_stores_nothing() -> None:
+    from fastapi.testclient import TestClient
+
+    from rag_bachelor.app.web import server
+
+    pid = store.add_podcast("a.pdf", 1, 2, "[]", b"ID3", 1.0)
+    lines = [{"speaker": "A", "text": "Réponse."}]
+    with TestClient(server.app) as client:
+        with patch(
+            "rag_bachelor.app.web.routes.podcasts.answer_live", return_value=(lines, b"abc")
+        ):
+            ok = client.post(f"/podcasts/{pid}/ask", data={"question": "Pourquoi ?", "t": "3.5"})
+        assert 'src="data:audio/mpeg;base64,YWJj"' in ok.text and "Réponse." in ok.text
+        with patch("rag_bachelor.app.web.routes.podcasts.answer_live", side_effect=OSError):
+            bad = client.post(f"/podcasts/{pid}/ask", data={"question": "Pourquoi ?"})
+        assert "pas pu répondre" in bad.text and "<audio" not in bad.text
+        assert (
+            "Pose ta question" in client.post(f"/podcasts/{pid}/ask", data={"question": " "}).text
+        )
+        assert client.post("/podcasts/999/ask", data={"question": "x"}).status_code == 404
+        assert "media-src 'self' data:" in ok.headers["content-security-policy"]
+    assert len(store.list_podcasts()) == 1
