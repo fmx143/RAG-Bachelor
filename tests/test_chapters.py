@@ -107,3 +107,23 @@ def test_bank_card_pages_and_due_cards_by_ids() -> None:
     first_chapter = [cid for cid, p in pages.items() if 1 <= p <= 4]
     assert [c.id for c in store.get_due_cards(limit=10, card_ids=first_chapter)] == [c1]
     assert store.get_due_cards(limit=10, card_ids=[]) == []
+
+
+def test_from_page_heads_uses_running_headers_and_ignores_early_cross_references() -> None:
+    heads = [
+        ["Préface"],
+        ["Voir Étape 3 ci-dessous"],  # a mention, not a heading: no match at line start
+        ["Étape 1 - Analyser"],
+        ["Étape 1 - Analyser"],  # running header repeats
+        ["Chapitre 2", "Observer"],  # bare keyword: the title is the next line
+        ["Étape 3 - Agir"],
+        ["Étape 2 - Observer"],  # out of order: dropped
+        ["Étape 4 - Clore"],
+    ]
+    assert chapters.from_page_heads(heads) == [
+        Chapter(chapters.FRONT_MATTER, 1, 2),
+        Chapter("Étape 1 - Analyser", 3, 5),
+        Chapter("Étape 3 - Agir", 6, 7),
+        Chapter("Étape 4 - Clore", 8, 8),
+    ]
+    assert chapters.from_page_heads([["Intro"], ["Étape 1 - Seule"]]) == []

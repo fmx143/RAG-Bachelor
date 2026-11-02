@@ -3,8 +3,9 @@
 Detected once per book, then stored (``study.store.set_chapters``) so the user can correct
 them. Order of preference: bookmarks (the shallowest level with at least two entries),
 then "Chapitre N" / "Partie N" headings, then plain "N Titre" headings — a heading
-sequence only counts when its numbers run 1, 2, 3… in page order — and finally a single
-whole-book chapter.
+sequence only counts when its numbers run 1, 2, 3… in page order — then the headings or
+running headers at the top of the PDF's pages ("Chapitre 2", "Étape 3 - …"; gaps allowed), and
+finally a single whole-book chapter.
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ FRONT_MATTER = "Début du livre"
 _MAX_TITLE = 120
 
 _NAMED = re.compile(
-    r"(?:chapitre|chapter|partie|part|module|unit[ée]|le[çc]on|th[èe]me|s[ée]quence)\s+"
+    r"(?:chapitre|chapter|partie|part|module|unit[ée]|le[çc]on|th[èe]me|s[ée]quence|[ée]tape)\s+"
     r"(\d{1,3}|[IVXLC]{1,7})\b",
     re.IGNORECASE,
 )
@@ -79,27 +80,82 @@ def from_headings(chunks: Sequence[SourceChunk], page_count: int) -> list[Chapte
     return []
 
 
-def _read_pdf(source: str) -> tuple[int, list[list[object]]]:
-    """``(page count, bookmarks)`` of *source*'s PDF, ``(0, [])`` if it is not on disk."""
+_HEAD_LINES = 3  # lines at the top of a page that may hold a heading or running header
+
+
+def from_page_heads(heads: Sequence[Sequence[str]]) -> list[Chapter]:
+    """Chapters from the first lines of each page (``heads[i]`` = page ``i + 1``).
+
+    A page opens a chapter when one of its top lines starts "Chapitre N" / "Étape N"… Running
+    headers repeat the number on every page and cross-references mention later chapters, so per
+    keyword ("Partie", "Étape"…) the longest run of occurrences whose numbers increase with the
+    pages is kept (gaps allowed); a chapter starts where its number first appears. The keyword
+    giving the most chapters wins.
+    """
+    found: dict[str, list[tuple[int, int, str]]] = {}  # keyword -> (page, number, title)
+    for page, lines in enumerate(heads, 1):
+        for i, line in enumerate(lines):
+            m = _NAMED.match(line)
+            if m and len(line) <= _MAX_TITLE:
+                # A bare "Chapitre 2" is followed by its title on the next line.
+                bare = len(line.split()) == 2 and i + 1 < len(lines)
+                title = f"{line} {lines[i + 1]}" if bare else line
+                found.setdefault(line.split()[0].lower(), []).append(
+                    (page, _number(m.group(1)), title)
+                )
+                break
+    best: list[tuple[int, str]] = []
+    for occ in found.values():
+        # Longest strictly increasing run by number (O(n²), n = pages with a heading).
+        length, prev = [1] * len(occ), [-1] * len(occ)
+        for i in range(len(occ)):
+            for j in range(i):
+                if occ[j][1] < occ[i][1] and length[j] + 1 > length[i]:
+                    length[i], prev[i] = length[j] + 1, j
+        end = max(range(len(occ)), key=lambda i: (length[i], -i), default=-1)
+        run: list[tuple[int, str]] = []
+        while end >= 0:
+            run.append((occ[end][0], occ[end][2]))
+            end = prev[end]
+        if len(run) > len(best):
+            best = run[::-1]
+    return _ranges(best, len(heads)) if len(best) >= 2 else []
+
+
+def _read_pdf(source: str) -> tuple[int, list[list[object]], list[list[str]]]:
+    """``(page count, bookmarks, top lines of each page)`` of *source*'s PDF; zeros if not on disk."""
     pdf = settings.pdfs_dir / source
     if not pdf.is_file():
-        return 0, []
+        return 0, [], []
     with fitz.open(pdf) as doc:
-        return doc.page_count, doc.get_toc(simple=True)
+        heads = [_top_lines(page.get_text()) for page in doc]
+        return doc.page_count, doc.get_toc(simple=True), heads
+
+
+def _top_lines(text: str) -> list[str]:
+    """First meaningful lines of a page: skips bare page numbers and the licence footer."""
+    lines = (ln.strip() for ln in text.split("\n"))
+    kept = [ln for ln in lines if ln and not ln.isdigit() and "propriété exclusive" not in ln]
+    return kept[:_HEAD_LINES]
 
 
 def page_count(source: str) -> int:
     """Pages of *source*'s PDF, else the last indexed page (at least 1)."""
-    pages, _ = _read_pdf(source)
+    pages = _read_pdf(source)[0]
     return pages or max((c.page for c in get_source_chunks(source)), default=1)
 
 
 def detect_chapters(source: str) -> list[Chapter]:
     """Best-effort chapters of *source*; always at least one, covering the whole book."""
     chunks = get_source_chunks(source)
-    pages, toc = _read_pdf(source)
+    pages, toc, heads = _read_pdf(source)
     pages = pages or max((c.page for c in chunks), default=1)
-    return from_toc(toc, pages) or from_headings(chunks, pages) or [Chapter(WHOLE_BOOK, 1, pages)]
+    return (
+        from_toc(toc, pages)
+        or from_headings(chunks, pages)
+        or from_page_heads(heads)
+        or [Chapter(WHOLE_BOOK, 1, pages)]
+    )
 
 
 def chapters_for(source: str) -> list[Chapter]:
