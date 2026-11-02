@@ -26,24 +26,24 @@ def _grade(client: TestClient, card_id: int, grade: int) -> None:
     assert resp.status_code == 200
 
 
-def test_difficile_grade_3_keeps_progress_and_lowers_ease(client: TestClient) -> None:
+def test_difficile_grade_3_is_a_pass_not_a_reset(client: TestClient) -> None:
     card_id = _card_id()
     _grade(client, card_id, 3)
 
     card = store.get_card(card_id)
     assert card is not None
     assert (card.repetitions, card.interval) == (1, 1)
-    assert card.ease_factor == pytest.approx(2.36)
+    assert card.stability == pytest.approx(1.18385)  # FSRS-5 S0 for Hard
 
 
-def test_second_difficile_success_grows_interval_to_6(client: TestClient) -> None:
+def test_second_difficile_success_keeps_the_streak(client: TestClient) -> None:
     card_id = _card_id()
     _grade(client, card_id, 3)
     _grade(client, card_id, 3)
 
     card = store.get_card(card_id)
     assert card is not None
-    assert (card.repetitions, card.interval) == (2, 6)
+    assert card.repetitions == 2
 
 
 def test_legacy_grade_2_is_treated_as_unknown_and_resets(client: TestClient) -> None:

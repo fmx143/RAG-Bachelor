@@ -11,7 +11,7 @@ Local-first RAG study assistant for French bachelor PDFs.
 - UI: FastAPI + HTMX. Sidebar: Accueil, Livres, Réviser, Statistiques, Poser une question, Mes sources, Paramètres.
   Everything made from a PDF (questions, sheets, mind maps, audio, per-chapter stats) lives on its document page;
   the old list pages (/bank, /generate, /sheets, /maps, /podcasts) redirect to /livres
-- Study tracking: SM-2 spaced repetition, persisted to SQLite (local dev) or PostgreSQL
+- Study tracking: FSRS spaced repetition, persisted to SQLite (local dev) or PostgreSQL
   (`POSTGRES_HOST` set — isolated data-tier container on the NAS)
 - Vector index: ChromaDB, embedded `PersistentClient` (local dev) or standalone server via
   `CHROMA_HOST` (isolated data-tier container on the NAS)
@@ -37,8 +37,8 @@ Local-first RAG study assistant for French bachelor PDFs.
 | `src/rag_bachelor/app/web/routes/library.py` | `/livres` and `/sources` grids of the active subject (+ « À classer »), redirects from the removed list pages |
 | `src/rag_bachelor/app/web/routes/document.py` | Document page `/document/<path>` (book or source): tabs Aperçu (chapters + per-chapter stats + chapter editor, revision by chapter via `/revision?source=…&pages=a-b`), Questions, Fiches, Mind maps, Audio — generation forms pick a chapter or a free page range and post to the existing /bank, /sheets, /maps, /podcasts endpoints — and Fichier (re-index, graph, move between Livres/Sources, delete via `/docs/file/*` in `documentation.py`) |
 | `src/rag_bachelor/app/web/routes/documentation.py` | « Ajouter des documents » (`/docs`, the + button): upload as Livres or Sources (+ sub-folder), the subject's file tree (unindexed files, folder operations, index the whole subject), the indexing/graph job, page images |
-| `src/rag_bachelor/study/store.py` | SM-2 + question-bank persistence — dual backend: SQLite (default) or PostgreSQL (`POSTGRES_HOST` set) |
-| `src/rag_bachelor/study/` | SM-2, persistence store, stats |
+| `src/rag_bachelor/study/store.py` | FSRS state + question-bank persistence — dual backend: SQLite (default) or PostgreSQL (`POSTGRES_HOST` set) |
+| `src/rag_bachelor/study/` | FSRS, persistence store, stats |
 | `src/rag_bachelor/app/web/` | FastAPI server, route modules, Jinja2 templates, static assets |
 | `docker-compose.yml` | NAS deployment: `app` + isolated `postgres`/`chroma` data tier (no Ollama) |
 | `src/rag_bachelor/study/subjects.py` | Subjects = top-level folders of `data/pdfs/`; the active one (`app_settings.active_subject`) scopes every tab, Ask retrieval and progress. `doc_kind()`: `<Subject>/Livres/…` = book, `<Subject>/Sources/…` = source, anything else is unsorted (« à classer ») |
@@ -76,7 +76,7 @@ mypy src/
 - FastAPI + Jinja2 + HTMX: each tab is a GET route + partial POST routes; HTMX swaps fragments
 - Shared deps: `app/web/_deps.py` exports `templates` (Jinja2) and `sidebar_ctx()` — all routes import from there; `sidebar_ctx()` is synchronous
 - All user-visible text in **French**; code comments/docstrings in English
-- SM-2: implemented from scratch in `study/srs.py` — no external SRS library
+- FSRS-5: implemented from scratch in `study/srs.py` (default weights, `fsrs_desired_retention`) — no external SRS library. Cards reviewed under the old SM-2 are replayed from `reviews` by `store._replay_fsrs` on first start
 - Blocking DB/file/CPU work in async route handlers must be wrapped in `asyncio.to_thread`
 - htmx.min.js is vendored locally in `app/web/static/`; do NOT load from a CDN
 - Phone layout (≤ 760px, `app.css`): top bar with ☰, the sidebar becomes a drawer, bottom tab bar

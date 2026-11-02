@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     # max searches per agentic answer (reranker ≈ 6 s each on CPU); bounded, each costs an LLM call
     agent_max_steps: int = Field(default=3, ge=1, le=6)
 
+    # ── Spaced repetition (study/srs.py) ──────────────────────────────────
+    # Target recall at review time: higher = shorter intervals, more reviews.
+    fsrs_desired_retention: float = Field(default=0.9, ge=0.7, le=0.97)
+
     # ── Audio (core/podcast.py) ───────────────────────────────────────────
     # Phonon TTS (ptts), local CPU. Weights are CC BY-NC 4.0: personal/non-commercial use only.
     # Downloaded on first use into HF_HOME (the model_cache volume in Docker).

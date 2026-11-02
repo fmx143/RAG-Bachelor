@@ -63,7 +63,7 @@ def test_reading_picks_best_stuck_and_busiest_topics() -> None:
     from rag_bachelor.study.stats import TopicStats, reading
 
     def ts(topic: str, due: int, interval: float, mastery: float) -> TopicStats:
-        return TopicStats(topic, 5, due, 2.0, interval, mastery)
+        return TopicStats(topic, 5, due, interval, mastery)
 
     out = reading([ts("S/a.pdf", 4, 1.0, 20), ts("S/b.pdf", 0, 9.0, 80)])
 
