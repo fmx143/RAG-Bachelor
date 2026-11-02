@@ -1,8 +1,8 @@
 <div id="attempt-{{ bank_id }}">
   {% if is_correct %}
-  <div class="alert alert-success" style="margin-top:.5rem;">Bonne réponse !</div>
+  <div class="u-mt-2 alert alert-success">Bonne réponse !</div>
   {% else %}
-  <div class="alert alert-error" style="margin-top:.5rem;">Mauvaise réponse.</div>
+  <div class="u-mt-2 alert alert-error">Mauvaise réponse.</div>
   {% endif %}
 
   {% if q.qtype not in self_graded %}
@@ -10,9 +10,9 @@
     {% for opt in q.options %}
     <li
       {% if loop.index0 in q.correct %}
-        style="font-weight:600; color:var(--success);"
+        style="font-weight:600; color:var(--ok);"
       {% elif loop.index0 in selected %}
-        style="color:var(--danger); text-decoration:line-through;"
+        style="color:var(--bad); text-decoration:line-through;"
       {% endif %}
     >
       {{ opt }}
@@ -21,10 +21,10 @@
     </li>
     {% endfor %}
   </ul>
-  {% if q.answer %}<p style="margin-top:.5rem;"><strong>Explication :</strong> {{ q.answer }}</p>{% endif %}
+  {% if q.answer %}<p class="u-mt-2"><strong>Explication :</strong> {{ q.answer }}</p>{% endif %}
   {% endif %}
 
   {% if added %}
-  <div class="alert alert-info" style="margin-top:.5rem;">Ajoutée à la révision.</div>
+  <div class="u-mt-2 alert alert-info">Ajoutée à la révision.</div>
   {% endif %}
 </div>

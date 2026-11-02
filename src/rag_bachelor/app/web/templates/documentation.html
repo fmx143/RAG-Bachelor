@@ -17,7 +17,7 @@
     <span class="drop-title">Glisse des PDF ici</span>
     <span>ou clique pour parcourir · plusieurs fichiers possibles</span>
   </label>
-  <div class="card rise d2" style="margin:0">
+  <div class="u-m0 card rise d2">
     <div class="form-group" style="margin:0 0 16px;">
       <label>Ce sont des…</label>
       <div class="chipgroup" role="radiogroup" aria-label="Type des documents importés">
@@ -26,7 +26,7 @@
       </div>
     </div>
     <div class="form-group" style="margin:0 0 16px;">
-      <label for="import-dest">Sous-dossier <span style="color:var(--muted);">(optionnel, créé s'il n'existe pas)</span></label>
+      <label for="import-dest">Sous-dossier <span class="u-muted">(optionnel, créé s'il n'existe pas)</span></label>
       <input type="text" id="import-dest" placeholder="ex. Semestre 3/Compta" autocomplete="off">
     </div>
     <div class="upload-row">
@@ -47,11 +47,11 @@
   </div>
 
   <!-- ── Document tree (HTMX target) ───────────────────────────────────── -->
-  <div class="card rise d3" style="margin:0">
+  <div class="u-m0 card rise d3">
     <h2 class="subheader">Tous les fichiers du sujet</h2>
-    <input type="search" name="q" placeholder="Filtrer par nom…" aria-label="Filtrer les documents"
+    <input class="u-mb-4" type="search" name="q" placeholder="Filtrer par nom…" aria-label="Filtrer les documents"
            hx-get="/docs/list" hx-trigger="input changed delay:300ms" hx-target="#doc-list"
-           hx-swap="innerHTML" style="margin-bottom:16px;">
+           hx-swap="innerHTML">
     <div id="doc-list">
       {% if job_running %}
         {% include "partials/index_progress.html" %}
@@ -63,14 +63,14 @@
 </div>
 
 <aside class="rise d4" style="flex:1 1 300px; min-width:0; display:flex; flex-direction:column; gap:16px;">
-  <div class="card" style="margin:0">
+  <div class="u-m0 card">
     <div class="lab">Index</div>
     <div style="font-family:var(--disp);font-weight:var(--hw);font-size:40px;letter-spacing:-.04em;line-height:1;margin:12px 0 4px">{{ chunk_count }}</div>
     <div class="stat-cap" style="margin-bottom:18px">passages, répartis par document</div>
     <div class="o-comp">{% for src, n in comp %}<span style="flex:{{ n }};background:oklch(0.79 0.13 {{ src | hue }})" title="{{ src | label }} · {{ n }}"></span>{% endfor %}</div>
   </div>
-  <div class="card" style="margin:0">
-    <div class="lab" style="margin-bottom:16px">Chaîne de recherche</div>
+  <div class="u-m0 card">
+    <div class="u-mb-4 lab">Chaîne de recherche</div>
     {% for t, d in [("Docling", "mise en page, titres, tableaux"), ("bge-m3", "embeddings locaux"), ("BM25", "mots-clés exacts, fusion RRF"), ("Graphe de faits", "triplets LLM · PageRank personnalisé"), ("Reranker", "bge-reranker-v2-m3")] %}
     <div class="o-step">
       <div class="rail"><span class="n sq">{{ loop.index }}</span>{% if not loop.last %}<span class="ln"></span>{% endif %}</div>

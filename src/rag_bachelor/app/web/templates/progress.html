@@ -20,8 +20,8 @@
 <div class="o-card o-empty">Aucune carte de révision créée. Ouvre <a class="acc" href="/livres">un livre</a> pour générer des questions et commencer.</div>
 {% else %}
 
-<div class="o-card o-pad" style="margin-bottom:16px">
-  <div class="o-between" style="margin-bottom:22px"><div class="o-lab">Maîtrise par matière</div><span class="o-mono" style="margin:0">du plus faible au plus solide</span></div>
+<div class="u-mb-4 o-card o-pad">
+  <div class="o-between" style="margin-bottom:22px"><div class="o-lab">Maîtrise par matière</div><span class="u-m0 o-mono">du plus faible au plus solide</span></div>
   <p class="note" style="margin:-10px 0 18px">Maîtrise = probabilité estimée de te souvenir de la carte aujourd'hui, moyenne sur toutes les cartes (une carte jamais révisée compte 0).</p>
   <div class="o-rings">
     {% for s in stats %}
@@ -36,9 +36,9 @@
   </div>
 </div>
 
-<div class="o-row" style="margin-bottom:16px">
+<div class="u-mb-4 o-row">
   <div class="o-card o-pad" style="flex:1.3 1 420px">
-    <div class="o-between" style="margin-bottom:6px"><div class="o-lab">Régularité</div><span class="o-mono" style="margin:0">12 dernières semaines</span></div>
+    <div class="o-between" style="margin-bottom:6px"><div class="o-lab">Régularité</div><span class="u-m0 o-mono">12 dernières semaines</span></div>
     <div class="o-tip" id="heat-tip">Survole une case pour voir le détail du jour.</div>
     <div class="o-heat">
       <div class="o-heatdays"><span>L</span><span></span><span>M</span><span></span><span>V</span><span></span><span>D</span></div>

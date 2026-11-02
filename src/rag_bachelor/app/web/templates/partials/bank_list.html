@@ -1,7 +1,7 @@
 {% set diff_badge = {"facile": "ok", "moyen": "mid", "difficile": "ko"} %}
 
 {% if added_count is defined %}
-<div class="alert alert-success" style="margin-bottom:.75rem;">{{ added_count }} carte(s) ajoutée(s) à la révision.</div>
+<div class="u-mb-3 alert alert-success">{{ added_count }} carte(s) ajoutée(s) à la révision.</div>
 {% endif %}
 
 {% if not items %}
@@ -17,7 +17,7 @@
   <input type="hidden" name="deck" value="{{ filter_deck | e }}">
 
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; margin-bottom:.75rem;">
-    <span class="o-mono" style="margin:0">{{ list_total }} question(s) · <span style="color:var(--ok)">{{ by_result.correct }} justes</span> · <span style="color:var(--bad)">{{ by_result.incorrect }} fausses</span> · {{ by_result.untried }} non tentées</span>
+    <span class="u-m0 o-mono">{{ list_total }} question(s) · <span style="color:var(--ok)">{{ by_result.correct }} justes</span> · <span style="color:var(--bad)">{{ by_result.incorrect }} fausses</span> · {{ by_result.untried }} non tentées</span>
     <div class="o-prog"><span style="flex:{{ by_result.correct }};background:var(--ok)"></span><span style="flex:{{ by_result.incorrect }};background:var(--bad)"></span><span style="flex:{{ by_result.untried }};background:var(--hair)"></span></div>
     <label class="note"><input type="checkbox" data-select-all> Tout sélectionner</label>
     <button type="submit" class="btn btn-danger btn-sm">Supprimer la sélection</button>
