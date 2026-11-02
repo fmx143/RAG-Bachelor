@@ -220,6 +220,8 @@ _COLUMNS_ADDED = {
         "fsrs_difficulty": "DOUBLE PRECISION NOT NULL DEFAULT 0",
         "last_review": "TEXT",
         "occlusion": "TEXT",
+        # Learner's verdict on the card itself: 1 = useful, -1 = badly made, NULL = not rated.
+        "relevance": "INTEGER",
     },
     # Same for `question_bank`: the supporting excerpt shown under each answer.
     "question_bank": {"passage": "TEXT NOT NULL DEFAULT ''"},
@@ -586,6 +588,21 @@ def delete_card(card_id: int) -> None:
     conn = get_conn()
     conn.execute(_adapt("DELETE FROM cards WHERE id = ?"), (card_id,))
     conn.commit()
+
+
+def set_relevance(card_id: int, value: int | None) -> None:
+    """Store the learner's relevance verdict (1, -1, or None to clear)."""
+    conn = get_conn()
+    conn.execute(_adapt("UPDATE cards SET relevance = ? WHERE id = ?"), (value, card_id))
+    conn.commit()
+
+
+def delete_card_and_question(card_id: int) -> None:
+    """Delete a card, its review history and the bank question it came from (so it can't come back)."""
+    conn = get_conn()
+    conn.execute(_adapt("DELETE FROM question_bank WHERE card_id = ?"), (card_id,))
+    conn.commit()
+    delete_card(card_id)
 
 
 # ── Question bank ─────────────────────────────────────────────────────────────
@@ -1251,4 +1268,5 @@ def _row_to_card(row: sqlite3.Row | dict[str, Any]) -> Card:
         stability=row["stability"],
         fsrs_difficulty=row["fsrs_difficulty"],
         last_review=date.fromisoformat(row["last_review"]) if row["last_review"] else None,
+        relevance=row["relevance"],
     )

@@ -26,9 +26,8 @@
     {% if is_correct %}Auto-correction — Parfait{% elif is_partial %}Auto-correction — Bien (partiel){% else %}Auto-correction — Raté{% endif %} · la revue est replanifiée
   </div>
 
-  <div id="why-box"></div>
-  <button type="button" class="btn btn-ghost btn-sm" hx-post="/revision/why/{{ card.id }}"
-    hx-vals='{"user_answer": {{ selected_text | tojson }}}' hx-target="#why-box" hx-swap="innerHTML">Pourquoi ?</button>
+  {% set why_answer = selected_text %}
+  {% set why_next = true %}
+  {% include "partials/revision_why_btn.html" %}
 
-  <button hx-get="/revision/next" hx-include="#revision-filter-form" hx-target="#revision-content" hx-swap="innerHTML" class="btn btn-primary" data-autofocus>Carte suivante</button>
 </div>

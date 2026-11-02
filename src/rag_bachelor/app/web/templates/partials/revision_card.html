@@ -29,6 +29,8 @@
   <details class="reveal">
     <summary class="btn btn-ghost">Afficher la zone</summary>
     {% if card.answer %}<div class="answer">{{ card.answer }}</div>{% endif %}
+    {% include "partials/revision_why_btn.html" %}
+
     {% include "partials/revision_gradebar.html" %}
   </details>
 
@@ -45,19 +47,20 @@
   </form>
 
   {% else %}
-  <form hx-post="/revision/check/{{ card.id }}" hx-include="#revision-filter-form" hx-target="#revision-content" hx-swap="innerHTML" class="why-ask">
+  <form hx-post="/revision/check/{{ card.id }}" hx-include="#revision-filter-form" hx-target="#revision-content" hx-swap="innerHTML" hx-indicator="#check-wait" class="why-ask">
     <textarea name="user_answer" rows="3" maxlength="2000" required placeholder="Écris ta réponse pour la faire corriger par l'IA…"></textarea>
     <button type="submit" class="btn btn-primary btn-sm">Corriger</button>
+    <span id="check-wait" class="htmx-indicator note" role="status">Correction en cours…</span>
   </form>
   <details class="reveal">
     <summary class="btn btn-ghost">Afficher la réponse</summary>
 
     <div class="answer">{{ card.answer }}</div>
 
+    {% include "partials/revision_why_btn.html" %}
+
     {% include "partials/revision_gradebar.html" %}
 
-    <div id="why-box"></div>
-    <button type="button" class="btn btn-ghost btn-sm" hx-post="/revision/why/{{ card.id }}" hx-target="#why-box" hx-swap="innerHTML">Pourquoi ?</button>
   </details>
   {% endif %}
 </div>

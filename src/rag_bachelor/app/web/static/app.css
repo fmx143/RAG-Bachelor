@@ -1069,3 +1069,12 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .o-reply-q { color: var(--muted, #8b93a7); font-style: italic; }
 .o-reply audio { width: 100%; margin-top: .5rem; }
 .o-ask-err { color: var(--bad, #f87171); margin: 0 0 .75rem; }
+.why-row { display: flex; align-items: center; gap: 14px; margin-top: 28px; }
+.gradebar-hint { margin-top: 24px; }
+.gradebar-hint + .gradebar { margin-top: 8px; }
+.why-row .btn { width: 170px; justify-content: center; }
+.why-row .note { flex: 1; min-width: 0; }
+.btn-blue { background: color-mix(in oklch, var(--blue) 16%, transparent); border: 1px solid var(--blue); color: var(--blue); font-weight: 650; }
+.btn-blue:hover { background: color-mix(in oklch, var(--blue) 28%, transparent); }
+.rate-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+.rate-row .btn.on { border-color: var(--primary); color: var(--primary); }

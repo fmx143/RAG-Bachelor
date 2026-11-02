@@ -40,12 +40,14 @@ from rag_bachelor.study.store import (
     bank_card_pages,
     bank_question_for_card,
     bank_sources,
+    delete_card_and_question,
     get_card,
     get_due_cards,
     get_review_days,
     list_bank_questions,
     materialize_bank_question,
     save_review,
+    set_relevance,
 )
 from rag_bachelor.study.subjects import active_sources, active_subject
 
@@ -354,3 +356,41 @@ async def why(
             "error": error,
         },
     )
+
+
+@router.post("/revision/rate/{card_id}", response_class=HTMLResponse)
+async def rate_card(request: Request, card_id: int, value: Annotated[int, Form()]) -> Response:
+    """Mark a card useful (1) or badly made (-1); posting the same value again clears it."""
+    card = await asyncio.to_thread(get_card, card_id)
+    if card is None or value not in (1, -1):
+        return Response(status_code=404)
+    new = None if card.relevance == value else value
+    await asyncio.to_thread(set_relevance, card_id, new)
+    return templates.TemplateResponse(
+        request, "partials/revision_rate.html", {"request": request, "card": card, "rated": new}
+    )
+
+
+@router.post("/revision/delete/{card_id}", response_class=HTMLResponse)
+async def delete_card_route(
+    request: Request,
+    card_id: int,
+    source: Annotated[str, Form()] = "",
+    difficulty: Annotated[str, Form()] = "",
+    qtype: Annotated[str, Form()] = "",
+    pages: Annotated[str, Form()] = "",
+) -> Response:
+    """Delete a card and its bank question, then show the next card."""
+
+    def _sync() -> tuple[Card | None, dict[str, int]]:
+        delete_card_and_question(card_id)
+        return _next_card(source, difficulty, qtype, pages), _counts()
+
+    next_c, counts = await asyncio.to_thread(_sync)
+    ctx: dict[str, object] = {
+        "request": request,
+        "card": next_c,
+        **counts,
+        **_filter_ctx(source, difficulty, qtype, pages),
+    }
+    return templates.TemplateResponse(request, "partials/revision_card.html", ctx)

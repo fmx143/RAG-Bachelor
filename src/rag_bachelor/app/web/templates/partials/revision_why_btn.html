@@ -1,0 +1,10 @@
+{# "Pourquoi ?" button + its result box; set why_answer (the learner's answer) before including; why_next adds "Carte suivante" on the right. #}
+<div class="why-row">
+  <button type="button" class="btn btn-sm btn-blue" hx-post="/revision/why/{{ card.id }}"
+    {% if why_answer %}hx-vals='{"user_answer": {{ why_answer | tojson }}}' {% endif %}hx-target="#why-box" hx-swap="innerHTML" hx-indicator="#why-wait">Pourquoi ?</button>
+  <span id="why-wait" class="htmx-indicator note" role="status">L'IA cherche dans le cours…</span>
+  {% if why_next %}<button hx-get="/revision/next" hx-include="#revision-filter-form" hx-target="#revision-content" hx-swap="innerHTML" class="btn btn-primary btn-sm" data-autofocus>Carte suivante</button>{% endif %}
+</div>
+<div id="why-box" aria-live="polite"></div>
+{% set rated = card.relevance %}
+{% include "partials/revision_rate.html" %}
