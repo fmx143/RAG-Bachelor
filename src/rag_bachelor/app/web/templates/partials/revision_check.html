@@ -1,0 +1,30 @@
+{% set current = [done_today, 1] | max %}
+{% include "partials/revision_head.html" %}
+
+<div class="flashcard"{% if hues[card.topic] is defined %} style="--h:{{ hues[card.topic] }}"{% endif %}>
+  <div class="ftags">
+    <span class="ftag doc">{{ card.topic | label }}</span>
+    <span class="ftag" data-t="{{ card.qtype }}">{{ qtype_labels.get(card.qtype, card.qtype) }}</span>
+    <span class="ftag dim">{{ card.difficulty | capitalize }}</span>
+  </div>
+
+  <div class="fq">{{ card.question }}</div>
+  <div class="answer"><b>Ta réponse</b> {{ user_answer }}</div>
+  <div class="answer">{{ card.answer }}</div>
+
+  {% if verdict %}
+  <div class="cours"><b>Correction : {{ verdict.verdict }}</b>
+    {{ verdict.feedback }}{% if verdict.missing %} <em>{{ verdict.missing }}</em>{% endif %}
+  </div>
+  <div class="note">Note proposée par l'IA : tu choisis la note finale.</div>
+  {% else %}
+  <div class="note">La correction automatique n'a pas abouti : note-toi toi-même.</div>
+  {% endif %}
+
+  {% set suggested = verdict.grade if verdict else none %}
+  {% include "partials/revision_gradebar.html" %}
+
+  <div id="why-box"></div>
+  <button type="button" class="btn btn-ghost btn-sm" hx-post="/revision/why/{{ card.id }}"
+    hx-vals='{"user_answer": {{ user_answer | tojson }}}' hx-target="#why-box" hx-swap="innerHTML">Pourquoi ?</button>
+</div>

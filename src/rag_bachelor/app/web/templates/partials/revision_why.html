@@ -1,0 +1,17 @@
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% else %}
+<div class="cours">
+  <b>{% if question %}Réponse à « {{ question }} »{% else %}Pourquoi ?{% endif %}</b>
+  {{ text | md_cite }}
+  {% if chunks %}
+  <div class="note">Pages :
+    {% for c in chunks %}<a href="/docs/page.png?path={{ c.source | url_encode }}&page={{ c.page }}" target="_blank" rel="noopener">p.{{ c.page }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+  </div>
+  {% endif %}
+</div>
+<form hx-post="/revision/why/{{ card_id }}" hx-target="#why-box" hx-swap="innerHTML" class="why-ask">
+  <input type="text" name="followup" maxlength="500" placeholder="Poser une autre question sur ce point…" required>
+  <button type="submit" class="btn btn-ghost btn-sm">Demander</button>
+</form>
+{% endif %}

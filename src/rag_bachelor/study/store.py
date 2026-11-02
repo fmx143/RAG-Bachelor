@@ -736,6 +736,16 @@ def get_bank_question(bank_id: int) -> BankQuestion | None:
     return _row_to_bank_question(row) if row else None
 
 
+def bank_question_for_card(card_id: int) -> BankQuestion | None:
+    """The bank question a deck card was made from (its source passage and pages), or None."""
+    row = (
+        get_conn()
+        .execute(_adapt("SELECT * FROM question_bank WHERE card_id = ?"), (card_id,))
+        .fetchone()
+    )
+    return _row_to_bank_question(row) if row else None
+
+
 def bank_card_pages(source: str) -> dict[int, int]:
     """``{card id: first cited page}`` for the deck cards made from *source*'s bank questions.
 
