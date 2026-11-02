@@ -219,6 +219,7 @@ _COLUMNS_ADDED = {
         "stability": "DOUBLE PRECISION NOT NULL DEFAULT 0",
         "fsrs_difficulty": "DOUBLE PRECISION NOT NULL DEFAULT 0",
         "last_review": "TEXT",
+        "occlusion": "TEXT",
     },
     # Same for `question_bank`: the supporting excerpt shown under each answer.
     "question_bank": {"passage": "TEXT NOT NULL DEFAULT ''"},
@@ -451,16 +452,17 @@ def add_card(
     qtype: str = "free",
     options: list[str] | None = None,
     correct: list[int] | None = None,
+    occlusion: dict[str, Any] | None = None,
 ) -> int:
     """Insert a new card and return its id.
 
-    ``qtype`` is one of ``free`` / ``mcq_single`` / ``mcq_multi`` / ``tf``.
-    ``options`` / ``correct`` are only meaningful for structured types.
+    ``qtype`` is one of ``free`` / ``mcq_single`` / ``mcq_multi`` / ``tf`` / ``occlusion``.
+    ``options`` / ``correct`` are only meaningful for structured types, ``occlusion`` for its own.
     """
     conn = get_conn()
     sql = (
-        "INSERT INTO cards (question, answer, topic, difficulty, qtype, options, correct, due_date) "
-        "VALUES (?,?,?,?,?,?,?,?)"
+        "INSERT INTO cards (question, answer, topic, difficulty, qtype, options, correct, "
+        "occlusion, due_date) VALUES (?,?,?,?,?,?,?,?,?)"
     )
     params = (
         question,
@@ -470,6 +472,7 @@ def add_card(
         qtype,
         _dump_json(options),
         _dump_json(correct),
+        _dump_json(occlusion),
         date.today().isoformat(),
     )
     if _use_postgres():
@@ -1241,6 +1244,7 @@ def _row_to_card(row: sqlite3.Row | dict[str, Any]) -> Card:
         qtype=row["qtype"],
         options=_load_json_col(row["options"]),
         correct=_load_json_col(row["correct"]),
+        occlusion=_load_json_col(row["occlusion"]),
         interval=row["interval"],
         repetitions=row["repetitions"],
         due_date=date.fromisoformat(row["due_date"]),

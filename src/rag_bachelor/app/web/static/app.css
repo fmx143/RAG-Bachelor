@@ -1043,3 +1043,19 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .file-row .badge-gray { order: 3; }
 .file-row .more { order: 4; }
 .file-row .more > summary { width: 34px; min-width: 34px; height: 34px; padding: 0; border-radius: var(--rb); border: 1px solid var(--hair); background: none; display: grid; place-items: center; }
+
+/* Image occlusion: editor (document page) and review card share the box styling. */
+.occ-nav { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 14px 0; }
+.occ-nav form { display: flex; gap: 8px; align-items: center; }
+.occ-nav input[type=number] { width: 5.5rem; }
+.occ-stage, .occ { position: relative; width: 100%; max-width: 760px; margin: 12px auto; line-height: 0; }
+.occ-stage { cursor: crosshair; touch-action: none; user-select: none; }
+.occ-stage img, .occ img { width: 100%; height: auto; display: block; border-radius: var(--rs); border: 1px solid var(--hair); }
+.occ-box { position: absolute; display: flex; align-items: center; justify-content: center; box-sizing: border-box; font: 700 14px var(--sans); font-style: normal; color: var(--bg, #000); background: var(--accent); border: 2px solid var(--accent); border-radius: 3px; opacity: .85; pointer-events: none; }
+.occ-box.draft { background: var(--accent-soft); color: var(--accent); }
+.occ-box.other { background: var(--dim); border-color: var(--dim); opacity: 1; }
+.occ-box.target { opacity: 1; }
+.flashcard:has(details.reveal[open]) .occ-box.target { opacity: 0; }
+.occ-list { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 8px; }
+.occ-list li { display: flex; gap: 8px; align-items: center; }
+.occ-list input { flex: 1; }

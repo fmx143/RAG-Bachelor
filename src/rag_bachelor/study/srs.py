@@ -17,6 +17,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import date, timedelta
+from typing import Any
 
 from rag_bachelor.config import settings
 
@@ -45,6 +46,8 @@ class Card:
     qtype: str = "free"
     options: list[str] | None = None
     correct: list[int] | None = None
+    # Image occlusion (qtype "occlusion"): {"page": N, "rects": [[x, y, w, h], …] in %, "target": i}
+    occlusion: dict[str, Any] | None = None
 
     # Schedule state
     interval: int = 1  # days until next review

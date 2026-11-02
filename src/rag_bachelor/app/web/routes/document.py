@@ -9,6 +9,8 @@ existing /bank, /sheets, /maps, /podcasts and /docs/file endpoints.
 from __future__ import annotations
 
 import asyncio
+import json
+import math
 from typing import Annotated
 from urllib.parse import quote
 
@@ -22,7 +24,14 @@ from rag_bachelor.core.chapters import chapters_for, detect_chapters, page_count
 from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES
 from rag_bachelor.ingest.index import list_sources
 from rag_bachelor.study.stats import chapter_stats
-from rag_bachelor.study.store import Chapter, list_maps, list_podcasts, list_sheets, set_chapters
+from rag_bachelor.study.store import (
+    Chapter,
+    add_card,
+    list_maps,
+    list_podcasts,
+    list_sheets,
+    set_chapters,
+)
 from rag_bachelor.study.subjects import doc_kind
 
 router = APIRouter()
@@ -33,6 +42,7 @@ TABS = {
     "fiches": "Fiches",
     "cartes": "Mind maps",
     "audio": "Audio",
+    "masquage": "Masquage",
     "fichier": "Fichier",
 }
 KIND_LABELS = {"livre": "Livre", "source": "Source", None: "À classer"}
@@ -44,12 +54,42 @@ _ERRORS = {
     "exists": "Un document porte déjà ce nom à cet endroit.",
     "invalid": "Type, dossier ou nom invalide.",
     "move": "Le déplacement a échoué.",
+    "occlusion": "Zones invalides : dessine 1 à 30 zones à l'intérieur de la page.",
 }
 
 
 def _doc_url(path: str, tab: str = "apercu", **query: str) -> str:
     params = "".join(f"&{k}={quote(v, safe='')}" for k, v in query.items())
     return f"/document/{quote(path, safe='/')}?tab={tab}{params}"
+
+
+MAX_OCCLUSIONS = 30
+_MIN_SIDE = 0.5  # % of the page: smaller boxes are accidental clicks
+
+
+def parse_occlusions(raw: str) -> list[tuple[list[float], str]] | None:
+    """Validate the occlusion editor's JSON ``[{x, y, w, h, label}]`` (percent of the page).
+
+    Returns ``[([x, y, w, h], label)]``, or None when empty, too many, malformed or out of the page.
+    """
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(data, list) or not 1 <= len(data) <= MAX_OCCLUSIONS:
+        return None
+    out: list[tuple[list[float], str]] = []
+    for item in data:
+        if not isinstance(item, dict):
+            return None
+        box = [item.get(k) for k in ("x", "y", "w", "h")]
+        if not all(isinstance(v, int | float) and math.isfinite(v) for v in box):
+            return None
+        x, y, w, h = (round(float(v), 2) for v in box)  # type: ignore[arg-type]
+        if x < 0 or y < 0 or w < _MIN_SIDE or h < _MIN_SIDE or x + w > 100.01 or y + h > 100.01:
+            return None
+        out.append(([x, y, w, h], str(item.get("label", "")).strip()[:80]))
+    return out
 
 
 def parse_chapters(
@@ -80,7 +120,12 @@ def parse_chapters(
 
 @router.get("/document/{path:path}", response_class=HTMLResponse)
 async def document_page(
-    request: Request, path: str, tab: str = "apercu", err: str = ""
+    request: Request,
+    path: str,
+    tab: str = "apercu",
+    err: str = "",
+    page: int = 1,
+    created: int = 0,
 ) -> Response:
     if path not in await asyncio.to_thread(list_sources):
         return Response(status_code=404)
@@ -88,7 +133,10 @@ async def document_page(
 
     def _sync() -> dict[str, object]:
         chapters = chapters_for(path)
-        ctx: dict[str, object] = {"chapters": chapters, "pages": page_count(path)}
+        pages = page_count(path)
+        ctx: dict[str, object] = {"chapters": chapters, "pages": pages}
+        if tab == "masquage":
+            ctx.update(occ_page=min(max(page, 1), pages), created=max(created, 0))
         if tab == "apercu":
             ctx["chapter_stats"], ctx["unplaced_cards"] = chapter_stats(path, chapters)
         elif tab == "fiches":
@@ -150,3 +198,37 @@ async def save_chapters(
         return RedirectResponse(_doc_url(path, err=parsed), status_code=303)
     await asyncio.to_thread(set_chapters, path, parsed)
     return RedirectResponse(_doc_url(path), status_code=303)
+
+
+@router.post("/occlusion/create")
+async def create_occlusion(
+    source: Annotated[str, Form()],
+    page: Annotated[int, Form()],
+    rects: Annotated[str, Form()],
+    title: Annotated[str, Form()] = "",
+) -> Response:
+    """One image-occlusion card per drawn zone: all zones hidden, the card asks for one."""
+    if source not in await asyncio.to_thread(list_sources):
+        return Response(status_code=404)
+    zones = parse_occlusions(rects)
+    pages = await asyncio.to_thread(page_count, source)
+    if zones is None or not 1 <= page <= pages:
+        return RedirectResponse(_doc_url(source, "masquage", err="occlusion"), status_code=303)
+    boxes = [box for box, _ in zones]
+    question = title.strip()[:200] or f"Schéma de la page {page}"
+
+    def _create() -> None:
+        for i, (_, label) in enumerate(zones):
+            add_card(
+                question=question,
+                answer=label,
+                topic=source,
+                difficulty="moyen",
+                qtype="occlusion",
+                occlusion={"page": page, "rects": boxes, "target": i},
+            )
+
+    await asyncio.to_thread(_create)
+    return RedirectResponse(
+        _doc_url(source, "masquage", page=str(page), created=str(len(zones))), status_code=303
+    )
