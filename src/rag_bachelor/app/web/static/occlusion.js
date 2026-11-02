@@ -84,5 +84,21 @@
   };
   stage.addEventListener("pointerup", (e) => finish(e, true));
   stage.addEventListener("pointercancel", (e) => finish(e, false));
+  // Keyboard / touch alternative to dragging: type the zone's position and size (% of the page).
+  const manual = form.querySelector("[data-manual]");
+  const addManual = () => {
+    const v = Object.fromEntries([...manual.querySelectorAll("[data-m]")].map((i) => [i.dataset.m, parseFloat(i.value)]));
+    if (rects.length >= MAX || Object.values(v).some(Number.isNaN)) return;
+    const x = Math.min(100, Math.max(0, v.x)), y = Math.min(100, Math.max(0, v.y));
+    const w = Math.min(100 - x, v.w), h = Math.min(100 - y, v.h);
+    if (w < MIN || h < MIN) return;
+    rects.push({ x: round(x), y: round(y), w: round(w), h: round(h), label: "" });
+    manual.querySelectorAll("[data-m]").forEach((i) => { i.value = ""; });
+    render();
+  };
+  manual.querySelector("[data-manual-add]").addEventListener("click", addManual);
+  manual.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addManual(); }
+  });
   render();
 })();
