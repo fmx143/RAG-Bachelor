@@ -234,13 +234,14 @@ def _build_graph_for(name: str) -> tuple[int, int]:
 
 def _run_graph_job(name: str) -> None:
     """Background job: (re)build the fact graph of one already-indexed PDF."""
-    _JOB["file_index"] = 1
+    _JOB.update(file_index=1, active=name)
     try:
         facts, skipped = _build_graph_for(name)
         _JOB["message"] = _graph_summary(name, facts, skipped)
     except Exception as exc:  # noqa: BLE001 — surfaced to the user via the status partial
         _JOB["error"] = f"Échec du graphe ({_describe(exc)})."
     with _JOB_LOCK:
+        _JOB["active"] = ""
         if not _PENDING:
             _JOB["running"] = False
             return
