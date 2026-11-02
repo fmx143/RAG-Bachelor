@@ -361,6 +361,7 @@ document.addEventListener("click", (e) => {
   if (img) {
     e.preventDefault();
     img.src = img.dataset.base + c.dataset.page;
+    img.alt = "Aperçu de la page " + c.dataset.page;
     document.querySelector("[data-prev-page]").textContent = c.dataset.page;
     document.querySelectorAll("a.cite").forEach((x) => x.classList.toggle("on", x === c));
     return;

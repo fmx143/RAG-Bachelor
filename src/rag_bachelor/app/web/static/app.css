@@ -1083,7 +1083,8 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .sheet-content { padding: clamp(22px, 4vw, 44px); font-size: 15.5px; line-height: 1.75; color: var(--text2); }
 .sheet-content > * { max-width: 68ch; }
 .sheet-content h1 { font: 650 13px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; padding-bottom: 14px; border-bottom: 1px solid var(--hair); max-width: none; }
-.sheet-content h2 { font: 700 22px/1.3 var(--sans); color: var(--text); margin: 56px 0 6px; padding-left: 16px; border-left: 3px solid var(--accent); }
+.sheet-content h2 { font: 700 22px/1.3 var(--sans); color: var(--text); margin: 56px 0 6px; }
+.sheet-content h2::after { content: ""; display: block; width: 36px; height: 3px; margin-top: 10px; border-radius: 2px; background: var(--accent); }
 .sheet-content h1 + h2 { margin-top: 32px; }
 .sheet-content hr { display: none; } /* the h2 already separates sections */
 .sheet-content h3 { display: flex; align-items: center; gap: 8px; font: 650 12px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 28px 0 10px; }
@@ -1097,7 +1098,7 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .sheet-content h3[data-kind="trap"] + ul { background: oklch(0.72 0.15 22 / .08); border-color: oklch(0.72 0.15 22 / .3); }
 .sheet-content li { margin: 6px 0; padding-left: 2px; }
 .sheet-content li::marker { color: var(--dim); }
-.sheet-content strong { color: var(--text); font-weight: 650; }
+.sheet-content strong { color: var(--text); font-weight: 650; background: linear-gradient(transparent 62%, var(--accent-soft) 0); }
 .sheet-content em { color: var(--muted); }
 .sheet-content p { margin: 0 0 14px; }
 .sheet-content a.cite { font-size: 12px; padding: 0 6px; margin: 0 1px; opacity: .8; }

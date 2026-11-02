@@ -17,7 +17,7 @@
   </div>
   <aside class="o-card sheet-prev no-print">
     <div class="hd"><span>{{ sheet.source | label }}</span><span class="pg">page <b data-prev-page>{{ sheet.page_from }}</b></span></div>
-    <img data-prev-img data-base="/docs/page.png?path={{ sheet.source | url_encode }}&page=" src="/docs/page.png?path={{ sheet.source | url_encode }}&page={{ sheet.page_from }}" alt="Aperçu de la page">
+    <img data-prev-img data-base="/docs/page.png?path={{ sheet.source | url_encode }}&page=" src="/docs/page.png?path={{ sheet.source | url_encode }}&page={{ sheet.page_from }}" alt="Aperçu de la page {{ sheet.page_from }}">
   </aside>
 </div>
 {% endblock %}
