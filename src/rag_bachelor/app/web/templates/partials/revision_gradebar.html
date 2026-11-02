@@ -1,0 +1,8 @@
+{# Four-grade bar. `suggested` (optional) = grade the AI proposes: that button is highlighted. #}
+<div class="gradebar">
+  {% for label, g in [("Raté", 0), ("Difficile", 3), ("Bien", 4), ("Parfait", 5)] %}
+  <button type="button" class="g{{ loop.index0 }}{% if suggested == g %} suggested{% endif %}"
+    hx-post="/revision/grade/{{ card.id }}" hx-include="#revision-filter-form"
+    hx-vals='{"grade": "{{ g }}"}' hx-target="#revision-content" hx-swap="innerHTML">{{ label }}<small>touche {{ loop.index }}</small></button>
+  {% endfor %}
+</div>

@@ -15,6 +15,7 @@ the partial for the next due card — no server-side session state needed.
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import date
 from typing import Annotated
 
@@ -23,11 +24,21 @@ from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import doc_hues, sidebar_ctx, templates
-from rag_bachelor.core.qtypes import DIFFICULTIES, QTYPE_LABELS, QTYPES, score_selection
+from rag_bachelor.core.qa import answer_question
+from rag_bachelor.core.qtypes import (
+    DIFFICULTIES,
+    QTYPE_LABELS,
+    QTYPES,
+    SELF_GRADED,
+    score_selection,
+)
+from rag_bachelor.core.retriever import SearchResult
+from rag_bachelor.core.tutor import Verdict, explain, grade_answer
 from rag_bachelor.study.srs import Card, update_card
 from rag_bachelor.study.stats import get_topic_stats
 from rag_bachelor.study.store import (
     bank_card_pages,
+    bank_question_for_card,
     bank_sources,
     get_card,
     get_due_cards,
@@ -39,6 +50,7 @@ from rag_bachelor.study.store import (
 from rag_bachelor.study.subjects import active_sources, active_subject
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Valid SM-2 grades used in the UI (Difficile = 3: a pass, unlike grade < 3 which resets)
 _VALID_GRADES: frozenset[int] = frozenset({0, 3, 4, 5})
@@ -217,6 +229,9 @@ async def answer_card(
         "request": request,
         "card": card,
         "selected": selected,
+        "selected_text": ", ".join(
+            card.options[i] for i in selected if card.options and 0 <= i < len(card.options)
+        ),
         "is_correct": is_correct,
         "is_partial": is_partial,
         **counts,
@@ -255,3 +270,87 @@ async def grade_card(
         **_filter_ctx(source, difficulty, qtype, pages),
     }
     return templates.TemplateResponse(request, "partials/revision_card.html", ctx)
+
+
+@router.post("/revision/check/{card_id}", response_class=HTMLResponse)
+async def check_answer(
+    request: Request,
+    card_id: int,
+    user_answer: Annotated[str, Form()],
+    source: Annotated[str, Form()] = "",
+    difficulty: Annotated[str, Form()] = "",
+    qtype: Annotated[str, Form()] = "",
+    pages: Annotated[str, Form()] = "",
+) -> Response:
+    """AI-correct a typed answer and suggest a grade; the learner still picks it (``grade_card``)."""
+
+    def _sync() -> tuple[Card | None, bool, Verdict | None, dict[str, int]]:
+        card = get_card(card_id)
+        if card is None or card.qtype not in SELF_GRADED:
+            return _next_card(source, difficulty, qtype, pages), False, None, _counts()
+        bq = bank_question_for_card(card_id)
+        verdict = None
+        try:
+            verdict = grade_answer(card, bq.passage if bq else "", user_answer)
+        except Exception:  # provider/network failure: fall back to plain self-grading
+            logger.exception("AI grading failed for card %s", card_id)
+        return card, True, verdict, _counts()
+
+    card, checked, verdict, counts = await asyncio.to_thread(_sync)
+    ctx: dict[str, object] = {
+        "request": request,
+        "card": card,
+        "verdict": verdict,
+        "user_answer": user_answer,
+        **counts,
+        **_filter_ctx(source, difficulty, qtype, pages),
+    }
+    name = "partials/revision_check.html" if checked else "partials/revision_card.html"
+    return templates.TemplateResponse(request, name, ctx)
+
+
+@router.post("/revision/why/{card_id}", response_class=HTMLResponse)
+async def why(
+    request: Request,
+    card_id: int,
+    user_answer: Annotated[str, Form()] = "",
+    followup: Annotated[str, Form()] = "",
+) -> Response:
+    """Explain a card from the course, or answer a follow-up question about it (no server state)."""
+    question = followup.strip()[:500]
+
+    def _sync() -> tuple[Card | None, str, list[SearchResult]]:
+        card = get_card(card_id)
+        if card is None:
+            return None, "", []
+        if question:
+            text, chunks = answer_question(question, top_k=4, sources=[card.topic])
+        else:
+            bq = bank_question_for_card(card_id)
+            text, chunks = explain(card, bq.passage if bq else "", user_answer)
+        return card, text, chunks
+
+    error = ""
+    card: Card | None = None
+    text = ""
+    chunks: list[SearchResult] = []
+    try:
+        card, text, chunks = await asyncio.to_thread(_sync)
+    except Exception:  # provider/network failure: tell the learner instead of a 500
+        logger.exception("AI explanation failed for card %s", card_id)
+        error = "Impossible de joindre le modèle, réessaie dans un instant."
+    if card is None and not error:
+        error = "Carte introuvable."
+    return templates.TemplateResponse(
+        request,
+        "partials/revision_why.html",
+        {
+            "request": request,
+            "card_id": card_id,
+            "user_answer": user_answer,
+            "question": question,
+            "text": text,
+            "chunks": chunks,
+            "error": error,
+        },
+    )
