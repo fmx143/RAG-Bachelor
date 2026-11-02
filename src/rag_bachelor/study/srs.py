@@ -58,6 +58,7 @@ class Card:
     stability: float = 0.0
     fsrs_difficulty: float = 0.0
     last_review: date | None = None
+    relevance: int | None = None  # learner verdict on the card: 1 useful, -1 badly made
 
 
 def retrievability(elapsed_days: int, stability: float) -> float:

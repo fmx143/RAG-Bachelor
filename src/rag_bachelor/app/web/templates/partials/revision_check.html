@@ -21,10 +21,10 @@
   <div class="note">La correction automatique n'a pas abouti : note-toi toi-même.</div>
   {% endif %}
 
+  {% set why_answer = user_answer %}
+  {% include "partials/revision_why_btn.html" %}
+
   {% set suggested = verdict.grade if verdict else none %}
   {% include "partials/revision_gradebar.html" %}
 
-  <div id="why-box"></div>
-  <button type="button" class="btn btn-ghost btn-sm" hx-post="/revision/why/{{ card.id }}"
-    hx-vals='{"user_answer": {{ user_answer | tojson }}}' hx-target="#why-box" hx-swap="innerHTML">Pourquoi ?</button>
 </div>

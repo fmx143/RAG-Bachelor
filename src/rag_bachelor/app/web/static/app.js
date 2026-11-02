@@ -415,3 +415,10 @@ document.querySelectorAll("[data-kmap]").forEach((box) => {
     }
   });
 })();
+
+// Revision: after a card swap, focus the element marked data-autofocus (the AI-suggested grade, "Carte suivante").
+const revisionContent = document.getElementById("revision-content");
+if (revisionContent) {
+  new MutationObserver(() => revisionContent.querySelector("[data-autofocus]")?.focus({ preventScroll: true }))
+    .observe(revisionContent, { childList: true });
+}

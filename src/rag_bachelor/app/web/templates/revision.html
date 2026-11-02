@@ -45,9 +45,9 @@
   </details>
 
   <!-- HTMX swaps the card in here after each grade -->
-  <div id="revision-content">
+  <div id="revision-content" aria-live="polite">
     {% include "partials/revision_card.html" %}
   </div>
-  <p class="hint">Astuce — <kbd>Espace</kbd> pour révéler, <kbd>1</kbd>–<kbd>4</kbd> pour noter</p>
+  <p class="hint">Astuce — réponse libre : <kbd>Espace</kbd> révèle, <kbd>1</kbd>–<kbd>4</kbd> note · QCM : <kbd>1</kbd>–<kbd>4</kbd> choisit une option</p>
 </div>
 {% endblock %}

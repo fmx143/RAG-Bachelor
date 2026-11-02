@@ -1,8 +1,9 @@
 {# Four-grade bar. `suggested` (optional) = grade the AI proposes: that button is highlighted. #}
+<div class="note gradebar-hint">Note ta réponse pour passer à la carte suivante.</div>
 <div class="gradebar">
   {% for label, g in [("Raté", 0), ("Difficile", 3), ("Bien", 4), ("Parfait", 5)] %}
-  <button type="button" class="g{{ loop.index0 }}{% if suggested == g %} suggested{% endif %}"
+  <button type="button" class="g{{ loop.index0 }}{% if suggested == g %} suggested{% endif %}"{% if suggested == g %} aria-current="true" data-autofocus{% endif %}
     hx-post="/revision/grade/{{ card.id }}" hx-include="#revision-filter-form"
-    hx-vals='{"grade": "{{ g }}"}' hx-target="#revision-content" hx-swap="innerHTML">{{ label }}<small>touche {{ loop.index }}</small></button>
+    hx-vals='{"grade": "{{ g }}"}' hx-target="#revision-content" hx-swap="innerHTML">{{ label }}<small>{% if suggested == g %}suggéré par l'IA{% else %}touche {{ loop.index }}{% endif %}</small></button>
   {% endfor %}
 </div>
