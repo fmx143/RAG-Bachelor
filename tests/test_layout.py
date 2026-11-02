@@ -40,3 +40,17 @@ def test_long_table_split_by_rows_repeats_header(monkeypatch: pytest.MonkeyPatch
     assert all(t.startswith(head + "\n| ligne") for t in tables)
     assert [r for t in tables for r in t.splitlines()[2:]] == rows
     assert chunks[0].text == "Intro." and chunks[-1].text == "Fin."
+
+
+def test_huge_section_title_is_capped() -> None:
+    items = [("section_header", "T" * 100_000, 1)] + [("text", f"para {i}", 1) for i in range(50)]
+    chunks = section_chunks(items, "livre.pdf")
+    assert all(len(c.text) <= settings.chunk_size + 201 for c in chunks)
+
+
+def test_huge_table_head_is_not_repeated(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "chunk_size", 60)
+    head = "| " + "h" * 100_000 + " |\n|---|"
+    table = "\n".join([head, *(f"| ligne {i} |" for i in range(20))])
+    chunks = section_chunks([("table", table, 1)], "livre.pdf")
+    assert sum(len(c.text) for c in chunks) < 2 * len(table)

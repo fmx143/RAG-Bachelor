@@ -121,6 +121,22 @@ def test_login_locks_out_after_repeated_failures(auth_enabled_client: TestClient
     assert resp.status_code == 429
 
 
+def test_lockout_does_not_end_existing_session(auth_enabled_client: TestClient) -> None:
+    auth_enabled_client.post("/login", data={"password": _PASSWORD, "next": "/"})
+    for _ in range(auth._MAX_FAILURES):
+        auth_enabled_client.post("/login", data={"password": "wrong", "next": "/"})
+    assert auth_enabled_client.get("/protected").status_code == 200
+    resp = auth_enabled_client.post("/login", data={"password": _PASSWORD, "next": "/"})
+    assert resp.status_code == 429
+
+
+def test_login_rejects_multipart_before_parsing(auth_enabled_client: TestClient) -> None:
+    resp = auth_enabled_client.post(
+        "/login", data={"password": "x"}, files={"f": ("f.bin", b"0" * 4096)}
+    )
+    assert resp.status_code == 415
+
+
 def test_non_ascii_password_is_rejected_not_crashing(auth_enabled_client: TestClient) -> None:
     resp = auth_enabled_client.post("/login", data={"password": "mötdepasse", "next": "/"})
     assert resp.status_code == 401

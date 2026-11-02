@@ -286,3 +286,18 @@ def test_progress_wording_tells_graph_from_indexing(client: TestClient) -> None:
     docs_module._JOB.update(phase="index")
     text = client.get("/docs/index/status").text
     assert "Indexation en cours" in text and "graphe" not in text
+
+
+def test_graph_job_marks_document_busy(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[str | None] = []
+
+    def fake_build(name: str, progress: object) -> tuple[int, int]:
+        seen.append(docs_module._busy(name))
+        return (1, 0)
+
+    monkeypatch.setattr(docs_module, "build_graph", fake_build)
+    client.post("/docs/graph/doc", data={"path": "Bachelor/cours.pdf"})
+    assert seen == ["Bachelor/cours.pdf"]
+    assert docs_module._busy("Bachelor/cours.pdf") is None

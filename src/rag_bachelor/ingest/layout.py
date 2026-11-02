@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from docling_core.types.doc.document import DoclingDocument
 
 Item = tuple[str, str, int]  # (docling label, text, 1-indexed page)
+_TITLE_MAX = 200  # a title is repeated in every chunk of its section
 
 
 def _table_pieces(table: str, size: int) -> list[str]:
@@ -27,6 +28,8 @@ def _table_pieces(table: str, size: int) -> list[str]:
         return [table]
     lines = table.splitlines()
     head, pieces, cur = "\n".join(lines[:2]), [], ""
+    if len(head) >= size:  # repeating it would not fit: keep the table whole
+        return [table]
     for row in lines[2:]:
         if cur and len(head) + len(cur) + len(row) + 2 > size:
             pieces.append(f"{head}\n{cur}")
@@ -83,7 +86,7 @@ def section_chunks(items: list[Item], source: str) -> list[Chunk]:
             continue
         if label == "section_header":
             flush()
-            title = text
+            title = text[:_TITLE_MAX]
         else:
             body.append((label, text, page))
     flush()

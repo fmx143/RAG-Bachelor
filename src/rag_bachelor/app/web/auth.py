@@ -24,6 +24,7 @@ from rag_bachelor.config import settings
 logger = logging.getLogger(__name__)
 
 _ALLOWED_PREFIXES = ("/login", "/static")
+_LOGIN_CONTENT_TYPE = "application/x-www-form-urlencoded"
 # Exact match, not a prefix: the Docker healthcheck calls it without a session.
 _ALLOWED_PATHS = frozenset({"/healthz"})
 
@@ -75,6 +76,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not auth_enabled():
             return await call_next(request)
         path = request.url.path
+        if (
+            path == "/login"
+            and request.method == "POST"
+            and not request.headers.get("content-type", "").startswith(_LOGIN_CONTENT_TYPE)
+        ):
+            # The login form is urlencoded; refuse multipart before it is parsed/spooled.
+            return Response(status_code=415)
         if (
             path in _ALLOWED_PATHS
             or path.startswith(_ALLOWED_PREFIXES)
