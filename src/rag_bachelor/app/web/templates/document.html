@@ -60,7 +60,7 @@
 {% set ordered = items | sort(attribute="page_from") %}
 <div class="card">
   <div class="subheader">{{ noun }} enregistrées ({{ ordered | length }})</div>
-  {% if not ordered %}<small style="color:var(--muted);">Rien pour l'instant.</small>{% endif %}
+  {% if not ordered %}<small class="u-muted">Rien pour l'instant.</small>{% endif %}
   <div class="o-saved">
   {% for it in ordered[:2] %}{{ saved_item(it, base) }}{% endfor %}
   </div>
@@ -88,7 +88,7 @@
 {% if tab == "apercu" %}
 <div class="card">
   <div class="o-between">
-    <div class="subheader" style="margin:0">Chapitres</div>
+    <div class="u-m0 subheader">Chapitres</div>
     <a class="btn btn-primary btn-sm" href="/revision?source={{ path | url_encode }}">Réviser tout le document</a>
   </div>
   <div class="chap-list">
@@ -107,7 +107,7 @@
     </div>
     {% endfor %}
   </div>
-  {% if unplaced_cards %}<small style="color:var(--muted);">{{ unplaced_cards }} carte{{ "s" if unplaced_cards > 1 }} de ce document sans chapitre (créées hors de la banque).</small>{% endif %}
+  {% if unplaced_cards %}<small class="u-muted">{{ unplaced_cards }} carte{{ "s" if unplaced_cards > 1 }} de ce document sans chapitre (créées hors de la banque).</small>{% endif %}
 
   <details class="chap-edit">
     <summary class="btn btn-ghost btn-sm">Modifier les chapitres</summary>
@@ -132,7 +132,7 @@
         </div>
         {% endfor %}
       </div>
-      <small style="color:var(--muted);">Le × vide une ligne, et une ligne vide est supprimée à l'enregistrement. Les chapitres sont triés par page et ne doivent pas se chevaucher.</small>
+      <small class="u-muted">Le × vide une ligne, et une ligne vide est supprimée à l'enregistrement. Les chapitres sont triés par page et ne doivent pas se chevaucher.</small>
       <div class="chap-btns">
         <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
         <button type="submit" name="redetect" value="1" class="btn btn-ghost btn-sm" formnovalidate>Redétecter automatiquement</button>
@@ -173,47 +173,47 @@
 {% elif tab == "fiches" %}
 <div class="card">
   <div class="subheader">Générer une fiche</div>
-  <small style="color:var(--muted);">Résumé de la plage choisie avec citations de pages, {{ max_pages }} pages maximum.</small>
+  <small class="u-muted">Résumé de la plage choisie avec citations de pages, {{ max_pages }} pages maximum.</small>
   <form hx-post="/sheets/generate" hx-target="#sheet-status" hx-swap="innerHTML" class="gen-form">
     <input type="hidden" name="source" value="{{ path }}">
     {{ range_picker("sheet") }}
     <button type="submit" class="btn btn-primary">Générer la fiche →</button>
   </form>
-  <div id="sheet-status" style="margin-top:.75rem;">{% include "partials/sheet_status.html" %}</div>
+  <div class="u-mt-3" id="sheet-status">{% include "partials/sheet_status.html" %}</div>
 </div>
 {{ saved_list("sheets", "Fiches") }}
 
 {% elif tab == "cartes" %}
 <div class="card">
   <div class="subheader">Générer une mind map</div>
-  <small style="color:var(--muted);">Plan hiérarchique de la plage choisie, {{ max_pages }} pages maximum.</small>
+  <small class="u-muted">Plan hiérarchique de la plage choisie, {{ max_pages }} pages maximum.</small>
   <form hx-post="/maps/generate" hx-target="#map-status" hx-swap="innerHTML" class="gen-form">
     <input type="hidden" name="source" value="{{ path }}">
     {{ range_picker("map") }}
     <button type="submit" class="btn btn-primary">Générer la mind map →</button>
   </form>
-  <div id="map-status" style="margin-top:.75rem;">{% include "partials/map_status.html" %}</div>
+  <div class="u-mt-3" id="map-status">{% include "partials/map_status.html" %}</div>
 </div>
 {{ saved_list("maps", "Mind maps") }}
 
 {% elif tab == "audio" %}
 <div class="card">
   <div class="subheader">Générer une leçon audio</div>
-  <small style="color:var(--muted);">Dialogue à deux voix sur la plage choisie, {{ max_pages }} pages maximum.</small>
+  <small class="u-muted">Dialogue à deux voix sur la plage choisie, {{ max_pages }} pages maximum.</small>
   <form hx-post="/podcasts/generate" hx-target="#podcast-status" hx-swap="innerHTML" class="gen-form">
     <input type="hidden" name="source" value="{{ path }}">
     {{ range_picker("podcast") }}
     <button type="submit" class="btn btn-primary">Générer la leçon →</button>
   </form>
-  <div id="podcast-status" style="margin-top:.75rem;">{% include "partials/podcast_status.html" %}</div>
+  <div class="u-mt-3" id="podcast-status">{% include "partials/podcast_status.html" %}</div>
 </div>
 {{ saved_list("podcasts", "Leçons audio") }}
 
 {% elif tab == "masquage" %}
 <div class="card">
   <div class="subheader">Masquer des zones d'un schéma</div>
-  <small style="color:var(--muted);">Dessine des rectangles sur la page (légende, valeur, nom d'un élément) : une carte est créée par zone, toutes les zones sont cachées et l'une d'elles est à retrouver.</small>
-  {% if created %}<div class="alert alert-info" style="margin-top:.75rem;">{{ created }} carte{{ "s" if created > 1 }} ajoutée{{ "s" if created > 1 }} à la révision.</div>{% endif %}
+  <small class="u-muted">Dessine des rectangles sur la page (légende, valeur, nom d'un élément) : une carte est créée par zone, toutes les zones sont cachées et l'une d'elles est à retrouver.</small>
+  {% if created %}<div class="u-mt-3 alert alert-info">{{ created }} carte{{ "s" if created > 1 }} ajoutée{{ "s" if created > 1 }} à la révision.</div>{% endif %}
   <div class="occ-nav">
     {% if occ_page > 1 %}<a class="btn btn-ghost btn-sm" href="{{ durl }}?tab=masquage&page={{ occ_page - 1 }}">← Page précédente</a>{% endif %}
     <form method="get" action="{{ durl }}">
@@ -275,7 +275,7 @@
       </div>
     </div>
     <div class="form-group" style="margin-bottom:0;flex:1 1 200px">
-      <label for="move_folder">Sous-dossier <span style="color:var(--muted);">(optionnel)</span></label>
+      <label for="move_folder">Sous-dossier <span class="u-muted">(optionnel)</span></label>
       <input type="text" id="move_folder" name="folder" value="{{ file_folder }}" placeholder="ex. Semestre 3">
     </div>
     <div class="form-group" style="margin-bottom:0;flex:1 1 240px">
@@ -284,7 +284,7 @@
     </div>
     <button type="submit" class="btn btn-primary btn-sm">Déplacer</button>
   </form>
-  <small style="color:var(--muted);">Questions, fiches, mind maps, audio et cartes suivent le document.</small>
+  <small class="u-muted">Questions, fiches, mind maps, audio et cartes suivent le document.</small>
 </div>
 
 <div class="card">

@@ -1,19 +1,19 @@
-<div class="metrics" style="margin-bottom:.75rem;">
+<div class="u-mb-3 metrics">
   <div class="metric">
     <div class="metric-label">Fournisseur actif</div>
-    <div class="metric-value" style="font-size:1rem; padding-top:.25rem;">
+    <div class="u-lg-pt metric-value">
       {% if active_provider == "openai" %}OpenAI (cloud){% else %}Ollama (cloud){% endif %}
     </div>
   </div>
   <div class="metric">
     <div class="metric-label">Modèle</div>
-    <div class="metric-value" style="font-size:1rem; padding-top:.25rem;">
+    <div class="u-lg-pt metric-value">
       <code>{% if active_provider == "openai" %}{{ models.openai }}{% else %}{{ models.ollama }}{% endif %}</code>
     </div>
   </div>
   <div class="metric">
     <div class="metric-label">Clés</div>
-    <div class="metric-value" style="font-size:1rem; padding-top:.25rem;">
+    <div class="u-lg-pt metric-value">
       Ollama {% if ollama_key_configured %}configurée{% else %}manquante{% endif %} · OpenAI {% if openai_key_configured %}configurée{% else %}manquante{% endif %}
     </div>
   </div>
@@ -33,7 +33,7 @@
                {% if not ollama_key_configured %}disabled{% endif %}>
         Ollama (cloud)
         {% if not ollama_key_configured %}
-        <small style="color:var(--muted);">(définis OLLAMA_API_KEY)</small>
+        <small class="u-muted">(définis OLLAMA_API_KEY)</small>
         {% endif %}
       </label>
       <label style="font-weight:400;">
@@ -42,7 +42,7 @@
                {% if not openai_key_configured %}disabled{% endif %}>
         OpenAI
         {% if not openai_key_configured %}
-        <small style="color:var(--muted);">(définis OPENAI_API_KEY)</small>
+        <small class="u-muted">(définis OPENAI_API_KEY)</small>
         {% endif %}
       </label>
     </div>
