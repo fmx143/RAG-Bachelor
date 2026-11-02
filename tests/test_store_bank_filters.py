@@ -66,3 +66,19 @@ def test_materialize_bank_question_called_twice_creates_two_cards() -> None:
     assert first_card_id != second_card_id
     assert store.get_card(first_card_id) is not None
     assert store.get_card(second_card_id) is not None
+
+
+def test_deck_bad_filter_lists_flagged_cards_and_bulk_delete_drops_their_cards() -> None:
+    store.add_bank_questions([_bq("Mauvaise ?"), _bq("Bonne ?")])
+    bad, good = (store.materialize_bank_question(q) for q in store.list_bank_questions())
+    store.set_relevance(bad, -1)
+
+    flagged = store.list_bank_questions(deck="bad")
+    assert len(flagged) == 1
+    assert flagged[0].card_id == bad
+    assert store.count_bank_questions(deck="bad") == 1
+
+    assert flagged[0].id is not None
+    store.delete_bank_questions([flagged[0].id], with_cards=True)
+    assert store.get_card(bad) is None
+    assert store.get_card(good) is not None

@@ -728,6 +728,8 @@ def _bank_where(
         clauses.append("card_id IS NOT NULL")
     elif deck == "out":
         clauses.append("card_id IS NULL")
+    elif deck == "bad":  # cards the learner flagged as badly made during revision
+        clauses.append("card_id IN (SELECT id FROM cards WHERE relevance = -1)")
     return (" WHERE " + " AND ".join(clauses)) if clauses else "", params
 
 
@@ -876,8 +878,8 @@ def delete_bank_question(bank_id: int) -> None:
     conn.commit()
 
 
-def delete_bank_questions(bank_ids: list[int]) -> int:
-    """Remove several bank questions at once (any linked SRS cards are kept).
+def delete_bank_questions(bank_ids: list[int], with_cards: bool = False) -> int:
+    """Remove several bank questions at once (linked SRS cards are kept unless *with_cards*).
 
     Returns the number of rows actually deleted.
     """
@@ -885,6 +887,16 @@ def delete_bank_questions(bank_ids: list[int]) -> int:
         return 0
     conn = get_conn()
     placeholders = ",".join("?" * len(bank_ids))
+    if with_cards:
+        rows = conn.execute(
+            _adapt(
+                f"SELECT card_id FROM question_bank WHERE id IN ({placeholders}) "
+                "AND card_id IS NOT NULL"
+            ),
+            bank_ids,
+        ).fetchall()
+        for r in rows:
+            delete_card(int(r["card_id"]))
     cur = conn.execute(_adapt(f"DELETE FROM question_bank WHERE id IN ({placeholders})"), bank_ids)
     conn.commit()
     return cur.rowcount
