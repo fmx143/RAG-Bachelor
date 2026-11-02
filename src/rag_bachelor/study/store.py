@@ -510,7 +510,7 @@ def get_due_cards(
         return []
     conn = get_conn()
     today = date.today().isoformat()
-    clauses = ["due_date <= ?"]
+    clauses = ["due_date <= ?", "(relevance IS NULL OR relevance <> -1)"]  # flagged = out of revision
     params: list[Any] = [today]
     if card_ids:
         clauses.append(f"id IN ({','.join('?' * len(card_ids))})")

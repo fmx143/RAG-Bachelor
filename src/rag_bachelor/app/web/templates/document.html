@@ -142,8 +142,11 @@
   <div id="bank-status" class="batch">{% include "partials/bank_status.html" %}</div>
 </div>
 {% set fixed_source = path %}
-{% include "partials/bank_filters.html" %}
-<div id="bank-list">{% include "partials/bank_list.html" %}</div>
+<details class="card bank-fold">
+  <summary class="subheader">Voir les questions ({{ list_total }})</summary>
+  {% include "partials/bank_filters.html" %}
+  <div id="bank-list">{% include "partials/bank_list.html" %}</div>
+</details>
 
 {% elif tab == "fiches" %}
 <div class="card">
