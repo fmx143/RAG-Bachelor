@@ -435,3 +435,9 @@ if (revisionContent) {
   new MutationObserver(() => revisionContent.querySelector("[data-autofocus]")?.focus({ preventScroll: true }))
     .observe(revisionContent, { childList: true });
 }
+
+// Bank list: "Tout sélectionner" ticks every question checkbox of the list.
+document.addEventListener("change", (e) => {
+  if (!e.target.matches || !e.target.matches("[data-select-all]")) return;
+  e.target.form.querySelectorAll("input[name=ids]").forEach((c) => { c.checked = e.target.checked; });
+});

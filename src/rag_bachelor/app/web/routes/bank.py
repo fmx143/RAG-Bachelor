@@ -31,8 +31,8 @@ router = APIRouter()
 _DIFF_LABELS = {"facile": "Facile", "moyen": "Moyen", "difficile": "Difficile"}
 _RESULTS = ("correct", "incorrect", "untried")
 _RESULT_LABELS = {"correct": "Juste", "incorrect": "Faux", "untried": "◯ Jamais tenté"}
-_DECKS = ("in", "out")
-_DECK_LABELS = {"in": "Déjà en révision", "out": "Pas encore ajoutée"}
+_DECKS = ("in", "out", "bad")
+_DECK_LABELS = {"in": "Déjà en révision", "out": "Pas encore ajoutée", "bad": "Mal conçues"}
 _PAGE_SIZE = 20
 _MIN_TARGET = 1
 _MAX_TARGET = 100
@@ -316,7 +316,8 @@ async def delete_selected_bank(
     result: Annotated[str, Form()] = "",
     deck: Annotated[str, Form()] = "",
 ) -> Response:
-    await asyncio.to_thread(delete_bank_questions, ids)
+    # Questions flagged "Mal conçue" are deleted with their revision card, or they would linger there.
+    await asyncio.to_thread(delete_bank_questions, ids, deck == "bad")
     ctx = {
         "request": request,
         **(await list_ctx(source, difficulty, search, _PAGE_SIZE, qtype, result, deck)),

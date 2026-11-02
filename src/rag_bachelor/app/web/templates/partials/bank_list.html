@@ -8,7 +8,7 @@
 <div class="alert alert-info">Aucune question dans la banque pour ce filtre.</div>
 {% else %}
 
-<form id="bank-bulk-form" hx-post="/bank/delete-selected" hx-target="#bank-list" hx-swap="innerHTML" hx-confirm="Supprimer les questions sélectionnées de la banque ?">
+<form id="bank-bulk-form" hx-post="/bank/delete-selected" hx-target="#bank-list" hx-swap="innerHTML" hx-confirm="{% if filter_deck == 'bad' %}Supprimer les questions sélectionnées, leurs cartes de révision et leur historique ?{% else %}Supprimer les questions sélectionnées de la banque ?{% endif %}">
   <input type="hidden" name="source" value="{{ filter_source | e }}">
   <input type="hidden" name="difficulty" value="{{ filter_difficulty | e }}">
   <input type="hidden" name="search" value="{{ filter_search | e }}">
@@ -19,6 +19,7 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; margin-bottom:.75rem;">
     <span class="o-mono" style="margin:0">{{ list_total }} question(s) · <span style="color:var(--ok)">{{ by_result.correct }} justes</span> · <span style="color:var(--bad)">{{ by_result.incorrect }} fausses</span> · {{ by_result.untried }} non tentées</span>
     <div class="o-prog"><span style="flex:{{ by_result.correct }};background:var(--ok)"></span><span style="flex:{{ by_result.incorrect }};background:var(--bad)"></span><span style="flex:{{ by_result.untried }};background:var(--hair)"></span></div>
+    <label class="note"><input type="checkbox" data-select-all> Tout sélectionner</label>
     <button type="submit" class="btn btn-danger btn-sm">Supprimer la sélection</button>
   </div>
 
