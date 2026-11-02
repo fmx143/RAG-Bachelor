@@ -441,3 +441,11 @@ document.addEventListener("change", (e) => {
   if (!e.target.matches || !e.target.matches("[data-select-all]")) return;
   e.target.form.querySelectorAll("input[name=ids]").forEach((c) => { c.checked = e.target.checked; });
 });
+
+// Saved sheets / maps / lessons: the chapter filter hides the items of the other chapters.
+document.addEventListener("change", (e) => {
+  if (!e.target.matches || !e.target.matches("[data-saved-filter]")) return;
+  e.target.closest("details").querySelectorAll(".o-saved-item").forEach((it) => {
+    it.hidden = e.target.value !== "" && it.dataset.chap !== e.target.value;
+  });
+});

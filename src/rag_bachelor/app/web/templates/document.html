@@ -42,22 +42,44 @@
 </div>
 {% endmacro %}
 
+{# One saved sheet / map / lesson; data-chap = index of the chapter with exactly its page range, else "custom". #}
+{% macro saved_item(it, base) %}
+{% set ns = namespace(ch=none, k="custom") %}
+{% for c in chapters %}{% if c.page_from == it.page_from and c.page_to == it.page_to %}{% set ns.ch = c %}{% set ns.k = loop.index0 %}{% endif %}{% endfor %}
+<div class="o-saved-item" style="--h:{{ it.source | hue }}" data-chap="{{ ns.k }}">
+  <a href="/{{ base }}/{{ it.id }}">
+    <div class="t"><i></i>{{ ns.ch.title if ns.ch else "Pages au choix" }}</div>
+    <div class="m">p.{{ it.page_from }}–{{ it.page_to }} · {{ it.created_at }}</div>
+  </a>
+  <button type="button" hx-post="/{{ base }}/{{ it.id }}/delete" hx-target="closest .o-saved-item" hx-swap="outerHTML" hx-confirm="Supprimer cet élément ?" class="x" aria-label="Supprimer">×</button>
+</div>
+{% endmacro %}
+
+{# Saved items in book order: the first two shown, the rest in a fold with a chapter filter (see app.js). #}
 {% macro saved_list(base, noun) %}
+{% set ordered = items | sort(attribute="page_from") %}
 <div class="card">
-  <div class="subheader">{{ noun }} enregistrées ({{ items | length }})</div>
-  {% if not items %}<small style="color:var(--muted);">Rien pour l'instant.</small>{% endif %}
+  <div class="subheader">{{ noun }} enregistrées ({{ ordered | length }})</div>
+  {% if not ordered %}<small style="color:var(--muted);">Rien pour l'instant.</small>{% endif %}
   <div class="o-saved">
-  {% for it in items %}
-  <div class="o-saved-item" style="--h:{{ it.source | hue }}">
-    <a href="/{{ base }}/{{ it.id }}">
-      {% set ch = chapters | selectattr("page_from", "equalto", it.page_from) | selectattr("page_to", "equalto", it.page_to) | first %}
-      <div class="t"><i></i>{{ ch.title if ch else "Pages au choix" }}</div>
-      <div class="m">p.{{ it.page_from }}–{{ it.page_to }} · {{ it.created_at }}</div>
-    </a>
-    <button type="button" hx-post="/{{ base }}/{{ it.id }}/delete" hx-target="closest .o-saved-item" hx-swap="outerHTML" hx-confirm="Supprimer cet élément ?" class="x" aria-label="Supprimer">×</button>
+  {% for it in ordered[:2] %}{{ saved_item(it, base) }}{% endfor %}
   </div>
-  {% endfor %}
-  </div>
+  {% if ordered | length > 2 %}
+  <details class="saved-more">
+    <summary>Voir les {{ ordered | length - 2 }} autres</summary>
+    <div class="form-group">
+      <label for="{{ base }}_filter">Chapitre</label>
+      <select id="{{ base }}_filter" data-saved-filter>
+        <option value="">Tout le livre</option>
+        {% for c in chapters %}<option value="{{ loop.index0 }}">{{ c.title }} (p.{{ c.page_from }}–{{ c.page_to }})</option>{% endfor %}
+        <option value="custom">Pages au choix</option>
+      </select>
+    </div>
+    <div class="o-saved">
+    {% for it in ordered[2:] %}{{ saved_item(it, base) }}{% endfor %}
+    </div>
+  </details>
+  {% endif %}
 </div>
 {% endmacro %}
 
