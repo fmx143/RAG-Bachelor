@@ -643,6 +643,7 @@ blockquote { border-left: 0 !important; background: var(--card); border-radius: 
 .gradebar { display: flex; border: 1px solid var(--hair); border-radius: var(--rs); overflow: hidden; margin-top: 24px; }
 .gradebar button { flex: 1; background: none; border: none; border-left: 1px solid var(--hair); color: var(--muted); font: 700 13px var(--sans); padding: 14px 2px; cursor: pointer; transition: background .18s, color .18s; }
 .gradebar button:first-child { border-left: none; }
+.gradebar button:focus-visible { outline-offset: -3px; } /* inside: .gradebar clips its overflow */
 .gradebar button:hover { background: rgba(255,255,255,.04); }
 .gradebar .g0:hover { background: oklch(0.72 0.15 22 / .14); color: var(--bad); }
 .gradebar .g1:hover { background: rgba(255,178,107,.14); color: var(--warn); }
@@ -650,7 +651,7 @@ blockquote { border-left: 0 !important; background: var(--card); border-radius: 
 .gradebar .g3:hover { background: rgba(142,199,255,.14); color: var(--blue); }
 .note { font-size: 13px; color: var(--muted); text-align: center; margin: 18px 0 14px; font-weight: 600; }
 .gradebar button.suggested { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
-.why-ask { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0 8px; }
+.why-ask { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; margin: 16px 0 8px; }
 .why-ask textarea, .why-ask input { flex: 1; min-height: 0; }
 #why-box:not(:empty) { margin-top: 8px; }
 .hint { text-align: center; font-size: 12px; color: var(--dim); margin-top: 24px; }
@@ -1049,16 +1050,19 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .occ-nav form { display: flex; gap: 8px; align-items: center; }
 .occ-nav input[type=number] { width: 5.5rem; }
 .occ-stage, .occ { position: relative; width: 100%; max-width: 760px; margin: 12px auto; line-height: 0; }
-.occ-stage { cursor: crosshair; touch-action: none; user-select: none; }
+.occ-stage { cursor: crosshair; touch-action: pan-y pinch-zoom; user-select: none; }
 .occ-stage img, .occ img { width: 100%; height: auto; display: block; border-radius: var(--rs); border: 1px solid var(--hair); }
-.occ-box { position: absolute; display: flex; align-items: center; justify-content: center; box-sizing: border-box; font: 700 14px var(--sans); font-style: normal; color: var(--bg, #000); background: var(--accent); border: 2px solid var(--accent); border-radius: 3px; opacity: .85; pointer-events: none; }
+.occ-box { position: absolute; display: flex; align-items: center; justify-content: center; box-sizing: border-box; font: 700 14px var(--sans); font-style: normal; color: var(--bg); background: var(--accent); border: 2px solid var(--accent); border-radius: 3px; opacity: .85; pointer-events: none; }
 .occ-box.draft { background: var(--accent-soft); color: var(--accent); }
 .occ-box.other { background: var(--dim); border-color: var(--dim); opacity: 1; }
 .occ-box.target { opacity: 1; }
 .flashcard:has(details.reveal[open]) .occ-box.target { opacity: 0; }
 .occ-list { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 8px; }
-.occ-list li { display: flex; gap: 8px; align-items: center; }
-.occ-list input { flex: 1; }
+.occ-list li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.occ-list input { flex: 1 1 200px; }
+.occ-manual { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin: 12px 0; }
+.occ-manual label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.occ-manual input { width: 5.5rem; }
 
 /* Podcast: ask the expert while listening */
 .o-ask { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .75rem 0; }
@@ -1066,9 +1070,9 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .o-ask .ask-fields[hidden] { display: none; }
 .o-ask input[type=text] { flex: 1; min-width: 0; }
 .o-reply { margin: 0 0 .75rem; }
-.o-reply-q { color: var(--muted, #8b93a7); font-style: italic; }
+.o-reply-q { color: var(--muted); font-style: italic; }
 .o-reply audio { width: 100%; margin-top: .5rem; }
-.o-ask-err { color: var(--bad, #f87171); margin: 0 0 .75rem; }
+.o-ask-err { color: var(--bad); margin: 0 0 .75rem; }
 .why-row { display: flex; align-items: center; gap: 14px; margin-top: 28px; }
 .gradebar-hint { margin-top: 24px; }
 .gradebar-hint + .gradebar { margin-top: 8px; }

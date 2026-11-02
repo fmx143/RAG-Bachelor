@@ -203,8 +203,14 @@
     <input type="hidden" name="source" value="{{ path }}">
     <input type="hidden" name="page" value="{{ occ_page }}">
     <input type="hidden" name="rects" value="[]">
-    <div class="occ-stage" data-stage>
+    <div class="occ-stage" data-stage role="img" aria-label="Page {{ occ_page }} : glisse pour dessiner une zone, ou saisis ses coordonnées ci-dessous">
       <img src="/docs/page.png?path={{ path | url_encode }}&page={{ occ_page }}" alt="Page {{ occ_page }}" draggable="false">
+    </div>
+    <div class="occ-manual" role="group" aria-label="Ajouter une zone par ses coordonnées (en % de la page)" data-manual>
+      {% for k, lbl in [("x", "Gauche %"), ("y", "Haut %"), ("w", "Largeur %"), ("h", "Hauteur %")] %}
+      <label>{{ lbl }}<input type="number" min="0" max="100" step="0.5" data-m="{{ k }}"></label>
+      {% endfor %}
+      <button type="button" class="btn btn-ghost btn-sm" data-manual-add>Ajouter la zone</button>
     </div>
     <ol class="occ-list" data-list></ol>
     <div class="form-group">

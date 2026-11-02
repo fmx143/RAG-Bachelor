@@ -28,12 +28,13 @@
 
 <form class="o-ask" hx-post="/podcasts/{{ podcast.id }}/ask" hx-target="#live-answer" hx-indicator="#ask-wait" data-ask>
   <input type="hidden" name="t" value="0" data-ask-t>
-  <button type="button" class="btn btn-ghost btn-sm" data-ask-open>🙋 Poser une question</button>
+  <button type="button" class="btn btn-ghost btn-sm" data-ask-open>Poser une question</button>
   <span class="ask-fields" hidden>
     <input type="text" name="question" maxlength="500" placeholder="Ta question sur ce passage…" aria-label="Ta question" autocomplete="off">
     <button type="submit" class="btn btn-sm">Demander</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-ask-cancel>Annuler</button>
   </span>
-  <span id="ask-wait" class="htmx-indicator">L'expert réfléchit…</span>
+  <span id="ask-wait" class="htmx-indicator" role="status">L'expert réfléchit…</span>
 </form>
 <div id="live-answer"></div>
 

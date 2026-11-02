@@ -233,7 +233,9 @@ document.addEventListener("keydown", (e) => {
     reveal.open = true;
   } else if (e.key >= "1" && e.key <= "4") {
     const n = +e.key - 1;
-    (document.querySelector(`#revision-content .gradebar .g${n}`) || document.querySelectorAll("#revision-content .opt input")[n])?.click();
+    // A gradebar inside a closed <details> is hidden (offsetParent null): not gradable yet.
+    const grade = document.querySelector(`#revision-content .gradebar .g${n}`);
+    (grade ? (grade.offsetParent ? grade : null) : document.querySelectorAll("#revision-content .opt input")[n])?.click();
   }
 });
 
@@ -314,25 +316,36 @@ document.querySelectorAll("[data-player]").forEach((box) => {
     if (au.duration) au.currentTime = ((e.clientX - r.left) / r.width) * au.duration;
   });
   // Ask the expert: pause at second t, play the spoken reply, then resume at t.
+  // Escape or "Annuler" aborts and resumes. State is kept while a question is pending, so a
+  // second question keeps the first resume point.
   const ask = document.querySelector("[data-ask]");
   if (ask) {
-    let t = 0, wasPlaying = false;
+    const fields = ask.querySelector(".ask-fields");
+    let t = 0, wasPlaying = false, pending = false;
+    const resume = () => {
+      if (!pending) return;
+      pending = false;
+      fields.hidden = true;
+      au.currentTime = t;
+      if (wasPlaying) au.play();
+    };
     ask.querySelector("[data-ask-open]").addEventListener("click", () => {
-      wasPlaying = !au.paused;
-      au.pause();
-      t = au.currentTime;
+      if (!pending) {
+        pending = true;
+        wasPlaying = !au.paused;
+        au.pause();
+        t = au.currentTime;
+      }
       ask.querySelector("[data-ask-t]").value = t.toFixed(1);
-      ask.querySelector(".ask-fields").hidden = false;
+      fields.hidden = false;
       ask.querySelector("[name=question]").focus();
     });
-    document.body.addEventListener("htmx:afterSwap", (e) => {
-      const reply = e.target.id === "live-answer" && e.target.querySelector("[data-reply-audio]");
-      if (!reply) return;
-      reply.addEventListener("ended", () => {
-        au.currentTime = t;
-        if (wasPlaying) au.play();
-      });
-    });
+    ask.querySelector("[data-ask-cancel]").addEventListener("click", resume);
+    ask.addEventListener("keydown", (e) => { if (e.key === "Escape") resume(); });
+    // "ended" does not bubble: capture it on the container the reply is swapped into.
+    document.getElementById("live-answer").addEventListener("ended", (e) => {
+      if (e.target.matches("[data-reply-audio]")) resume();
+    }, true);
   }
   box.querySelectorAll("[data-speed]").forEach((b) => b.addEventListener("click", () => {
     au.playbackRate = parseFloat(b.dataset.speed);
