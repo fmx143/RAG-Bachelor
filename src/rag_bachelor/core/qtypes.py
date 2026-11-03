@@ -119,8 +119,12 @@ def loads_object(raw: str) -> dict[str, object] | None:
     return data if isinstance(data, dict) else None
 
 
+_DIFFICULTY_ALIASES = {"easy": "facile", "medium": "moyen", "hard": "difficile"}
+
+
 def _normalize_difficulty(value: object) -> str:
     difficulty = str(value or "").strip().lower()
+    difficulty = _DIFFICULTY_ALIASES.get(difficulty, difficulty)  # English-subject output
     return difficulty if difficulty in DIFFICULTIES else "moyen"
 
 
