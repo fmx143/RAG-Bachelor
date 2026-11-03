@@ -14,7 +14,7 @@ from starlette.responses import Response
 from rag_bachelor.app.web._deps import _label_filter, sidebar_ctx, templates
 from rag_bachelor.core.carte_savoir import CarteSavoir, construire_carte, graphe_annote
 from rag_bachelor.ingest.index import get_facts_collection
-from rag_bachelor.study.subjects import active_subject
+from rag_bachelor.study.subjects import active_subject, doc_kind
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -30,11 +30,13 @@ def _carte() -> CarteSavoir:
 
 
 def _document_of(concept: str) -> str | None:
-    """The document where *concept* (a normalised entity) appears most."""
+    """The book where *concept* (a normalised entity) appears most."""
     got = get_facts_collection().get(
         where={"$or": [{"subject": concept}, {"object": concept}]}, include=["metadatas"]
     )
-    sources = Counter(str(m["source"]) for m in got.get("metadatas") or [] if m)
+    sources = Counter(
+        str(m["source"]) for m in got.get("metadatas") or [] if m and doc_kind(str(m["source"])) == "livre"
+    )
     return sources.most_common(1)[0][0] if sources else None
 
 

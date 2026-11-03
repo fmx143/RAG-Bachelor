@@ -15,6 +15,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
+from rag_bachelor.config import settings
+from rag_bachelor.core.graph import fact_counts
 from rag_bachelor.study.stats import TopicStats, get_topic_stats
 from rag_bachelor.study.store import count_bank_questions
 from rag_bachelor.study.subjects import BOOKS_DIR, SOURCES_DIR, active_sources, active_subject
@@ -34,17 +36,34 @@ class DocTile:
     folder: str  # sub-folder under Livres/ or Sources/ ("" at its root)
     questions: int
     stats: TopicStats | None
+    indexed: bool = True
+    facts: int = 0  # graph facts; 0 = no graph yet
 
 
 def _tiles(kind: str | None) -> list[DocTile]:
-    stats = {s.topic: s for s in get_topic_stats(active_subject())}
+    subject = active_subject()
+    stats = {s.topic: s for s in get_topic_stats(subject)}
+    facts = fact_counts()
+    indexed = set(active_sources())
+    on_disk: set[str] = set()  # PDFs not indexed yet still get a tile, so nothing is missing
+    if kind:
+        folder = BOOKS_DIR if kind == "livre" else SOURCES_DIR
+        root = settings.pdfs_dir
+        on_disk = {p.relative_to(root).as_posix() for p in (root / subject / folder).rglob("*.pdf")}
     tiles = []
-    for path in active_sources():
+    for path in sorted(indexed | on_disk):
         if kind_of(path) != kind:
             continue
         inner = path.split("/")[2:-1] if kind else path.split("/")[1:-1]
         tiles.append(
-            DocTile(path, "/".join(inner), count_bank_questions(source=path), stats.get(path))
+            DocTile(
+                path,
+                "/".join(inner),
+                count_bank_questions(source=path),
+                stats.get(path),
+                path in indexed,
+                facts.get(path, 0),
+            )
         )
     return sorted(tiles, key=lambda t: (t.folder.casefold(), t.path.casefold()))
 

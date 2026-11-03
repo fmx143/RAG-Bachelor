@@ -15,6 +15,7 @@ from rag_bachelor.core import carte_savoir
 from rag_bachelor.core.carte_savoir import construire_carte, graphe_annote
 from rag_bachelor.ingest.index import get_facts_collection
 from rag_bachelor.study import store
+from rag_bachelor.study.store import Chapter
 
 
 def _graph() -> nx.Graph:
@@ -50,6 +51,12 @@ def test_construire_carte_null_mastery_and_iso_dates() -> None:
     assert next(c for c in data["concepts"] if c["id"] == "a")["prochaine_revision"] is None
 
 
+@pytest.fixture(autouse=True)
+def _one_chapter(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No PDF in tests: every book is a single chapter unless a test says otherwise."""
+    monkeypatch.setattr(carte_savoir, "chapters_for", lambda source: [Chapter("Tout le livre", 1, 99)])
+
+
 def _fact(i: int, subj: str, obj: str, source: str, chunk: str) -> dict[str, object]:
     return {
         "ids": [f"f{i}"],
@@ -61,16 +68,16 @@ def _fact(i: int, subj: str, obj: str, source: str, chunk: str) -> dict[str, obj
 
 def test_graphe_annote_scopes_subject_and_links_cards(monkeypatch: pytest.MonkeyPatch) -> None:
     facts = get_facts_collection()
-    facts.upsert(**_fact(1, "bilan", "passif", "Bachelor/a.pdf", "c1"))  # type: ignore[arg-type]
-    facts.upsert(**_fact(2, "actif", "stock", "Bachelor/a.pdf", "c2"))  # type: ignore[arg-type]
+    facts.upsert(**_fact(1, "bilan", "passif", "Bachelor/Livres/a.pdf", "c1"))  # type: ignore[arg-type]
+    facts.upsert(**_fact(2, "actif", "stock", "Bachelor/Livres/a.pdf", "c2"))  # type: ignore[arg-type]
     facts.upsert(**_fact(3, "autre", "chose", "Autre/b.pdf", "c3"))  # type: ignore[arg-type]
-    card_id = store.add_card("Q ?", "R.", topic="Bachelor/a.pdf", difficulty="facile")
+    card_id = store.add_card("Q ?", "R.", topic="Bachelor/Livres/a.pdf", difficulty="facile")
     monkeypatch.setattr(carte_savoir, "bank_chunk_cards", lambda: {"c1": {card_id}})
 
     g = graphe_annote("Bachelor", str.upper, today=date.today())
 
     assert sorted(g.nodes) == ["actif", "bilan", "passif", "stock"]  # the other subject is out
-    assert g.nodes["bilan"]["nom"] == "Bilan" and g.nodes["bilan"]["module_nom"] == "BACHELOR/A.PDF"
+    assert g.nodes["bilan"]["nom"] == "Bilan" and g.nodes["bilan"]["module_nom"] == "BACHELOR/LIVRES/A.PDF"
     assert g.nodes["bilan"]["maitrise"] is None  # the card was never reviewed
     assert g.nodes["bilan"]["prochaine_revision"] == date.today() and g.nodes["bilan"]["a_revoir"]
     assert g.nodes["passif"]["prochaine_revision"] == date.today()  # same fact, same chunk
@@ -80,7 +87,7 @@ def test_graphe_annote_scopes_subject_and_links_cards(monkeypatch: pytest.Monkey
 def test_graphe_annote_caps_concepts_by_degree() -> None:
     facts = get_facts_collection()
     for i, obj in enumerate(["x", "y", "z"]):
-        facts.upsert(**_fact(i, "hub", obj, "Bachelor/a.pdf", f"c{i}"))  # type: ignore[arg-type]
+        facts.upsert(**_fact(i, "hub", obj, "Bachelor/Livres/a.pdf", f"c{i}"))  # type: ignore[arg-type]
 
     g = graphe_annote("Bachelor", str, max_concepts=2)
 
@@ -111,21 +118,48 @@ def test_routes_redirect_to_login_without_session(monkeypatch: pytest.MonkeyPatc
 
 
 def test_reviser_redirects_to_the_concept_document() -> None:
-    get_facts_collection().upsert(**_fact(1, "bilan", "actif", "Bachelor/a b.pdf", "c1"))  # type: ignore[arg-type]
+    get_facts_collection().upsert(**_fact(1, "bilan", "actif", "Bachelor/Livres/a b.pdf", "c1"))  # type: ignore[arg-type]
     client = TestClient(app, follow_redirects=False)
 
     r = client.get("/carte-savoir/reviser", params={"concept": "bilan"})
 
-    assert r.status_code == 303 and r.headers["location"] == "/revision?source=Bachelor/a%20b.pdf"
+    assert r.status_code == 303 and r.headers["location"] == "/revision?source=Bachelor/Livres/a%20b.pdf"
     assert client.get("/carte-savoir/reviser").headers["location"] == "/revision"
 
 
 def test_graphe_annote_cap_spreads_over_documents() -> None:
     facts = get_facts_collection()
     for i, obj in enumerate(["x", "y", "z"]):
-        facts.upsert(**_fact(i, "hub", obj, "Bachelor/a.pdf", f"c{i}"))  # type: ignore[arg-type]
-    facts.upsert(**_fact(9, "solo", "duo", "Bachelor/b.pdf", "c9"))  # type: ignore[arg-type]
+        facts.upsert(**_fact(i, "hub", obj, "Bachelor/Livres/a.pdf", f"c{i}"))  # type: ignore[arg-type]
+    facts.upsert(**_fact(9, "solo", "duo", "Bachelor/Livres/b.pdf", "c9"))  # type: ignore[arg-type]
 
     g = graphe_annote("Bachelor", str, max_concepts=2)
 
-    assert {g.nodes[n]["module"] for n in g.nodes} == {"Bachelor/a.pdf", "Bachelor/b.pdf"}
+    assert {g.nodes[n]["module"] for n in g.nodes} == {"Bachelor/Livres/a.pdf", "Bachelor/Livres/b.pdf"}
+
+
+def test_graphe_annote_books_only_one_module_per_chapter(monkeypatch: pytest.MonkeyPatch) -> None:
+    book = "Bachelor/Livres/a.pdf"
+    monkeypatch.setattr(
+        carte_savoir, "chapters_for", lambda source: [Chapter("Un", 1, 9), Chapter("Deux", 10, 20)]
+    )
+    facts = get_facts_collection()
+    facts.upsert(**_fact(1, "bilan", "passif", book, f"{book}__p3__c0"))  # type: ignore[arg-type]
+    facts.upsert(**_fact(2, "actif", "stock", book, f"{book}__p12__c0"))  # type: ignore[arg-type]
+    facts.upsert(**_fact(3, "note", "texte", "Bachelor/Sources/n.pdf", "c3"))  # type: ignore[arg-type]
+
+    g = graphe_annote("Bachelor", str)
+
+    assert "note" not in g.nodes  # a source is not a book
+    assert g.nodes["bilan"]["module"] == f"{book}#Un"
+    assert g.nodes["actif"]["module_nom"] == f"{book} · Deux"
+
+
+def test_reviser_ignores_sources() -> None:
+    facts = get_facts_collection()
+    facts.upsert(**_fact(1, "bilan", "actif", "Bachelor/Sources/s.pdf", "c1"))  # type: ignore[arg-type]
+    facts.upsert(**_fact(2, "bilan", "stock", "Bachelor/Livres/l.pdf", "c2"))  # type: ignore[arg-type]
+
+    r = TestClient(app, follow_redirects=False).get("/carte-savoir/reviser", params={"concept": "bilan"})
+
+    assert r.headers["location"] == "/revision?source=Bachelor/Livres/l.pdf"

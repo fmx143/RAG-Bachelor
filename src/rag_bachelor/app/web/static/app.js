@@ -455,3 +455,40 @@ document.querySelectorAll(".exam-timer[data-deadline]").forEach((el) => {
   tick();
   setInterval(tick, 1000);
 });
+
+// ── Book opening: the clicked library tile grows into the book page's banner (see .book-hero in app.css) ──
+{
+  const still = matchMedia("(prefers-reduced-motion: reduce)");
+  document.addEventListener("click", (e) => {
+    const tile = e.target.closest?.("a.lib-tile[data-book]");
+    if (!tile || still.matches || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    const main = document.querySelector(".main");
+    if (!main) return;
+    e.preventDefault();
+    const r = tile.getBoundingClientRect();
+    const m = main.getBoundingClientRect();
+    const fl = document.createElement("div");
+    fl.className = "book-flight";
+    fl.style.cssText = `--h:${tile.style.getPropertyValue("--h")};left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px`;
+    document.body.append(fl);
+    tile.style.visibility = "hidden";
+    sessionStorage.setItem("book-open", "1");
+    requestAnimationFrame(() => {
+      fl.classList.add("go");
+      Object.assign(fl.style, { left: `${m.left}px`, top: `${Math.max(m.top, 0)}px`, width: `${m.width}px`, height: "208px" });
+      tile.closest(".lib-grid")?.classList.add("fade");
+    });
+    setTimeout(() => { location.href = tile.href; }, 520);
+  });
+  addEventListener("pageshow", (e) => {  // back button restores the page from cache mid-animation
+    if (!e.persisted) return;
+    document.querySelector(".book-flight")?.remove();
+    document.querySelectorAll(".lib-grid.fade").forEach((g) => g.classList.remove("fade"));
+    document.querySelectorAll("a.lib-tile").forEach((t) => { t.style.visibility = ""; });
+  });
+  // Played only when arriving from a tile, not when switching tabs.
+  if (sessionStorage.getItem("book-open")) {
+    sessionStorage.removeItem("book-open");
+    if (!still.matches && document.querySelector(".book-hero")) document.documentElement.classList.add("book-open");
+  }
+}

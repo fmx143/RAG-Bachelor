@@ -119,7 +119,7 @@ function CarteSavoir(racine){
       liens.push({a:a,b:b,croise:a.module!==b.module,sens:(liens.length%2?1:-1)});
     });
     MODULES = MODULES.filter(function(m){ return m.noeuds.length>0; });
-    if(!noeuds.length){ afficherEtat('Aucun concept pour l’instant. Importez un cours pour construire votre carte.',false); return; }
+    if(!noeuds.length){ afficherEtat('Rien à afficher pour l’instant : la carte se construit à partir des livres graphés. Indexez un livre, puis lancez « Construire le graphe » depuis l’onglet Fichier de ce livre.',false); return; }
 
     // Ancres des modules sur une ellipse (verticale en portrait)
     var portrait = H > W*1.1, k = MODULES.length;
