@@ -11,6 +11,7 @@ import re
 from collections.abc import Callable
 
 from rag_bachelor.core.bank import get_source_chunks
+from rag_bachelor.core.lang import lang_of, write_in
 from rag_bachelor.core.llm import get_provider
 from rag_bachelor.core.qtypes import loads_object
 from rag_bachelor.core.sheet import _WINDOW_SIZE
@@ -72,6 +73,7 @@ def generate_map(
     windows = [chunks[i : i + _WINDOW_SIZE] for i in range(0, len(chunks), _WINDOW_SIZE)]
     total = len(windows) + 1
     provider, _name = get_provider()
+    lang = write_in(lang_of(source))
 
     outlines: list[str] = []
     for done, window in enumerate(windows):
@@ -81,7 +83,7 @@ def generate_map(
         outlines.append(
             provider.chat(
                 [
-                    {"role": "system", "content": _MAP_PROMPT},
+                    {"role": "system", "content": _MAP_PROMPT + lang},
                     {"role": "user", "content": f"Extrait de cours ({source}) :\n\n{excerpt}"},
                 ]
             )
@@ -93,7 +95,7 @@ def generate_map(
         return None
     raw = provider.chat(
         [
-            {"role": "system", "content": _TREE_PROMPT},
+            {"role": "system", "content": _TREE_PROMPT + lang},
             {"role": "user", "content": "\n\n---\n\n".join(outlines)},
         ],
         json_mode=True,

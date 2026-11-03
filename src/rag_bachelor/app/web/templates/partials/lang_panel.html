@@ -1,0 +1,13 @@
+<form hx-post="/settings/lang" hx-target="#lang-panel" hx-swap="innerHTML" hx-trigger="change">
+  <div class="chipgroup" role="radiogroup" aria-label="Langue du contenu de {{ subject }}">
+    {% for code, name in langs.items() %}
+    <label class="chip-f"><input type="radio" name="lang" value="{{ code }}" {% if code == content_lang %}checked{% endif %}><span>{{ name }}</span></label>
+    {% endfor %}
+  </div>
+  <p style="font-size:.8rem; color:var(--muted); margin-top:.6rem;">
+    Sujet <strong>{{ subject }}</strong>. En anglais : questions, explications, fiches, mind maps, corrections
+    et réponses de « Poser une question » sont rédigées en anglais, et les mots-clés de recherche aussi.
+    Les leçons audio restent en français (termes techniques gardés en anglais). L'interface ne change pas.
+    S'applique à ce qui est généré ensuite.
+  </p>
+</form>

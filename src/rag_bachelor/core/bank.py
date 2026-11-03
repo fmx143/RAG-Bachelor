@@ -13,6 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from rag_bachelor.core.embeddings import embed
+from rag_bachelor.core.lang import lang_of, write_in
 from rag_bachelor.core.llm import get_provider
 from rag_bachelor.core.qtypes import item_schema_instructions, parse_structured_items
 from rag_bachelor.ingest.index import get_collection
@@ -157,7 +158,7 @@ def generate_bank_for_source(
         chunks = [c for c in chunks if page_range[0] <= c.page <= page_range[1]]
     windows = [chunks[i : i + _WINDOW_SIZE] for i in range(0, len(chunks), _WINDOW_SIZE)]
 
-    system_prompt = _system_prompt(qtype)
+    system_prompt = _system_prompt(qtype) + write_in(lang_of(source))
     provider, _name = get_provider()
     existing_vecs = bank_question_embeddings(source)
     inserted = 0

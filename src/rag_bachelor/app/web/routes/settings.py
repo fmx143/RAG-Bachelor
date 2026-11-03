@@ -18,6 +18,7 @@ from rag_bachelor.core.llm import (
     ollama_client,
 )
 from rag_bachelor.study import store
+from rag_bachelor.study.subjects import LANGS, active_subject, set_subject_lang, subject_lang
 
 router = APIRouter()
 
@@ -49,6 +50,8 @@ def _panel_ctx(request: Request, error: str | None = None) -> dict[str, object]:
         "ollama_key_configured": bool(cfg.ollama_api_key.get_secret_value()),
         "models": {"ollama": active_model("ollama"), "openai": active_model("openai")},
         "vision_enabled": vision_captioning_enabled(),
+        "langs": LANGS,
+        "content_lang": subject_lang(active_subject()),
         "error": error,
     }
 
@@ -111,3 +114,12 @@ async def set_vision(request: Request, enabled: Annotated[bool, Form()] = False)
     """Persist the image-captioning-on-index toggle (HTMX swaps #vision-panel)."""
     store.set_setting(VISION_SETTING_KEY, "1" if enabled else "0")
     return templates.TemplateResponse(request, "partials/vision_panel.html", _panel_ctx(request))
+
+
+@router.post("/settings/lang", response_class=HTMLResponse)
+async def set_lang(request: Request, lang: Annotated[str, Form()]) -> Response:
+    """Persist the active subject's content language (HTMX swaps #lang-panel)."""
+    if lang in LANGS:
+        await asyncio.to_thread(lambda: set_subject_lang(active_subject(), lang))
+    ctx = {**_panel_ctx(request), "subject": await asyncio.to_thread(active_subject)}
+    return templates.TemplateResponse(request, "partials/lang_panel.html", ctx)

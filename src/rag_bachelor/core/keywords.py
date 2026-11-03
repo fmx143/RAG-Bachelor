@@ -1,5 +1,6 @@
 """LightRAG-style query keywords: precise terms and broad themes, to widen lexical and graph search."""
 
+from rag_bachelor.core.lang import keywords_in, lang_of
 from rag_bachelor.core.llm import get_provider
 from rag_bachelor.core.qtypes import loads_object
 
@@ -12,10 +13,14 @@ _PROMPT = (
 
 
 def extract_keywords(question: str) -> list[str]:
-    """Keywords of *question* (low-level first); ``[]`` if the model answers something unusable."""
+    """Keywords of *question* (low-level first); ``[]`` if the model answers something unusable.
+
+    For an English subject they are asked in English, so BM25 matches the course text.
+    """
     provider, _ = get_provider()
+    system = _PROMPT + keywords_in(lang_of())
     raw = provider.chat(
-        [{"role": "system", "content": _PROMPT}, {"role": "user", "content": question}],
+        [{"role": "system", "content": system}, {"role": "user", "content": question}],
         json_mode=True,
     )
     data = loads_object(raw) or {}

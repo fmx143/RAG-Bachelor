@@ -1,6 +1,7 @@
 """RAG question-answering: retrieve relevant chunks then answer in their language."""
 
 from rag_bachelor.core.keywords import extract_keywords
+from rag_bachelor.core.lang import lang_of, write_in
 from rag_bachelor.core.llm import get_provider
 from rag_bachelor.core.retriever import SearchResult, retrieve
 
@@ -39,7 +40,7 @@ def answer_question(
     context = "\n\n---\n\n".join(context_parts)
 
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": SYSTEM_PROMPT + write_in(lang_of())},
         {
             "role": "user",
             "content": (f"Extraits de cours pertinents :\n\n{context}\n\nQuestion : {question}"),
