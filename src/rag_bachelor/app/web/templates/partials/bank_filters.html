@@ -39,6 +39,12 @@
       {% endfor %}{% endfor %}
     </div>
     {% endif %}
+    <div class="chipgroup" role="radiogroup" aria-label="Origine">
+      <label class="chip-f sm"><input type="radio" name="origin" value="" {% if not filter_origin %}checked{% endif %}><span>Toutes origines</span></label>
+      {% for o, label in origin_labels.items() %}
+      <label class="chip-f sm"><input type="radio" name="origin" value="{{ o }}" {% if o == filter_origin %}checked{% endif %}><span>{{ label }}</span></label>
+      {% endfor %}
+    </div>
     <div class="chipgroup" role="radiogroup" aria-label="Statut">
       <label class="chip-f sm"><input type="radio" name="deck" value="" {% if not filter_deck %}checked{% endif %}><span>Toutes</span></label>
       {% for d, label in deck_labels.items() %}

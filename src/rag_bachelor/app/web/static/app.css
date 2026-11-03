@@ -1096,3 +1096,5 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .qdomains { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; margin: 10px 0; font-size: 13px; color: var(--muted); }
 .qdomains label { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 220px; }
 .qdomains .st { font-size: 12px; }
+.qpill.imp { border-color: oklch(0.80 0.13 60 / .45); color: oklch(0.80 0.13 60); }
+.confirm-box { border: 1px dashed var(--hair); border-radius: var(--rs); padding: 12px 14px; margin: 8px 0; }

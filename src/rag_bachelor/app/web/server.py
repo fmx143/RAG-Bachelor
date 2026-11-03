@@ -31,6 +31,7 @@ from rag_bachelor.app.web.routes import (
     documentation,
     domains,
     home,
+    importer,
     library,
     maps,
     podcasts,
@@ -155,6 +156,7 @@ app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 # ── Routers ────────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
 app.include_router(home.router)
+app.include_router(importer.router)
 app.include_router(library.router)
 app.include_router(documentation.router)
 app.include_router(domains.router)

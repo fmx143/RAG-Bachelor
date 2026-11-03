@@ -16,6 +16,7 @@
   <input type="hidden" name="result" value="{{ filter_result | e }}">
   <input type="hidden" name="deck" value="{{ filter_deck | e }}">
   <input type="hidden" name="domain" value="{{ filter_domain | e }}">
+  <input type="hidden" name="origin" value="{{ filter_origin | e }}">
 
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; margin-bottom:.75rem;">
     <span class="u-m0 o-mono">{{ list_total }} question(s) · <span style="color:var(--ok)">{{ by_result.correct }} justes</span> · <span style="color:var(--bad)">{{ by_result.incorrect }} fausses</span> · {{ by_result.untried }} non tentées</span>
@@ -38,13 +39,28 @@
           {% if q.last_result == 1 %}<span class="qpill ok">Juste</span>
           {% elif q.last_result == 0 %}<span class="qpill ko">Faux</span>
           {% else %}<span class="qpill">Non tenté</span>{% endif %}
+          {% if q.origin == "imported" %}<span class="qpill imp" title="Recopiée telle quelle du document">Importée</span>{% endif %}
+          {% if q.to_confirm %}<span class="qpill ko">Réponse à confirmer</span>{% endif %}
           {% for fw in frameworks %}{% if q.domains.get(fw) %}<span class="qpill dom" title="{{ fw }} · {{ q.domains[fw] }}">{{ fw }} · {{ domain_short.get(q.domains[fw], q.domains[fw]) }}</span>{% endif %}{% endfor %}
         </span>
       </summary>
       <div class="qbody">
         <div class="qsrc">{{ q.source | label }} · p. {{ q.pages | join(', ') }}</div>
 
-        {% if q.qtype not in self_graded %}
+        {% if q.to_confirm %}
+        <div class="confirm-box">
+          <p class="lede-sm">Le document n'indique pas la bonne réponse par écrit : coche-la pour que la question entre en révision.</p>
+          {% for opt in q.options %}
+          <label class="opt">
+            <input type="checkbox" name="c{{ q.id }}" value="{{ loop.index0 }}">
+            <span class="dot"></span>{{ opt }}
+          </label>
+          {% endfor %}
+          <button type="button" class="btn btn-primary btn-sm" hx-post="/bank/{{ q.id }}/confirm" hx-include="input[name='c{{ q.id }}']" hx-target="#confirm-{{ q.id }}" hx-swap="innerHTML">Confirmer la réponse</button>
+          <span id="confirm-{{ q.id }}"></span>
+          {% if q.answer %}<p class="u-mt-2"><strong>Correction du document :</strong> {{ q.answer }}</p>{% endif %}
+        </div>
+        {% elif q.qtype not in self_graded %}
         <div id="attempt-{{ q.id }}">
           <form hx-post="/bank/{{ q.id }}/answer" hx-target="#attempt-{{ q.id }}" hx-swap="outerHTML">
             {% for opt in q.options %}
@@ -58,6 +74,7 @@
         </div>
         {% endif %}
 
+        {% if not q.to_confirm %}
         <details class="reveal">
           <summary class="btn btn-ghost btn-sm">Voir la réponse</summary>
           <div class="card-answer">
@@ -78,6 +95,7 @@
             {% endif %}
           </div>
         </details>
+        {% endif %}
 
         {% if q.passage %}
         <div class="cours"><b>Dans le cours · p. {{ q.pages | join(', ') }}</b>{{ q.passage }}</div>
@@ -101,7 +119,7 @@
         <div class="qactions">
           {% if q.card_id %}
           <span class="qpill ok">Déjà en révision</span>
-          {% else %}
+          {% elif not q.to_confirm %}
           <button id="add-btn-{{ q.id }}" type="button" hx-post="/bank/{{ q.id }}/add" hx-target="#add-btn-{{ q.id }}" hx-swap="outerHTML" class="btn btn-ghost btn-sm">Ajouter à la révision</button>
           {% endif %}
           <button type="button" hx-post="/bank/{{ q.id }}/delete" hx-target="closest .bank-item" hx-swap="outerHTML" hx-confirm="Supprimer cette question de la banque ?" class="btn btn-danger btn-sm">Supprimer</button>
@@ -115,7 +133,7 @@
 
 {% if has_more %}
 <button
-  hx-get="/bank/list?source={{ filter_source | url_encode }}&difficulty={{ filter_difficulty | url_encode }}&search={{ filter_search | url_encode }}&qtype={{ filter_qtype | url_encode }}&result={{ filter_result | url_encode }}&deck={{ filter_deck | url_encode }}&domain={{ filter_domain | url_encode }}&limit={{ next_limit }}"
+  hx-get="/bank/list?source={{ filter_source | url_encode }}&difficulty={{ filter_difficulty | url_encode }}&search={{ filter_search | url_encode }}&qtype={{ filter_qtype | url_encode }}&result={{ filter_result | url_encode }}&deck={{ filter_deck | url_encode }}&domain={{ filter_domain | url_encode }}&origin={{ filter_origin | url_encode }}&limit={{ next_limit }}"
   hx-target="#bank-list"
   hx-swap="innerHTML"
   class="btn btn-ghost btn-sm"
