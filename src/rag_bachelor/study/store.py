@@ -12,7 +12,7 @@ import json
 import logging
 import sqlite3
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
@@ -224,7 +224,8 @@ _COLUMNS_ADDED = {
         "relevance": "INTEGER",
     },
     # Same for `question_bank`: the supporting excerpt shown under each answer.
-    "question_bank": {"passage": "TEXT NOT NULL DEFAULT ''"},
+    # `domains`: exam-domain tags, a JSON object {framework: domain} (see core/domains.py).
+    "question_bank": {"passage": "TEXT NOT NULL DEFAULT ''", "domains": "TEXT"},
 }
 
 
@@ -636,6 +637,7 @@ class BankQuestion:
     embedding: list[float] | None = None  # used for semantic near-dup detection only
     last_result: int | None = None  # last self-test result: 1=juste, 0=faux, None=jamais tenté
     passage: str = ""  # 1-5 sentences of the source text backing the answer ("" on old rows)
+    domains: dict[str, str] = field(default_factory=dict)  # {exam framework: domain}
 
 
 def add_bank_questions(items: list[BankQuestion]) -> int:
@@ -698,9 +700,14 @@ def _bank_where(
     result: str | None = None,
     deck: str | None = None,
     subject: str | None = None,
+    domain: str | None = None,
 ) -> tuple[str, list[Any]]:
     clauses: list[str] = []
     params: list[Any] = []
+    if domain:  # "FRAMEWORK:Domain", matched inside the canonical JSON of `domains`
+        framework, _, name = domain.partition(":")
+        clauses.append("domains LIKE ?")
+        params.append(f"%{_dump_domains({framework: name})[1:-1]}%")
     if source:
         clauses.append("source = ?")
         params.append(source)
@@ -747,6 +754,7 @@ def list_bank_questions(
     offset: int = 0,
     order_asc: bool = False,
     subject: str | None = None,
+    domain: str | None = None,
 ) -> list[BankQuestion]:
     """Return bank questions, optionally filtered.
 
@@ -754,7 +762,7 @@ def list_bank_questions(
     document order instead — used by revision to work through a PDF front-to-back.
     """
     conn = get_conn()
-    where, params = _bank_where(source, difficulty, search, qtype, result, deck, subject)
+    where, params = _bank_where(source, difficulty, search, qtype, result, deck, subject, domain)
     order = "ASC" if order_asc else "DESC"
     rows = conn.execute(
         _adapt(f"SELECT * FROM question_bank{where} ORDER BY id {order} LIMIT ? OFFSET ?"),
@@ -771,13 +779,48 @@ def count_bank_questions(
     result: str | None = None,
     deck: str | None = None,
     subject: str | None = None,
+    domain: str | None = None,
 ) -> int:
     """Return how many bank questions match the filters."""
     conn = get_conn()
-    where, params = _bank_where(source, difficulty, search, qtype, result, deck, subject)
+    where, params = _bank_where(source, difficulty, search, qtype, result, deck, subject, domain)
     row = conn.execute(_adapt(f"SELECT COUNT(*) AS n FROM question_bank{where}"), params).fetchone()
     assert row is not None
     return int(row["n"])
+
+
+def _dump_domains(domains: dict[str, str]) -> str:
+    """Canonical JSON of a domain map: sorted keys, no spaces (the LIKE filter relies on it)."""
+    return json.dumps(domains, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def set_bank_domains(bank_id: int, domains: dict[str, str]) -> None:
+    """Merge *domains* into the question's tags (an empty value removes that framework)."""
+    conn = get_conn()
+    row = conn.execute(
+        _adapt("SELECT domains FROM question_bank WHERE id = ?"), (bank_id,)
+    ).fetchone()
+    if row is None:
+        return
+    merged = {**(_load_json_col(row["domains"]) or {}), **domains}
+    merged = {k: v for k, v in merged.items() if v}
+    conn.execute(
+        _adapt("UPDATE question_bank SET domains = ? WHERE id = ?"),
+        (_dump_domains(merged) if merged else None, bank_id),
+    )
+    conn.commit()
+
+
+def bank_questions_missing_domains(subject: str, frameworks: list[str]) -> list[BankQuestion]:
+    """The subject's bank questions lacking a tag for at least one of *frameworks*."""
+    cond, prefix = _in_subject("source", subject)
+    rows = (
+        get_conn()
+        .execute(_adapt(f"SELECT * FROM question_bank WHERE {cond} ORDER BY id"), (prefix,))
+        .fetchall()
+    )
+    items = [_row_to_bank_question(r) for r in rows]
+    return [q for q in items if any(fw not in q.domains for fw in frameworks)]
 
 
 def bank_sources(subject: str | None = None) -> list[str]:
@@ -1275,6 +1318,7 @@ def _row_to_bank_question(row: sqlite3.Row | dict[str, Any]) -> BankQuestion:
         card_id=row["card_id"],
         last_result=row["last_result"],
         passage=row["passage"],
+        domains=_load_json_col(row["domains"]) or {},
     )
 
 

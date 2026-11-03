@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
+from rag_bachelor.app.web.routes import domains
 from rag_bachelor.config import settings as cfg
 from rag_bachelor.core.llm import (
     PROVIDER_SETTING_KEY,
@@ -61,6 +62,7 @@ async def settings_page(request: Request) -> Response:
     ctx: dict[str, object] = {
         "active_tab": "settings",
         "ollama_models": await asyncio.to_thread(_cloud_models),
+        **(await asyncio.to_thread(domains.panel_ctx, request)),
         **_panel_ctx(request),
         **sidebar_ctx(),
     }

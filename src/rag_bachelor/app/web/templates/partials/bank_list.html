@@ -15,6 +15,7 @@
   <input type="hidden" name="qtype" value="{{ filter_qtype | e }}">
   <input type="hidden" name="result" value="{{ filter_result | e }}">
   <input type="hidden" name="deck" value="{{ filter_deck | e }}">
+  <input type="hidden" name="domain" value="{{ filter_domain | e }}">
 
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; margin-bottom:.75rem;">
     <span class="u-m0 o-mono">{{ list_total }} question(s) · <span style="color:var(--ok)">{{ by_result.correct }} justes</span> · <span style="color:var(--bad)">{{ by_result.incorrect }} fausses</span> · {{ by_result.untried }} non tentées</span>
@@ -37,6 +38,7 @@
           {% if q.last_result == 1 %}<span class="qpill ok">Juste</span>
           {% elif q.last_result == 0 %}<span class="qpill ko">Faux</span>
           {% else %}<span class="qpill">Non tenté</span>{% endif %}
+          {% for fw in frameworks %}{% if q.domains.get(fw) %}<span class="qpill dom" title="{{ fw }} · {{ q.domains[fw] }}">{{ fw }} · {{ domain_short.get(q.domains[fw], q.domains[fw]) }}</span>{% endif %}{% endfor %}
         </span>
       </summary>
       <div class="qbody">
@@ -81,6 +83,21 @@
         <div class="cours"><b>Dans le cours · p. {{ q.pages | join(', ') }}</b>{{ q.passage }}</div>
         {% endif %}
 
+        {% if frameworks %}
+        {# Each select posts its own field (per-question name, read by POST /bank/{id}/domains). #}
+        <div class="qdomains">
+          {% for fw, names in frameworks.items() %}
+          <label>Domaine {{ fw }}
+            <select name="d{{ q.id }}_{{ fw }}" hx-post="/bank/{{ q.id }}/domains" hx-trigger="change" hx-target="#dst-{{ q.id }}" hx-swap="innerHTML">
+              <option value="">(non classée)</option>
+              {% for name in names %}<option value="{{ name }}"{% if q.domains.get(fw) == name %} selected{% endif %}>{{ name }}</option>{% endfor %}
+            </select>
+          </label>
+          {% endfor %}
+          <span class="st" id="dst-{{ q.id }}"></span>
+        </div>
+        {% endif %}
+
         <div class="qactions">
           {% if q.card_id %}
           <span class="qpill ok">Déjà en révision</span>
@@ -98,7 +115,7 @@
 
 {% if has_more %}
 <button
-  hx-get="/bank/list?source={{ filter_source | url_encode }}&difficulty={{ filter_difficulty | url_encode }}&search={{ filter_search | url_encode }}&qtype={{ filter_qtype | url_encode }}&result={{ filter_result | url_encode }}&deck={{ filter_deck | url_encode }}&limit={{ next_limit }}"
+  hx-get="/bank/list?source={{ filter_source | url_encode }}&difficulty={{ filter_difficulty | url_encode }}&search={{ filter_search | url_encode }}&qtype={{ filter_qtype | url_encode }}&result={{ filter_result | url_encode }}&deck={{ filter_deck | url_encode }}&domain={{ filter_domain | url_encode }}&limit={{ next_limit }}"
   hx-target="#bank-list"
   hx-swap="innerHTML"
   class="btn btn-ghost btn-sm"

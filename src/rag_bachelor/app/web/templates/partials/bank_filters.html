@@ -31,6 +31,14 @@
       <label class="chip-f sm"><input type="radio" name="result" value="{{ r }}" {% if r == filter_result %}checked{% endif %}><span>{{ label }}</span></label>
       {% endfor %}
     </div>
+    {% if frameworks %}
+    <div class="chipgroup" role="radiogroup" aria-label="Domaine d'examen">
+      <label class="chip-f sm"><input type="radio" name="domain" value="" {% if not filter_domain %}checked{% endif %}><span>Tous domaines</span></label>
+      {% for fw, names in frameworks.items() %}{% for name in names %}
+      <label class="chip-f sm" title="{{ fw }} · {{ name }}"><input type="radio" name="domain" value="{{ fw }}:{{ name }}" {% if filter_domain == fw ~ ':' ~ name %}checked{% endif %}><span>{{ fw }} · {{ domain_short.get(name, name) }}</span></label>
+      {% endfor %}{% endfor %}
+    </div>
+    {% endif %}
     <div class="chipgroup" role="radiogroup" aria-label="Statut">
       <label class="chip-f sm"><input type="radio" name="deck" value="" {% if not filter_deck %}checked{% endif %}><span>Toutes</span></label>
       {% for d, label in deck_labels.items() %}
