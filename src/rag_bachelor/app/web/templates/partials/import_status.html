@@ -1,0 +1,25 @@
+{% if imp_error %}
+<div class="alert alert-error">{{ imp_error }}</div>
+{% elif imp_running %}
+<div hx-get="/import/status" hx-trigger="load delay:1500ms" hx-target="#import-status" hx-swap="innerHTML">
+  <div class="spinner" style="display:inline-block; vertical-align:middle;"></div>
+  {% if imp_cancelling %}Arrêt en cours…{% else %}Lecture des questions de <em>{{ imp_source | label }}</em>… ({{ imp_pct }} %){% endif %}
+  {% if not imp_cancelling %}<button type="button" class="btn btn-danger btn-sm" hx-post="/import/cancel" hx-target="#import-status" hx-swap="innerHTML">Arrêter</button>{% endif %}
+  <div class="progress-wrap" style="margin-top:.4rem;"><div class="progress-fill green" style="--pct:{{ imp_pct / 100 }};"></div></div>
+</div>
+{% elif imp_report %}
+<div class="alert alert-success">
+  <strong>{{ imp_report.imported }}</strong> question{{ "s" if imp_report.imported > 1 }} importée{{ "s" if imp_report.imported > 1 }} de <em>{{ imp_source | label }}</em>
+  ({{ imp_report.pages }} page{{ "s" if imp_report.pages > 1 }} lues)
+  {%- if imp_report.to_confirm %} · <strong>{{ imp_report.to_confirm }}</strong> réponse{{ "s" if imp_report.to_confirm > 1 }} à confirmer{% endif %}
+  {%- if imp_report.duplicates %} · {{ imp_report.duplicates }} doublon{{ "s" if imp_report.duplicates > 1 }} ignoré{{ "s" if imp_report.duplicates > 1 }}{% endif %}
+  {%- if imp_report.rejected %} · {{ imp_report.rejected }} rejetée{{ "s" if imp_report.rejected > 1 }} (texte introuvable tel quel dans le PDF){% endif %}
+  {%- if imp_report.failed_windows %} · {{ imp_report.failed_windows }} passage{{ "s" if imp_report.failed_windows > 1 }} illisible{{ "s" if imp_report.failed_windows > 1 }} pour le modèle{% endif %}.
+  Recharge la page pour les voir.
+</div>
+{% if imp_report.samples %}
+<details class="u-mt-2"><summary class="lede-sm">Exemples de questions rejetées</summary>
+  <ul>{% for q in imp_report.samples %}<li>{{ q }}</li>{% endfor %}</ul>
+</details>
+{% endif %}
+{% endif %}

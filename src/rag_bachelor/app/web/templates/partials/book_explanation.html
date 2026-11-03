@@ -1,0 +1,16 @@
+{% if error %}
+<div class="alert alert-warning">{{ error }}</div>
+{% else %}
+<div class="cours">
+  <b>D'après les livres</b>
+  {{ text | md_cite }}
+  {% if refs %}
+  <div class="lede-sm u-mt-2">Pages :
+    {% for src, page in refs %}<a href="/docs/page.png?path={{ src | url_encode }}&page={{ page }}" target="_blank" rel="noopener">{{ src | label }} p.{{ page }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+  </div>
+  {% else %}
+  <div class="lede-sm u-mt-2">Aucun passage des livres n'a été cité.</div>
+  {% endif %}
+  {% if bank_id %}<button type="button" class="btn btn-ghost btn-sm u-mt-2" hx-post="/explain/bank/{{ bank_id }}?refresh=true" hx-target="#bx-{{ bank_id }}" hx-swap="innerHTML">Régénérer</button>{% endif %}
+</div>
+{% endif %}

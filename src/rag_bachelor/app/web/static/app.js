@@ -426,3 +426,32 @@ document.querySelectorAll(".sheet-content h3").forEach((h) => {
   const t = h.textContent.toLowerCase();
   h.dataset.kind = /définition|repère/.test(t) ? "def" : /point.*clé|retenir|essentiel/.test(t) ? "key" : /piège|erreur|attention/.test(t) ? "trap" : "";
 });
+
+// Mock exam: presets fill the count and duration; the countdown runs on the server's clock.
+document.addEventListener("change", (e) => {
+  const preset = e.target.closest && e.target.closest('input[name="preset"][data-count]');
+  if (!preset) return;
+  document.getElementById("exam_count").value = preset.dataset.count;
+  document.getElementById("exam_minutes").value = preset.dataset.minutes;
+  document.querySelector('input[name="timing"][value="global"]').checked = true;
+});
+document.querySelectorAll(".exam-timer[data-deadline]").forEach((el) => {
+  const skew = Number(el.dataset.now) - Date.now(); // server minus client clock
+  const end = Number(el.dataset.deadline);
+  let fired = false;
+  const tick = () => {
+    const left = Math.max(0, Math.round((end - (Date.now() + skew)) / 1000));
+    el.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+    el.classList.toggle("low", left <= 60);
+    if (left > 0 || fired) return;
+    fired = true;
+    if (el.dataset.timeout === "per_question") {
+      const form = document.getElementById("exam-form");
+      if (form) form.requestSubmit(form.querySelector('[name="go"][value="next"]'));
+    } else {
+      window.location.assign(document.getElementById("exam-timeout").href);
+    }
+  };
+  tick();
+  setInterval(tick, 1000);
+});

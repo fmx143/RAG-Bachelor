@@ -21,6 +21,7 @@ import numpy as np
 
 from rag_bachelor.config import settings
 from rag_bachelor.core.bank import get_source_chunks
+from rag_bachelor.core.lang import lang_of, spoken_terms
 from rag_bachelor.core.llm import get_provider
 from rag_bachelor.core.qtypes import loads_object
 from rag_bachelor.core.retriever import retrieve
@@ -148,7 +149,7 @@ def generate_podcast(
         excerpt = "\n\n".join(f"[p.{c.page}]\n{c.text}" for c in window)
         raw = provider.chat(
             [
-                {"role": "system", "content": _PROMPT},
+                {"role": "system", "content": _PROMPT + spoken_terms(lang_of(source))},
                 {
                     "role": "user",
                     "content": f"Position dans l'épisode : {place} (ouvre le sujet au début, "
@@ -233,7 +234,7 @@ def answer_live(podcast: Podcast, question: str, t: float) -> tuple[list[dict[st
     provider, _name = get_provider()
     raw = provider.chat(
         [
-            {"role": "system", "content": _LIVE_PROMPT},
+            {"role": "system", "content": _LIVE_PROMPT + spoken_terms(lang_of(podcast.source))},
             {
                 "role": "user",
                 "content": f"Passage qui vient d'être dit :\n{recent or "(début de l'épisode)"}\n\n"

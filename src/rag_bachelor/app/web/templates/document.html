@@ -163,6 +163,17 @@
   </form>
   <div id="bank-status" aria-live="polite" class="batch">{% include "partials/bank_status.html" %}</div>
 </div>
+<div class="card">
+  <div class="subheader">Importer les questions du PDF</div>
+  <p class="lede-sm">Pour un document qui contient déjà des questions (quiz, examen blanc) : elles sont recopiées
+    telles quelles, avec leur correction. Chaque énoncé et chaque option sont vérifiés mot pour mot dans le PDF ;
+    sans bonne réponse écrite dans le document, la question attend ta confirmation avant d'entrer en révision.</p>
+  <form hx-post="/import/questions" hx-target="#import-status" hx-swap="innerHTML">
+    <input type="hidden" name="source" value="{{ path }}">
+    <button type="submit" class="btn btn-primary">Importer les questions →</button>
+  </form>
+  <div id="import-status" aria-live="polite" class="u-mt-3">{% include "partials/import_status.html" %}</div>
+</div>
 {% set fixed_source = path %}
 <details class="card bank-fold">
   <summary class="subheader">Voir les questions ({{ list_total }})</summary>

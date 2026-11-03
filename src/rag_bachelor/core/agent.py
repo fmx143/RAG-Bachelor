@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from rag_bachelor.config import settings
 from rag_bachelor.core.keywords import extract_keywords
+from rag_bachelor.core.lang import keywords_in, lang_of, write_in
 from rag_bachelor.core.llm import get_provider
 from rag_bachelor.core.qa import NO_DOC_MSG, SYSTEM_PROMPT
 from rag_bachelor.core.qtypes import loads_object
@@ -26,6 +27,12 @@ _AGENT_PROMPT = (
     "d'inventer.\n"
     "Documents disponibles : "
 )
+
+
+def _agent_prompt(lang: str) -> str:
+    """The agent prompt in *lang*: answers and search keywords follow the subject's language."""
+    head, sep, docs = _AGENT_PROMPT.rpartition("Documents disponibles : ")
+    return f"{head}{write_in(lang).strip()}{keywords_in(lang)}\n{sep}{docs}"
 
 
 @dataclass
@@ -77,7 +84,7 @@ def answer_agentic(
     # The question as asked always comes first: the agent can only add to a plain search.
     first = run_search(question, extract_keywords(question), None)
     messages = [
-        {"role": "system", "content": _AGENT_PROMPT + ", ".join(sources)},
+        {"role": "system", "content": _agent_prompt(lang_of()) + ", ".join(sources)},
         {"role": "user", "content": f"{question}\n\n{first}"},
     ]
 

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Examen blanc{% endblock %}
+{% block content %}
+<div class="page-header">
+  <span class="eyebrow">{{ subject }} · {{ eligible }} question{{ "s" if eligible > 1 }} corrigeable{{ "s" if eligible > 1 }}</span>
+  <h1>Examen <em>blanc</em></h1>
+  <p class="lede">Questions tirées au hasard parmi les QCM et Vrai/Faux à réponse confirmée. Pas de correction pendant l'examen ; tes erreurs partent ensuite en révision.</p>
+</div>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+{% if not eligible %}
+<div class="card o-empty">Aucune question corrigeable automatiquement dans <strong>{{ subject }}</strong>. Importe ou génère des QCM depuis un <a class="acc" href="/sources">document</a>.</div>
+{% else %}
+<form method="post" action="/exam/start" class="card exam-setup">
+  <div class="form-group">
+    <label>Préréglage</label>
+    <div class="chipgroup" role="radiogroup" aria-label="Préréglage">
+      {% for name, (n, mins) in presets.items() %}
+      <label class="chip-f"><input type="radio" name="preset" value="{{ name }}" data-count="{{ n }}" data-minutes="{{ mins }}"><span>{{ name }} · {{ n }} questions · {{ mins }} min</span></label>
+      {% endfor %}
+      <label class="chip-f"><input type="radio" name="preset" value="custom" checked><span>Personnalisé</span></label>
+    </div>
+  </div>
+
+  <div class="exam-row">
+    <div class="form-group">
+      <label for="exam_count">Nombre de questions <span class="muted">({{ eligible }} disponibles)</span></label>
+      <input type="number" id="exam_count" name="count" min="1" max="250" value="{{ [20, eligible] | min }}" required>
+    </div>
+    <div class="form-group">
+      <label>Chronomètre</label>
+      <div class="chipgroup" role="radiogroup" aria-label="Chronomètre">
+        <label class="chip-f"><input type="radio" name="timing" value="global" checked><span>Global</span></label>
+        <label class="chip-f"><input type="radio" name="timing" value="per_question"><span>Par question</span></label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="exam_minutes">Durée totale (min)</label>
+      <input type="number" id="exam_minutes" name="minutes" min="1" max="600" value="30">
+    </div>
+    <div class="form-group">
+      <label for="exam_perq">Temps par question (s)</label>
+      <input type="number" id="exam_perq" name="per_question" min="10" max="600" value="75">
+    </div>
+  </div>
+  <p class="lede-sm">Global : navigation libre, questions « à revoir », envoi automatique à la fin du temps. Par question : marche avant seulement, chaque question a son propre compte à rebours.</p>
+
+  <div class="form-group">
+    <label>Origine des questions</label>
+    <div class="chipgroup" role="radiogroup" aria-label="Origine">
+      {% for value, label in origins.items() %}
+      <label class="chip-f sm"><input type="radio" name="origin" value="{{ value }}" {% if not value %}checked{% endif %}><span>{{ label }}</span></label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <details class="exam-docs">
+    <summary class="btn btn-ghost btn-sm">Limiter à certains documents ou chapitres</summary>
+    <p class="lede-sm u-mt-2">Rien de coché : tout le sujet. Un chapitre coché limite son document à ce chapitre.</p>
+    {% for d in docs %}
+    <div class="exam-doc">
+      <label><input type="checkbox" name="doc" value="{{ d }}"> {{ d | label }} <span class="muted">({{ per_doc[d] }})</span></label>
+      {% if chapters[d] | length > 1 %}
+      <div class="exam-chaps">
+        {% for c in chapters[d] %}
+        <label><input type="checkbox" name="chapter" value="{{ d }}|{{ c.page_from }}-{{ c.page_to }}"> {{ c.title }} <span class="muted">p.{{ c.page_from }}–{{ c.page_to }}</span></label>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </details>
+
+  <button type="submit" class="btn btn-primary u-mt-3">Commencer l'examen →</button>
+</form>
+{% endif %}
+
+{% if history %}
+<div class="card">
+  <div class="subheader">Examens passés</div>
+  <div class="exam-hist">
+    {% for e in history %}
+    <div class="exam-hrow">
+      <a href="/exam/{{ e.id }}{{ '/results' if e.finished_at else '' }}">
+        <b>{{ e.started_at[:10] }} {{ e.started_at[11:16] }}</b> · {{ e.preset if e.preset != 'custom' else 'Personnalisé' }} · {{ e.total }} questions
+        {% if e.finished_at %} · <strong>{{ (100 * e.right / e.total) | round | int if e.total else 0 }} %</strong> ({{ e.right }}/{{ e.total }}){% else %} · <em>en cours</em>{% endif %}
+      </a>
+      <form method="post" action="/exam/{{ e.id }}/delete"><button type="submit" class="x" aria-label="Supprimer cet examen">✕</button></form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
