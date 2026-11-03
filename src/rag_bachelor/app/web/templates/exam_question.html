@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Examen blanc{% endblock %}
+{% block content %}
+<div class="exam-bar">
+  <span class="o-mono">Question {{ cur.pos }}/{{ items | length }} · {{ answered }} répondue{{ "s" if answered > 1 }}</span>
+  {% if deadline_ms %}<span class="exam-timer" data-deadline="{{ deadline_ms }}" data-now="{{ now_ms }}" data-timeout="{{ exam.timing }}" role="timer" aria-live="off">--:--</span>{% endif %}
+</div>
+
+<form method="post" action="/exam/{{ exam.id }}/q/{{ cur.pos }}" class="card exam-q" id="exam-form">
+  <div class="ftags">
+    <span class="ftag">{{ qtype_labels.get(q.qtype, q.qtype) }}</span>
+    {% if q.qtype == "mcq_multi" %}<span class="ftag dim">Plusieurs réponses</span>{% endif %}
+  </div>
+  <div class="fq">{{ q.question }}</div>
+  {% for opt in q.options %}
+  <label class="opt">
+    <input type="{{ 'checkbox' if q.qtype == 'mcq_multi' else 'radio' }}" name="selected" value="{{ loop.index0 }}"{% if cur.selected and loop.index0 in cur.selected %} checked{% endif %}>
+    <span class="dot"></span>{{ opt }}
+  </label>
+  {% endfor %}
+
+  {% if exam.timing == "global" %}
+  <label class="exam-flag"><input type="checkbox" name="flagged" value="true"{% if cur.flagged %} checked{% endif %}> Marquer à revoir</label>
+  <div class="exam-nav">
+    {% if cur.pos > 1 %}<button type="submit" name="go" value="prev" class="btn btn-ghost">← Précédente</button>{% endif %}
+    {% if cur.pos < items | length %}<button type="submit" name="go" value="next" class="btn btn-primary">Suivante →</button>{% endif %}
+    <button type="submit" name="go" value="review" class="btn {{ 'btn-primary' if cur.pos == items | length else 'btn-ghost' }}">Revoir et terminer</button>
+  </div>
+  <nav class="exam-palette" aria-label="Aller à une question">
+    {% for i in items %}
+    <button type="submit" name="go" value="{{ i.pos }}" class="{{ 'on' if i.pos == cur.pos }}{{ ' done' if i.selected is not none }}{{ ' flag' if i.flagged }}" aria-label="Question {{ i.pos }}{{ ', répondue' if i.selected is not none }}{{ ', à revoir' if i.flagged }}">{{ i.pos }}</button>
+    {% endfor %}
+  </nav>
+  {% else %}
+  <div class="exam-nav">
+    <button type="submit" name="go" value="next" class="btn btn-primary" data-autofocus>Valider et continuer →</button>
+  </div>
+  {% endif %}
+</form>
+{# Global clock: at zero the browser goes to /finish; the server enforces the deadline anyway. #}
+<a href="/exam/{{ exam.id }}/finish" id="exam-timeout" hidden></a>
+{% endblock %}

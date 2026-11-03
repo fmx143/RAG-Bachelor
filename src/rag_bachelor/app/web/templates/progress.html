@@ -97,5 +97,19 @@
   </div>
 </div>
 {% endif %}
+
+{% if exams %}
+<div class="o-card o-pad" style="margin-top:16px">
+  <div class="o-between" style="margin-bottom:10px"><div class="o-lab">Examens blancs</div><a class="o-mono" href="/exam" style="margin:0">nouvel examen →</a></div>
+  {% for e in exams %}
+  {% set pct = (100 * e.right / e.total) | round | int if e.total else 0 %}
+  <a class="exam-brow" href="/exam/{{ e.id }}/results">
+    <span class="nm">{{ e.started_at[:10] }} · {{ e.preset if e.preset != 'custom' else 'Personnalisé' }} · {{ e.total }} questions</span>
+    <span class="chap-bar" role="img" aria-label="{{ pct }} %"><span style="width:{{ pct }}%"></span></span>
+    <span class="o-mono">{{ e.right }}/{{ e.total }} · {{ pct }} %</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
 </div>
 {% endblock %}

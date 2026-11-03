@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Examen blanc{% endblock %}
+{% block content %}
+{% set done = items | selectattr("selected") | list | length %}
+{% set flagged = items | selectattr("flagged") | list | length %}
+<div class="exam-bar">
+  <span class="o-mono">{{ done }}/{{ items | length }} répondues · {{ flagged }} à revoir</span>
+  {% if deadline_ms %}<span class="exam-timer" data-deadline="{{ deadline_ms }}" data-now="{{ now_ms }}" data-timeout="global" role="timer" aria-live="off">--:--</span>{% endif %}
+</div>
+<div class="page-header"><h1>Revoir avant de <em>terminer</em></h1></div>
+<div class="card">
+  <nav class="exam-palette big" aria-label="Questions">
+    {% for i in items %}
+    <a href="/exam/{{ exam.id }}/q/{{ i.pos }}" class="{{ 'done' if i.selected is not none }}{{ ' flag' if i.flagged }}" aria-label="Question {{ i.pos }}{{ ', répondue' if i.selected is not none }}{{ ', à revoir' if i.flagged }}">{{ i.pos }}</a>
+    {% endfor %}
+  </nav>
+  <p class="lede-sm u-mt-3">Pastille pleine : répondue · bordure orange : à revoir.{% if done < items | length %} <strong>{{ items | length - done }} question(s) sans réponse</strong> compteront comme fausses.{% endif %}</p>
+  <form method="post" action="/exam/{{ exam.id }}/finish">
+    <button type="submit" class="btn btn-primary">Terminer l'examen</button>
+  </form>
+</div>
+<a href="/exam/{{ exam.id }}/finish" id="exam-timeout" hidden></a>
+{% endblock %}
