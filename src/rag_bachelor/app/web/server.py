@@ -30,6 +30,7 @@ from rag_bachelor.app.web.routes import (
     document,
     documentation,
     domains,
+    exam,
     explain,
     home,
     importer,
@@ -162,6 +163,7 @@ app.include_router(library.router)
 app.include_router(documentation.router)
 app.include_router(domains.router)
 app.include_router(explain.router)
+app.include_router(exam.router)
 app.include_router(subjects.router)
 app.include_router(ask.router)
 app.include_router(revision.router)

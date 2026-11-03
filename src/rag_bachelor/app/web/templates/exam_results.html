@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Résultats d'examen{% endblock %}
+{% block content %}
+{% set pct = (100 * exam.right / exam.total) | round | int if exam.total else 0 %}
+<div class="page-header">
+  <span class="eyebrow">Examen blanc · {{ exam.preset if exam.preset != 'custom' else 'Personnalisé' }} · {{ exam.started_at[:10] }}</span>
+  <h1><em>{{ pct }} %</em> de bonnes réponses</h1>
+  <p class="lede">{{ exam.right }}/{{ exam.total }} justes · {{ elapsed_min }} min{% if unanswered %} · {{ unanswered }} sans réponse{% endif %}. Les questions ratées sont dans ta <a class="acc" href="/revision">révision</a>.</p>
+</div>
+
+{% macro table(title, rows, kind) %}
+{% if rows %}
+<div class="card">
+  <div class="subheader">{{ title }}</div>
+  {% for b in rows %}
+  <div class="exam-brow">
+    <span class="nm" title="{{ b.doc ~ ' · ' if b.doc }}{{ b.label }}">{% if kind == "document" %}{{ b.label | label }}{% elif kind == "chapter" %}{{ b.label }} <span class="muted">· {{ b.doc | label }}</span>{% else %}{{ domain_short.get(b.label, b.label) }}{% endif %}</span>
+    <span class="chap-bar" role="img" aria-label="{{ b.pct }} %"><span style="width:{{ b.pct }}%"></span></span>
+    <span class="o-mono">{{ b.right }}/{{ b.total }} · {{ b.pct }} %</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+{{ table("Par domaine " ~ (exam.framework or ""), groups.domain, "domain") }}
+{{ table("Par document", groups.document, "document") }}
+{{ table("Par chapitre", groups.chapter, "chapter") }}
+
+<div class="card">
+  <div class="subheader">Correction</div>
+  {% for i in items %}
+  {% set q = i.snapshot %}
+  <details class="exam-corr {{ 'ok' if i.correct else 'ko' }}">
+    <summary><b>{{ i.pos }}.</b> {{ "✓" if i.correct else "✗" }} {{ q.question[:140] }}{{ "…" if q.question | length > 140 }}</summary>
+    <div class="qbody">
+      <div class="fq-sm">{{ q.question }}</div>
+      <ul>
+        {% for opt in q.options %}
+        <li class="{{ 'right' if loop.index0 in q.correct }}{{ ' mine' if i.selected and loop.index0 in i.selected }}">{{ opt }}{% if loop.index0 in q.correct %} — bonne réponse{% endif %}{% if i.selected and loop.index0 in i.selected %} — ta réponse{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% if i.selected is none %}<p class="lede-sm">Pas de réponse.</p>{% endif %}
+      {% if q.answer %}<p><strong>Explication :</strong> {{ q.answer }}</p>{% endif %}
+      {% if i.bank_id %}
+      <button type="button" class="btn btn-sm btn-blue" hx-post="/explain/bank/{{ i.bank_id }}" hx-target="#bx-{{ i.bank_id }}" hx-swap="innerHTML">Expliquer avec les livres</button>
+      <div id="bx-{{ i.bank_id }}" aria-live="polite"></div>
+      {% endif %}
+    </div>
+  </details>
+  {% endfor %}
+</div>
+<a href="/exam" class="btn btn-ghost">Nouvel examen</a>
+{% endblock %}

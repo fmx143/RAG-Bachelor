@@ -114,6 +114,28 @@ CREATE TABLE IF NOT EXISTS chapters (
     page_from  INTEGER NOT NULL,
     page_to    INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS exams (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    subject     TEXT NOT NULL,
+    preset      TEXT NOT NULL,
+    framework   TEXT,
+    timing      TEXT NOT NULL,
+    seconds     INTEGER NOT NULL,
+    started_at  TEXT NOT NULL,
+    finished_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS exam_items (
+    exam_id   INTEGER NOT NULL,
+    pos       INTEGER NOT NULL,
+    bank_id   INTEGER,
+    snapshot  TEXT NOT NULL,
+    selected  TEXT,
+    flagged   INTEGER NOT NULL DEFAULT 0,
+    shown_at  TEXT,
+    correct   INTEGER,
+    PRIMARY KEY (exam_id, pos)
+);
 """
 
 _POSTGRES_SCHEMA = """
@@ -204,6 +226,28 @@ CREATE TABLE IF NOT EXISTS chapters (
     title      TEXT NOT NULL,
     page_from  INTEGER NOT NULL,
     page_to    INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS exams (
+    id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    subject     TEXT NOT NULL,
+    preset      TEXT NOT NULL,
+    framework   TEXT,
+    timing      TEXT NOT NULL,
+    seconds     INTEGER NOT NULL,
+    started_at  TEXT NOT NULL,
+    finished_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS exam_items (
+    exam_id   INTEGER NOT NULL,
+    pos       INTEGER NOT NULL,
+    bank_id   INTEGER,
+    snapshot  TEXT NOT NULL,
+    selected  TEXT,
+    flagged   INTEGER NOT NULL DEFAULT 0,
+    shown_at  TEXT,
+    correct   INTEGER,
+    PRIMARY KEY (exam_id, pos)
 );
 """
 
@@ -662,7 +706,7 @@ def add_bank_questions(items: list[BankQuestion]) -> int:
     sql = _adapt(
         "INSERT INTO question_bank "
         "(question, answer, difficulty, qtype, options, correct, source, pages, chunk_ids, "
-        "passage, embedding, origin, to_confirm) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) "
+        "passage, embedding, origin, to_confirm, domains) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
         "ON CONFLICT DO NOTHING"
     )
     # ponytail: one round-trip per row — psycopg's Connection has no
@@ -687,6 +731,7 @@ def add_bank_questions(items: list[BankQuestion]) -> int:
                 _dump_json(q.embedding),
                 q.origin,
                 int(q.to_confirm),
+                _dump_domains(q.domains) if q.domains else None,
             ),
         )
         inserted += cur.rowcount
@@ -1422,3 +1467,173 @@ def _row_to_card(row: sqlite3.Row | dict[str, Any]) -> Card:
         last_review=date.fromisoformat(row["last_review"]) if row["last_review"] else None,
         relevance=row["relevance"],
     )
+
+
+# ── Mock exams (core/exam.py): questions are snapshotted, so results never depend on the bank ──
+
+
+@dataclass
+class Exam:
+    id: int
+    subject: str
+    preset: str  # "PMP" | "CAPM" | "custom"
+    framework: str | None  # domain breakdown of the results
+    timing: str  # "global" | "per_question"
+    seconds: int  # whole exam (global) or each question (per_question)
+    started_at: str  # ISO 8601, UTC
+    finished_at: str | None
+    total: int = 0
+    right: int = 0  # correct answers, once finished
+
+
+@dataclass
+class ExamItem:
+    pos: int  # 1-based
+    bank_id: int | None
+    snapshot: dict[str, Any]  # the question as asked: question, qtype, options, correct, …
+    selected: list[int] | None  # None = never answered
+    flagged: bool
+    shown_at: str | None
+    correct: bool | None  # set when the exam is finished
+
+
+def create_exam(
+    subject: str,
+    preset: str,
+    framework: str | None,
+    timing: str,
+    seconds: int,
+    started_at: str,
+    items: list[tuple[int | None, dict[str, Any]]],
+) -> int:
+    """Store a new exam and its snapshotted questions; returns its id."""
+    conn = get_conn()
+    sql = (
+        "INSERT INTO exams (subject, preset, framework, timing, seconds, started_at) "
+        "VALUES (?,?,?,?,?,?)"
+    )
+    params = (subject, preset, framework, timing, seconds, started_at)
+    try:
+        if _use_postgres():
+            row = conn.execute(_adapt(sql) + " RETURNING id", params).fetchone()
+            assert row is not None
+            exam_id = int(row["id"])
+        else:
+            cur = conn.execute(sql, params)
+            assert isinstance(cur, sqlite3.Cursor) and cur.lastrowid is not None
+            exam_id = cur.lastrowid
+        for pos, (bank_id, snapshot) in enumerate(items, 1):
+            conn.execute(
+                _adapt("INSERT INTO exam_items (exam_id, pos, bank_id, snapshot) VALUES (?,?,?,?)"),
+                (exam_id, pos, bank_id, json.dumps(snapshot, ensure_ascii=False)),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    return exam_id
+
+
+_EXAM_SELECT = (
+    "SELECT e.*, (SELECT COUNT(*) FROM exam_items i WHERE i.exam_id = e.id) AS total, "
+    "(SELECT COUNT(*) FROM exam_items i WHERE i.exam_id = e.id AND i.correct = 1) AS right_n "
+    "FROM exams e"
+)
+
+
+def _exam(row: Any) -> Exam:
+    return Exam(
+        id=int(row["id"]),
+        subject=row["subject"],
+        preset=row["preset"],
+        framework=row["framework"],
+        timing=row["timing"],
+        seconds=int(row["seconds"]),
+        started_at=row["started_at"],
+        finished_at=row["finished_at"],
+        total=int(row["total"]),
+        right=int(row["right_n"]),
+    )
+
+
+def get_exam(exam_id: int) -> Exam | None:
+    row = get_conn().execute(_adapt(f"{_EXAM_SELECT} WHERE e.id = ?"), (exam_id,)).fetchone()
+    return _exam(row) if row else None
+
+
+def list_exams(subject: str, limit: int = 20) -> list[Exam]:
+    """The subject's exams, newest first."""
+    rows = (
+        get_conn()
+        .execute(
+            _adapt(f"{_EXAM_SELECT} WHERE e.subject = ? ORDER BY e.id DESC LIMIT ?"),
+            (subject, limit),
+        )
+        .fetchall()
+    )
+    return [_exam(r) for r in rows]
+
+
+def exam_items(exam_id: int) -> list[ExamItem]:
+    rows = (
+        get_conn()
+        .execute(_adapt("SELECT * FROM exam_items WHERE exam_id = ? ORDER BY pos"), (exam_id,))
+        .fetchall()
+    )
+    return [
+        ExamItem(
+            pos=int(r["pos"]),
+            bank_id=r["bank_id"],
+            snapshot=json.loads(r["snapshot"]),
+            selected=_load_json_col(r["selected"]),
+            flagged=bool(r["flagged"]),
+            shown_at=r["shown_at"],
+            correct=None if r["correct"] is None else bool(r["correct"]),
+        )
+        for r in rows
+    ]
+
+
+def save_exam_answer(exam_id: int, pos: int, selected: list[int] | None, flagged: bool) -> None:
+    """Record an answer (``None`` keeps it unanswered) and the "à revoir" flag."""
+    conn = get_conn()
+    conn.execute(
+        _adapt("UPDATE exam_items SET selected = ?, flagged = ? WHERE exam_id = ? AND pos = ?"),
+        (_dump_json(selected), int(flagged), exam_id, pos),
+    )
+    conn.commit()
+
+
+def mark_exam_item_shown(exam_id: int, pos: int, when: str) -> None:
+    """First display of a question (per-question timing starts here); later calls keep it."""
+    conn = get_conn()
+    conn.execute(
+        _adapt(
+            "UPDATE exam_items SET shown_at = ? WHERE exam_id = ? AND pos = ? AND shown_at IS NULL"
+        ),
+        (when, exam_id, pos),
+    )
+    conn.commit()
+
+
+def finish_exam(exam_id: int, results: dict[int, bool], when: str) -> None:
+    """Store each question's result (by position) and close the exam, atomically."""
+    conn = get_conn()
+    try:
+        for pos, ok in results.items():
+            conn.execute(
+                _adapt("UPDATE exam_items SET correct = ? WHERE exam_id = ? AND pos = ?"),
+                (int(ok), exam_id, pos),
+            )
+        conn.execute(_adapt("UPDATE exams SET finished_at = ? WHERE id = ?"), (when, exam_id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
+def delete_exam(exam_id: int) -> None:
+    conn = get_conn()
+    conn.execute(_adapt("DELETE FROM exam_items WHERE exam_id = ?"), (exam_id,))
+    conn.execute(_adapt("DELETE FROM exams WHERE id = ?"), (exam_id,))
+    conn.commit()
