@@ -63,3 +63,16 @@ def test_store_list_delete_and_rename() -> None:
     assert renamed is not None and renamed.source == "b.pdf"
     store.delete_map(mid)
     assert store.get_map(mid) is None
+
+
+def test_delete_route_answers_an_empty_200_and_removes_the_map() -> None:
+    from fastapi.testclient import TestClient
+
+    from rag_bachelor.app.web.server import app
+
+    map_id = store.add_map("Bachelor/Livres/a.pdf", 1, 2, "{}")
+
+    r = TestClient(app).post(f"/maps/{map_id}/delete")
+
+    assert r.status_code == 200 and r.text == ""
+    assert store.get_map(map_id) is None

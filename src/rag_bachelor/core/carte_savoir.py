@@ -2,13 +2,14 @@
 
 ``graphe_annote`` turns the stored facts of one subject into a networkx graph whose nodes carry the
 attributes ``construire_carte`` reads; ``construire_carte`` is pure and produces the JSON contract of
-``static/carte-savoir/carte-savoir.js`` (modules = source documents, concepts = graph entities).
+``static/carte-savoir/carte-savoir.js`` (modules = chapters of the subject's books, concepts = graph entities).
 A concept's mastery is the mean predicted recall of the cards made from the chunks it appears in;
 ``None`` while none of them was ever reviewed.
 """
 
 from __future__ import annotations
 
+import re
 from collections import Counter, defaultdict
 from collections.abc import Callable
 from datetime import date
@@ -17,12 +18,14 @@ from itertools import zip_longest
 import networkx as nx
 from pydantic import BaseModel, Field
 
+from rag_bachelor.core.chapters import chapters_for
 from rag_bachelor.ingest.index import get_facts_collection
 from rag_bachelor.study.srs import retention
-from rag_bachelor.study.store import bank_chunk_cards, get_all_cards
-from rag_bachelor.study.subjects import subject_of
+from rag_bachelor.study.store import Chapter, bank_chunk_cards, get_all_cards
+from rag_bachelor.study.subjects import doc_kind, subject_of
 
 MAX_CONCEPTS = 300  # the front's O(n²) repulsion stays fluid up to ~400
+_PAGE = re.compile(r"__p(\d+)__c\d+$")  # chunk ids are "<source>__p<page>__c<index>"
 
 
 class ModuleCarte(BaseModel):
@@ -91,6 +94,13 @@ def construire_carte(graphe: nx.Graph, titre: str) -> CarteSavoir:
     return CarteSavoir(titre=titre, modules=list(modules.values()), concepts=concepts, liens=liens)
 
 
+def _chapter_title(chapters: list[Chapter], page: int) -> str:
+    """Title of the chapter holding *page*; ``""`` for a book with one chapter or a page outside all."""
+    if len(chapters) < 2:
+        return ""
+    return next((c.title for c in chapters if c.page_from <= page <= c.page_to), "")
+
+
 def graphe_annote(
     subject: str,
     label: Callable[[str], str],
@@ -99,8 +109,9 @@ def graphe_annote(
 ) -> nx.Graph:
     """Concept graph of *subject*: entities linked per fact, annotated for ``construire_carte``.
 
-    *label* shortens a document path into the module's display name. At most *max_concepts*
-    entities are kept: the most connected of each document in turn, so no document crowds out the rest.
+    Only books count (``<Subject>/Livres/…``); a module is one chapter of a book. *label* shortens
+    a document path into the module's display name. At most *max_concepts* entities are kept: the
+    most connected of each module in turn, so no chapter crowds out the rest.
     """
     today = today or date.today()
     got = get_facts_collection().get(include=["metadatas", "documents"])
@@ -111,9 +122,20 @@ def graphe_annote(
     names: defaultdict[str, Counter[str]] = defaultdict(Counter)  # raw spellings of an entity
     sources: defaultdict[str, Counter[str]] = defaultdict(Counter)
     chunks: defaultdict[str, set[str]] = defaultdict(set)
+    chapters: dict[str, list[Chapter]] = {}
+    modules: dict[str, tuple[str, str]] = {}  # module id -> (book, chapter title or "")
     for meta, doc in zip(metas, docs):
-        if not meta or subject_of(str(meta["source"])) != subject:
+        if not meta:
             continue
+        source = str(meta["source"])
+        if subject_of(source) != subject or doc_kind(source) != "livre":
+            continue
+        if source not in chapters:
+            chapters[source] = chapters_for(source)
+        page = _PAGE.search(str(meta["chunk_id"]))
+        title = _chapter_title(chapters[source], int(page[1])) if page else ""
+        module = f"{source}#{title}" if title else source
+        modules[module] = (source, title)
         parts = (doc or "").split(" | ")  # "sujet | relation | objet"
         raws = (parts[0], parts[2]) if len(parts) == 3 else ("", "")
         ends = (str(meta["subject"]), str(meta["object"]))
@@ -123,22 +145,23 @@ def graphe_annote(
             g.add_node(entity)
             if raw.strip():
                 names[entity][raw.strip()] += 1
-            sources[entity][str(meta["source"])] += 1
+            sources[entity][module] += 1
             chunks[entity].add(str(meta["chunk_id"]))
         if ends[0] and ends[1] and ends[0] != ends[1]:
             g.add_edge(*ends)
 
-    by_source: defaultdict[str, list[str]] = defaultdict(list)
+    by_module: defaultdict[str, list[str]] = defaultdict(list)
     for n in sorted(g.nodes, key=lambda n: (-g.degree(n), n)):
-        by_source[sources[n].most_common(1)[0][0]].append(n)
-    keep = [n for tier in zip_longest(*by_source.values()) for n in tier if n is not None]
+        by_module[sources[n].most_common(1)[0][0]].append(n)
+    keep = [n for tier in zip_longest(*by_module.values()) for n in tier if n is not None]
     keep = keep[:max_concepts]
     g = g.subgraph(keep).copy()
 
     cards = {c.id: c for c in get_all_cards(subject=subject)}
     by_chunk = bank_chunk_cards()
     for entity in g.nodes:
-        source = sources[entity].most_common(1)[0][0]
+        module = sources[entity].most_common(1)[0][0]
+        book, title = modules[module]
         linked = [
             cards[i]
             for i in {i for ch in chunks[entity] for i in by_chunk.get(ch, ())}
@@ -149,8 +172,8 @@ def graphe_annote(
         g.nodes[entity].update(
             type="concept",
             nom=names[entity].most_common(1)[0][0] if names[entity] else entity,
-            module=source,
-            module_nom=label(source),
+            module=module,
+            module_nom=f"{label(book)} · {title}" if title else label(book),
             maitrise=sum(reviewed) / len(reviewed) if reviewed else None,
             prochaine_revision=due,
             a_revoir=due is not None and due <= today,

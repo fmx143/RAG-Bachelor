@@ -10,7 +10,7 @@
 {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
 
 {% if not eligible %}
-<div class="card o-empty">Aucune question corrigeable automatiquement dans <strong>{{ subject }}</strong>. Importe ou génère des QCM depuis un <a class="acc" href="/sources">document</a>.</div>
+<div class="card o-empty">Aucune question corrigeable automatiquement dans <strong>{{ subject }}</strong>. Importe ou génère des QCM depuis un <a class="acc" href="/livres">document</a>.</div>
 {% else %}
 <form method="post" action="/exam/start" class="card exam-setup">
   <div class="form-group">
@@ -25,7 +25,7 @@
 
   <div class="exam-row">
     <div class="form-group">
-      <label for="exam_count">Nombre de questions <span class="muted">({{ eligible }} disponibles)</span></label>
+      <label for="exam_count">Nombre de questions <span class="u-muted">({{ eligible }} disponibles)</span></label>
       <input type="number" id="exam_count" name="count" min="1" max="250" value="{{ [20, eligible] | min }}" required>
     </div>
     <div class="form-group">
@@ -60,11 +60,11 @@
     <p class="lede-sm u-mt-2">Rien de coché : tout le sujet. Un chapitre coché limite son document à ce chapitre.</p>
     {% for d in docs %}
     <div class="exam-doc">
-      <label><input type="checkbox" name="doc" value="{{ d }}"> {{ d | label }} <span class="muted">({{ per_doc[d] }})</span></label>
+      <label><input type="checkbox" name="doc" value="{{ d }}"> {{ d | label }} <span class="u-muted">({{ per_doc[d] }})</span></label>
       {% if chapters[d] | length > 1 %}
       <div class="exam-chaps">
         {% for c in chapters[d] %}
-        <label><input type="checkbox" name="chapter" value="{{ d }}|{{ c.page_from }}-{{ c.page_to }}"> {{ c.title }} <span class="muted">p.{{ c.page_from }}–{{ c.page_to }}</span></label>
+        <label><input type="checkbox" name="chapter" value="{{ d }}|{{ c.page_from }}-{{ c.page_to }}"> {{ c.title }} <span class="u-muted">p.{{ c.page_from }}–{{ c.page_to }}</span></label>
         {% endfor %}
       </div>
       {% endif %}

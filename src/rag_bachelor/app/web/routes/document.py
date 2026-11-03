@@ -21,18 +21,20 @@ from starlette.responses import Response
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.app.web.routes import bank, documentation, importer, maps, podcasts, sheets
 from rag_bachelor.core.chapters import chapters_for, detect_chapters, page_count
+from rag_bachelor.core.graph import fact_counts
 from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES
-from rag_bachelor.ingest.index import list_sources
-from rag_bachelor.study.stats import chapter_stats
+from rag_bachelor.ingest.index import list_sources, source_counts
+from rag_bachelor.study.stats import chapter_stats, get_topic_stats
 from rag_bachelor.study.store import (
     Chapter,
     add_card,
+    count_bank_questions,
     list_maps,
     list_podcasts,
     list_sheets,
     set_chapters,
 )
-from rag_bachelor.study.subjects import doc_kind
+from rag_bachelor.study.subjects import active_subject, doc_kind
 
 router = APIRouter()
 
@@ -118,6 +120,13 @@ def parse_chapters(
     ]
 
 
+def _on_disk(path: str) -> bool:
+    try:
+        return documentation._resolve(path).is_file()
+    except ValueError:  # outside pdfs_dir
+        return False
+
+
 @router.get("/document/{path:path}", response_class=HTMLResponse)
 async def document_page(
     request: Request,
@@ -127,14 +136,23 @@ async def document_page(
     page: int = 1,
     created: int = 0,
 ) -> Response:
-    if path not in await asyncio.to_thread(list_sources):
+    indexed = path in await asyncio.to_thread(list_sources)
+    if not indexed and not _on_disk(path):
         return Response(status_code=404)
-    tab = tab if tab in TABS else "apercu"
+    # A PDF not indexed yet has no chapters, questions or stats: only its Fichier tab (to index it).
+    tab = tab if indexed and tab in TABS else "fichier"
 
     def _sync() -> dict[str, object]:
+        if not indexed:
+            return {"chapters": [], "pages": 0}
         chapters = chapters_for(path)
         pages = page_count(path)
-        ctx: dict[str, object] = {"chapters": chapters, "pages": pages}
+        ctx: dict[str, object] = {
+            "chapters": chapters,
+            "pages": pages,
+            "questions": count_bank_questions(source=path),
+            "topic": next((t for t in get_topic_stats(active_subject()) if t.topic == path), None),
+        }
         if tab == "masquage":
             ctx.update(occ_page=min(max(page, 1), pages), created=max(created, 0))
         if tab == "apercu":
@@ -147,10 +165,13 @@ async def document_page(
             ctx["items"] = list_podcasts(source=path)
         return ctx
 
+    parts = path.split("/")
     ctx: dict[str, object] = {
         "request": request,
         "active_tab": "books" if doc_kind(path) != "source" else "sources",
         "path": path,
+        "file_folder": "/".join(parts[2:-1] if doc_kind(path) else parts[1:-1]),
+        "indexed": indexed,
         "kind": doc_kind(path),
         "kind_labels": KIND_LABELS,
         "tab": tab,
@@ -170,11 +191,11 @@ async def document_page(
     elif tab == "audio":
         ctx.update(max_pages=podcasts.MAX_PAGES, **podcasts.status_ctx())
     elif tab == "fichier":
-        parts = path.split("/")
         ctx.update(
             job=documentation.job_status(),
+            chunks=(await asyncio.to_thread(source_counts)).get(path, 0),
+            facts=(await asyncio.to_thread(fact_counts)).get(path, 0),
             file_name=parts[-1],
-            file_folder="/".join(parts[2:-1] if doc_kind(path) else parts[1:-1]),
         )
     return templates.TemplateResponse(request, "document.html", ctx)
 

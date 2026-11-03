@@ -14,7 +14,7 @@
   <div class="subheader">{{ title }}</div>
   {% for b in rows %}
   <div class="exam-brow">
-    <span class="nm" title="{{ b.doc ~ ' · ' if b.doc }}{{ b.label }}">{% if kind == "document" %}{{ b.label | label }}{% elif kind == "chapter" %}{{ b.label }} <span class="muted">· {{ b.doc | label }}</span>{% else %}{{ domain_short.get(b.label, b.label) }}{% endif %}</span>
+    <span class="nm" title="{{ b.doc ~ ' · ' if b.doc }}{{ b.label }}">{% if kind == "document" %}{{ b.label | label }}{% elif kind == "chapter" %}{{ b.label }} <span class="u-muted">· {{ b.doc | label }}</span>{% else %}{{ domain_short.get(b.label, b.label) }}{% endif %}</span>
     <span class="chap-bar" role="img" aria-label="{{ b.pct }} %"><span style="width:{{ b.pct }}%"></span></span>
     <span class="o-mono">{{ b.right }}/{{ b.total }} · {{ b.pct }} %</span>
   </div>

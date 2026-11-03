@@ -8,9 +8,12 @@
 </div>
 
 {% macro tile(d, tab="") %}
-<a href="{{ d.path | doc_url }}{{ tab }}" class="lib-tile" style="--h:{{ d.path | hue }}" title="{{ d.path }}">
+<a href="{{ d.path | doc_url }}{{ tab if d.indexed else '?tab=fichier' }}" class="lib-tile" data-book style="--h:{{ d.path | hue }}" title="{{ d.path }}">
   <span class="nm">{{ d.path | label }}</span>
   {% if d.folder %}<span class="fd">{{ d.folder }}</span>{% endif %}
+  {% if not d.indexed %}<span class="badge badge-yellow">Non indexé</span>
+  {% elif d.facts %}<span class="badge badge-green">Graphé · {{ d.facts }} faits</span>
+  {% else %}<span class="badge badge-gray">Indexé · pas de graphe</span>{% endif %}
   <span class="mt">{{ d.questions }} question{{ "s" if d.questions > 1 }}{% if d.stats %} · {{ d.stats.total_cards }} carte{{ "s" if d.stats.total_cards > 1 }}{% if d.stats.due_cards %} · <b>{{ d.stats.due_cards }} due{{ "s" if d.stats.due_cards > 1 }}</b>{% endif %}{% endif %}</span>
   {% if d.stats %}<span class="br" role="img" aria-label="Maîtrise {{ d.stats.mastery_pct | int }} %"><i style="width:{{ d.stats.mastery_pct | int }}%"></i></span>{% endif %}
 </a>

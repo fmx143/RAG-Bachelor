@@ -9,7 +9,9 @@ from fastapi.testclient import TestClient
 from rag_bachelor.app.web import server
 from rag_bachelor.app.web.routes import bank as bank_routes
 from rag_bachelor.app.web.routes.document import parse_chapters
+from rag_bachelor.config import settings
 from rag_bachelor.ingest import index
+from rag_bachelor.ingest.index import get_facts_collection
 from rag_bachelor.study import store
 from rag_bachelor.study.stats import chapter_stats
 from rag_bachelor.study.store import BankQuestion, Chapter
@@ -115,6 +117,33 @@ def test_revision_by_chapter_and_bank_generation_by_range() -> None:
             client.post("/bank/generate", data={"source": DOC})
         assert gen.call_args_list[0].kwargs["page_range"] == (4, 6)
         assert gen.call_args_list[1].kwargs["page_range"] is None
+
+
+def test_library_tiles_show_index_and_graph_status() -> None:
+    _index()
+    pdf = settings.pdfs_dir / "Bachelor" / "Livres" / "Neuf.pdf"  # on disk, never indexed
+    pdf.parent.mkdir(parents=True)
+    pdf.write_bytes(b"%PDF-1.4")
+    with TestClient(server.app) as client:
+        page = client.get("/livres").text
+        assert "Indexé · pas de graphe" in page and "Non indexé" in page
+        url = "/document/Bachelor/Livres/Neuf.pdf?tab=fichier"
+        assert f'href="{url}"' in page
+        r = client.get(url)  # an unindexed book opens on its Fichier tab, to index it
+        assert r.status_code == 200 and "Non indexé" in r.text and "Pas de graphe" in r.text
+        assert "Indexer</button>" in r.text and "tab=questions" not in r.text
+        assert client.get("/document/Bachelor/Livres/Neuf.pdf?tab=apercu").status_code == 200
+        assert client.get("/document/Bachelor/Livres/absent.pdf").status_code == 404
+        assert client.get("/document/..%2F..%2Fetc/passwd").status_code == 404
+        get_facts_collection().upsert(
+            ids=["f1"],
+            documents=["a | est | b"],
+            embeddings=[[1.0, 0.0]],  # type: ignore[arg-type]
+            metadatas=[{"source": DOC, "chunk_id": "c", "subject": "a", "object": "b"}],
+        )
+        assert "Graphé · 1 faits" in client.get("/livres").text
+        done = client.get(f"/document/{DOC}?tab=fichier").text
+        assert "Indexé · 6 chunks" in done and "Graphé · 1 faits" in done
 
 
 def test_library_grids_sort_documents_by_kind_and_old_pages_redirect() -> None:

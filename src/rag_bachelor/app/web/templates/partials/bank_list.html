@@ -98,7 +98,7 @@
         {% endif %}
 
         {% if not q.to_confirm %}
-        <div class="bx-row">
+        <div class="why-row">
           <button type="button" class="btn btn-sm btn-blue" hx-post="/explain/bank/{{ q.id }}" hx-target="#bx-{{ q.id }}" hx-swap="innerHTML" hx-indicator="#bxw-{{ q.id }}">{{ "Explication des livres" if q.book_explanation else "Expliquer avec les livres" }}</button>
           <span id="bxw-{{ q.id }}" class="htmx-indicator lede-sm" role="status">Recherche dans les livres…</span>
         </div>

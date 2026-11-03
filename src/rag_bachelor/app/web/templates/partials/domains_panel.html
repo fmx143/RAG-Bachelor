@@ -5,22 +5,22 @@
     {% endfor %}
   </div>
 </form>
-<p style="font-size:.8rem; color:var(--muted); margin:.6rem 0;">
+<p class="lede-sm u-mt-2">
   Sujet <strong>{{ subject }}</strong>. Chaque question reçoit un domaine officiel par examen coché
   (classé par le LLM, corrigeable dans la liste des questions), pour filtrer la banque et lire
   tes résultats d'examen blanc par domaine.
 </p>
 {% if tag_running %}
 <div role="status" hx-get="/domains/status" hx-trigger="load delay:1500ms" hx-target="#domains-panel" hx-swap="innerHTML">
-  <div class="spinner" style="display:inline-block; vertical-align:middle;"></div> Classement en cours… ({{ tag_pct }} %)
+  <div class="spinner u-inline-mid"></div> Classement en cours… ({{ tag_pct }} %)
   <button type="button" class="btn btn-ghost btn-sm" hx-post="/domains/cancel" hx-target="#domains-panel" hx-swap="innerHTML">Arrêter</button>
 </div>
 {% elif chosen_frameworks %}
   {% if tag_error %}<div class="alert alert-error">{{ tag_error }}</div>{% endif %}
-  {% if tag_done is not none %}<p style="font-size:.85rem;" role="status">{{ tag_done }} question(s) classée(s).</p>{% endif %}
+  {% if tag_done is not none %}<p class="lede-sm" role="status">{{ tag_done }} question(s) classée(s).</p>{% endif %}
   {% if untagged %}
   <button type="button" class="btn btn-primary btn-sm" hx-post="/domains/tag" hx-target="#domains-panel" hx-swap="innerHTML">Classer {{ untagged }} question{{ "s" if untagged > 1 }} sans domaine</button>
   {% else %}
-  <p style="font-size:.85rem; color:var(--muted);">Toutes les questions du sujet ont leur domaine.</p>
+  <p class="lede-sm">Toutes les questions du sujet ont leur domaine.</p>
   {% endif %}
 {% endif %}

@@ -2,11 +2,23 @@
 {% block title %}{{ path | label }}{% endblock %}
 {% block content %}
 {% set durl = path | doc_url %}
-<div class="page-header">
-  <span class="eyebrow">{{ kind_labels[kind] }} · {{ pages }} page{{ "s" if pages > 1 }}</span>
-  <h1>{{ path | label }}</h1>
-  <p class="lede-sm doc-path" title="{{ path }}">{{ path }}</p>
-</div>
+<header class="book-hero" style="--h:{{ path | hue }}">
+  <a class="bh-back" href="{{ '/sources' if kind == 'source' else '/livres' }}">← {{ 'Sources' if kind == 'source' else 'Livres' }}</a>
+  <div class="bh-row">
+    <div class="bh-cover" aria-hidden="true"><span>{{ path | label }}</span></div>
+    <div class="bh-text">
+      <span class="bh-eyebrow">{{ kind_labels[kind] }}{% if indexed %} · {{ pages }} page{{ "s" if pages > 1 }}{% else %} · non indexé{% endif %}{% if file_folder %} · {{ file_folder }}{% endif %}</span>
+      <h1 title="{{ path }}">{{ path | label }}</h1>
+      {% if indexed %}<p class="bh-stats"><span><b>{{ questions }}</b> question{{ "s" if questions > 1 }}</span><span><b>{{ topic.total_cards if topic else 0 }}</b> carte{{ "s" if topic and topic.total_cards > 1 }}</span>{% if topic and topic.due_cards %}<span class="due"><b>{{ topic.due_cards }}</b> due{{ "s" if topic.due_cards > 1 }} aujourd'hui</span>{% endif %}</p>{% endif %}
+    </div>
+    {% if topic and topic.total_cards %}
+    <div class="bh-ring" role="img" aria-label="Maîtrise {{ topic.mastery_pct | int }} %">
+      <svg viewBox="0 0 76 76" aria-hidden="true"><circle cx="38" cy="38" r="32"/><circle class="arc" cx="38" cy="38" r="32" style="stroke-dashoffset:{{ 201.06 * (1 - topic.mastery_pct / 100) }}"/></svg>
+      <span><b>{{ topic.mastery_pct | int }}%</b>maîtrise</span>
+    </div>
+    {% endif %}
+  </div>
+</header>
 
 {% if kind is none %}
 <div class="alert alert-warning">
@@ -15,7 +27,7 @@
 {% endif %}
 
 <nav class="doc-tabs" aria-label="Sections du document">
-  {% for key, label in tabs.items() %}
+  {% for key, label in tabs.items() if indexed or key == "fichier" %}
   <a href="{{ durl }}?tab={{ key }}"{% if key == tab %} class="on" aria-current="page"{% endif %}>{{ label }}</a>
   {% endfor %}
 </nav>
@@ -86,14 +98,14 @@
 {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
 
 {% if tab == "apercu" %}
-<div class="card">
+<div class="card" style="--h:{{ path | hue }}">
   <div class="o-between">
     <div class="u-m0 subheader">Chapitres</div>
     <a class="btn btn-primary btn-sm" href="/revision?source={{ path | url_encode }}">Réviser tout le document</a>
   </div>
   <div class="chap-list">
     {% for st in chapter_stats %}
-    <div class="chap">
+    <div class="chap" style="--i:{{ loop.index0 }}">
       <div class="chap-main">
         <div class="chap-title">{{ st.chapter.title }}</div>
         <div class="chap-meta">p.{{ st.chapter.page_from }}–{{ st.chapter.page_to }} · {{ st.questions }} question{{ "s" if st.questions > 1 }} · {{ st.cards }} carte{{ "s" if st.cards > 1 }}{% if st.due %} · <strong>{{ st.due }} due{{ "s" if st.due > 1 }}</strong>{% endif %}</div>
@@ -262,14 +274,24 @@
 {% if job.running %}
 <div class="alert alert-info" id="file-job" hx-get="{{ durl }}?tab=fichier" hx-select="#file-job" hx-target="this" hx-swap="outerHTML" hx-trigger="every 3s">
   {% if job.phase == "graph" %}Construction du graphe{% else %}Indexation{% endif %} en cours ({{ job.pct }} %){% if job.current %} · {{ job.current }}{% endif %}. Elle continue si tu quittes la page.
+  {% if job.chunks_total %}
+  <div class="progress-wrap"><div class="progress-fill" style="--pct:{{ job.pct / 100 }}"></div></div>
+  <small>{{ job.chunks_done }}/{{ job.chunks_total }} {% if job.phase == "graph" %}passages analysés par le LLM{% else %}chunks{% endif %}</small>
+  {% else %}
+  <div class="u-inline-mid spinner"></div>
+  {% endif %}
 </div>
 {% endif %}
 <div class="card">
   <div class="subheader">Index</div>
+  <p>
+    {% if indexed %}<span class="badge badge-green">Indexé · {{ chunks }} chunks</span>{% else %}<span class="badge badge-yellow">Non indexé</span>{% endif %}
+    {% if facts %}<span class="badge badge-green">Graphé · {{ facts }} faits</span>{% else %}<span class="badge badge-gray">Pas de graphe</span>{% endif %}
+  </p>
   <p class="lede-sm">Relis le PDF (mise en page, découpage, embeddings) après l'avoir remplacé, ou construis son graphe de faits pour améliorer les questions qui croisent plusieurs pages.</p>
   <div class="chap-btns">
-    <form method="post" action="/docs/file/index"><input type="hidden" name="path" value="{{ path }}"><button type="submit" class="btn btn-ghost btn-sm"{% if job.running %} disabled{% endif %}>Réindexer</button></form>
-    <form method="post" action="/docs/file/graph"><input type="hidden" name="path" value="{{ path }}"><button type="submit" class="btn btn-ghost btn-sm"{% if job.running %} disabled{% endif %}>Construire le graphe</button></form>
+    <form method="post" action="/docs/file/index"><input type="hidden" name="path" value="{{ path }}"><button type="submit" class="btn btn-ghost btn-sm"{% if job.running %} disabled{% endif %}>{{ "Réindexer" if indexed else "Indexer" }}</button></form>
+    <form method="post" action="/docs/file/graph"><input type="hidden" name="path" value="{{ path }}"><button type="submit" class="btn btn-ghost btn-sm"{% if job.running or not indexed %} disabled{% endif %}>Construire le graphe</button></form>
     <a class="btn btn-ghost btn-sm" href="/docs/page.png?path={{ path | url_encode }}&page=1" target="_blank" rel="noopener">Voir la 1ʳᵉ page</a>
   </div>
 </div>
