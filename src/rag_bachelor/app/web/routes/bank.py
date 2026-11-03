@@ -12,10 +12,18 @@ from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import templates
 from rag_bachelor.core.bank import generate_bank_for_source
+from rag_bachelor.core.domains import (
+    FRAMEWORKS,
+    SHORT,
+    match_domain,
+    subject_frameworks,
+    tag_subject,
+)
 from rag_bachelor.core.qtypes import DIFFICULTIES as _DIFFICULTIES
 from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES, SELF_GRADED
 from rag_bachelor.study.store import (
     BankQuestion,
+    confirm_bank_answer,
     count_bank_questions,
     delete_bank_question,
     delete_bank_questions,
@@ -23,8 +31,9 @@ from rag_bachelor.study.store import (
     list_bank_questions,
     materialize_bank_question,
     record_bank_attempt,
+    set_bank_domains,
 )
-from rag_bachelor.study.subjects import active_sources, active_subject
+from rag_bachelor.study.subjects import active_sources, active_subject, subject_of
 
 router = APIRouter()
 
@@ -33,6 +42,7 @@ _RESULTS = ("correct", "incorrect", "untried")
 _RESULT_LABELS = {"correct": "Juste", "incorrect": "Faux", "untried": "Jamais tenté"}
 _DECKS = ("in", "out", "bad")
 _DECK_LABELS = {"bad": "Mal conçues"}  # every question is in revision except those flagged
+_ORIGIN_LABELS = {"imported": "Importées", "generated": "Générées", "to_confirm": "À confirmer"}
 _PAGE_SIZE = 20
 _MIN_TARGET = 1
 _MAX_TARGET = 100
@@ -91,6 +101,10 @@ def _run_bank_job(
             should_stop=lambda: bool(_JOB["cancel"]),
             page_range=pages,
         )
+        try:  # exam domains of the new questions; the bank itself is already saved
+            tag_subject(subject_of(source), should_stop=lambda: bool(_JOB["cancel"]))
+        except Exception:  # noqa: BLE001 — tags can be added later from Paramètres
+            pass
     except Exception:
         # Never surface the raw exception: the LLM SDKs can echo an API key on auth errors.
         _JOB["error"] = (
@@ -124,6 +138,8 @@ async def list_ctx(
     qtype: str = "",
     result: str = "",
     deck: str = "",
+    domain: str = "",
+    origin: str = "",
 ) -> dict[str, object]:
     src = source or None
     diff = difficulty if difficulty in _DIFFICULTIES else None
@@ -131,32 +147,32 @@ async def list_ctx(
     qt = qtype if qtype in QTYPES else None
     res = result if result in _RESULTS else None
     dk = deck if deck in _DECKS else None
+    dom = _valid_domain(domain)
+    org = origin if origin in _ORIGIN_LABELS else None
 
-    def _sync() -> tuple[list[BankQuestion], int, dict[str, int]]:
+    def _sync() -> tuple[list[BankQuestion], int, dict[str, int], list[str]]:
         subject = active_subject()
-        items = list_bank_questions(
-            source=src,
-            difficulty=diff,
-            search=q,
-            qtype=qt,
-            result=res,
-            deck=dk,
-            limit=limit,
-            subject=subject,
-        )
-        total = count_bank_questions(
-            source=src, difficulty=diff, search=q, qtype=qt, result=res, deck=dk, subject=subject
-        )
-        by_result = {
-            r: count_bank_questions(
-                source=src, difficulty=diff, search=q, qtype=qt, result=r, deck=dk, subject=subject
-            )
-            for r in ("correct", "incorrect", "untried")
-        }
-        return list(items), total, by_result
 
-    items, total, by_result = await asyncio.to_thread(_sync)
+        def count(r: str | None) -> int:
+            return count_bank_questions(
+                source=src, difficulty=diff, search=q, qtype=qt, result=r, deck=dk,
+                subject=subject, domain=dom, origin=org, with_unconfirmed=True,
+            )  # fmt: skip
+
+        items = list_bank_questions(
+            source=src, difficulty=diff, search=q, qtype=qt, result=res, deck=dk,
+            limit=limit, subject=subject, domain=dom, origin=org, with_unconfirmed=True,
+        )  # fmt: skip
+        by_result = {r: count(r) for r in ("correct", "incorrect", "untried")}
+        return list(items), count(res), by_result, subject_frameworks(subject)
+
+    items, total, by_result, frameworks = await asyncio.to_thread(_sync)
     return {
+        "frameworks": {fw: FRAMEWORKS[fw] for fw in frameworks},
+        "domain_short": SHORT,
+        "filter_domain": dom or "",
+        "filter_origin": org or "",
+        "origin_labels": _ORIGIN_LABELS,
         "items": items,
         "diff_labels": _DIFF_LABELS,
         "qtype_labels": QTYPE_LABELS,
@@ -174,6 +190,13 @@ async def list_ctx(
         "has_more": limit < total,
         "next_limit": limit + _PAGE_SIZE,
     }
+
+
+def _valid_domain(domain: str) -> str | None:
+    """``"FRAMEWORK:Domain"`` when it names an official domain, else None."""
+    framework, _, name = domain.partition(":")
+    official = match_domain(framework, name)
+    return f"{framework}:{official}" if official else None
 
 
 def generation_ctx() -> dict[str, object]:
@@ -249,11 +272,13 @@ async def list_bank(
     qtype: str = "",
     result: str = "",
     deck: str = "",
+    domain: str = "",
+    origin: str = "",
     limit: int = _PAGE_SIZE,
 ) -> Response:
     ctx = {
         "request": request,
-        **(await list_ctx(source, difficulty, search, limit, qtype, result, deck)),
+        **(await list_ctx(source, difficulty, search, limit, qtype, result, deck, domain, origin)),
     }
     return templates.TemplateResponse(request, "partials/bank_list.html", ctx)
 
@@ -267,6 +292,7 @@ async def add_all_bank_to_deck(
     qtype: Annotated[str, Form()] = "",
     result: Annotated[str, Form()] = "",
     deck: Annotated[str, Form()] = "",
+    domain: Annotated[str, Form()] = "",
 ) -> Response:
     """Add every bank question matching the current filter that isn't in the deck yet."""
     src = source or None
@@ -275,19 +301,21 @@ async def add_all_bank_to_deck(
     qt = qtype if qtype in QTYPES else None
     res = result if result in _RESULTS else None
     dk = deck if deck in _DECKS else None
+    dom = _valid_domain(domain)
 
     def _sync() -> int:
         # Fetch the whole matching set in one shot rather than paging: with the
         # deck="out" filter, adding a card removes that row from later pages,
         # so offset-based paging silently skips rows as the filtered set shrinks.
         total = count_bank_questions(
-            source=src, difficulty=diff, search=q, qtype=qt, result=res, deck=dk
+            source=src, difficulty=diff, search=q, qtype=qt, result=res, deck=dk, domain=dom
         )
         if total == 0:
             return 0
         batch = list_bank_questions(
-            source=src, difficulty=diff, search=q, qtype=qt, result=res, deck=dk, limit=total
-        )
+            source=src, difficulty=diff, search=q, qtype=qt, result=res, deck=dk,
+            domain=dom, limit=total,
+        )  # fmt: skip
         added = 0
         for item in batch:
             if item.id is None or item.card_id is not None:
@@ -300,7 +328,7 @@ async def add_all_bank_to_deck(
     ctx = {
         "request": request,
         "added_count": added,
-        **(await list_ctx(source, difficulty, search, _PAGE_SIZE, qtype, result, deck)),
+        **(await list_ctx(source, difficulty, search, _PAGE_SIZE, qtype, result, deck, domain)),
     }
     return templates.TemplateResponse(request, "partials/bank_list.html", ctx)
 
@@ -315,12 +343,18 @@ async def delete_selected_bank(
     qtype: Annotated[str, Form()] = "",
     result: Annotated[str, Form()] = "",
     deck: Annotated[str, Form()] = "",
+    domain: Annotated[str, Form()] = "",
+    origin: Annotated[str, Form()] = "",
 ) -> Response:
     # Questions flagged "Mal conçue" are deleted with their revision card, or they would linger there.
     await asyncio.to_thread(delete_bank_questions, ids, deck == "bad")
     ctx = {
         "request": request,
-        **(await list_ctx(source, difficulty, search, _PAGE_SIZE, qtype, result, deck)),
+        **(
+            await list_ctx(
+                source, difficulty, search, _PAGE_SIZE, qtype, result, deck, domain, origin
+            )
+        ),
     }
     return templates.TemplateResponse(request, "partials/bank_list.html", ctx)
 
@@ -329,7 +363,7 @@ async def delete_selected_bank(
 async def add_bank_to_deck(bank_id: int) -> Response:
     def _sync() -> int | None:
         q = get_bank_question(bank_id)
-        if q is None:
+        if q is None or q.to_confirm:  # nothing to grade against until its answer is confirmed
             return None
         return materialize_bank_question(q)
 
@@ -337,7 +371,7 @@ async def add_bank_to_deck(bank_id: int) -> Response:
     if card_id is None:
         return HTMLResponse(
             '<span class="alert alert-warning" style="display:inline-block;padding:.2rem .6rem;">'
-            "Question introuvable</span>"
+            "Question introuvable ou réponse à confirmer</span>"
         )
     return HTMLResponse(
         f'<span class="alert alert-success" style="display:inline-block;padding:.2rem .6rem;">'
@@ -365,7 +399,7 @@ async def answer_bank_question(
 
     def _sync() -> dict[str, object] | None:
         q = get_bank_question(bank_id)
-        if q is None:
+        if q is None or q.to_confirm:
             return None
         if q.qtype in SELF_GRADED:
             is_correct = self_grade == "correct"
@@ -382,7 +416,7 @@ async def answer_bank_question(
     if outcome is None:
         return HTMLResponse(
             '<span class="alert alert-warning" style="display:inline-block;padding:.2rem .6rem;">'
-            "Question introuvable</span>"
+            "Question introuvable ou réponse à confirmer</span>"
         )
     ctx = {"request": request, "bank_id": bank_id, **outcome}
     return templates.TemplateResponse(request, "partials/bank_answer_feedback.html", ctx)
@@ -392,3 +426,27 @@ async def answer_bank_question(
 async def delete_bank(bank_id: int) -> Response:
     await asyncio.to_thread(delete_bank_question, bank_id)
     return HTMLResponse("<!-- supprimé -->")
+
+
+@router.post("/bank/{bank_id}/domains", response_class=HTMLResponse)
+async def set_domains(request: Request, bank_id: int) -> Response:
+    """Correct a question's exam domains: one ``<framework>`` form field per framework."""
+    form = await request.form()
+    fields = {fw: f"d{bank_id}_{fw}" for fw in FRAMEWORKS}
+    tags = {fw: match_domain(fw, form.get(f)) or "" for fw, f in fields.items() if f in form}
+    await asyncio.to_thread(set_bank_domains, bank_id, tags)
+    return HTMLResponse('<span role="status">Domaines enregistrés.</span>')
+
+
+@router.post("/bank/{bank_id}/confirm", response_class=HTMLResponse)
+async def confirm_answer(request: Request, bank_id: int) -> Response:
+    """Set the right option(s) of an imported question whose document gave no readable answer.
+
+    The ticked options arrive as ``c<bank id>`` fields (the list sits inside the bulk form).
+    """
+    form = await request.form()
+    raw = form.getlist(f"c{bank_id}")
+    selected = [int(v) for v in raw if isinstance(v, str) and v.isdigit()]
+    if await asyncio.to_thread(confirm_bank_answer, bank_id, selected):
+        return HTMLResponse('<span class="qpill ok" role="status">Réponse confirmée</span>')
+    return HTMLResponse('<span class="qpill ko" role="status">Coche au moins une option</span>')

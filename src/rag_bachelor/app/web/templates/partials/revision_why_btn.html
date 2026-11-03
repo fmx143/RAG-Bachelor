@@ -2,6 +2,7 @@
 <div class="why-row">
   <button type="button" class="btn btn-sm btn-blue" hx-post="/revision/why/{{ card.id }}"
     {% if why_answer %}hx-vals='{"user_answer": {{ why_answer | tojson }}}' {% endif %}hx-target="#why-box" hx-swap="innerHTML" hx-indicator="#why-wait">Pourquoi ?</button>
+  <button type="button" class="btn btn-sm btn-ghost" hx-post="/explain/card/{{ card.id }}" hx-target="#why-box" hx-swap="innerHTML" hx-indicator="#why-wait">Avec les livres</button>
   <span id="why-wait" class="htmx-indicator note" role="status">L'IA cherche dans le cours…</span>
   {% if why_next %}<button hx-get="/revision/next" hx-include="#revision-filter-form" hx-target="#revision-content" hx-swap="innerHTML" class="btn btn-primary btn-sm" data-autofocus>Carte suivante</button>{% endif %}
 </div>

@@ -26,6 +26,21 @@ def doc_kind(path: str) -> str | None:
     return None
 
 
+LANGS = {"fr": "Français", "en": "English"}  # content language of a subject's generated text
+
+
+def subject_lang(subject: str) -> str:
+    """Language generated content takes for *subject* (``fr`` unless set otherwise)."""
+    lang = get_setting(f"subject_lang:{subject}", "fr")
+    return lang if lang in LANGS else "fr"
+
+
+def set_subject_lang(subject: str, lang: str) -> None:
+    if lang not in LANGS:
+        raise ValueError(f"unknown language: {lang}")
+    set_setting(f"subject_lang:{subject}", lang)
+
+
 def list_subjects() -> list[str]:
     """Sorted subject names found on disk; the default one when the library is empty."""
     root = settings.pdfs_dir

@@ -19,7 +19,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
-from rag_bachelor.app.web.routes import bank, documentation, maps, podcasts, sheets
+from rag_bachelor.app.web.routes import bank, documentation, importer, maps, podcasts, sheets
 from rag_bachelor.core.chapters import chapters_for, detect_chapters, page_count
 from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES
 from rag_bachelor.ingest.index import list_sources
@@ -161,6 +161,7 @@ async def document_page(
     }
     if tab == "questions":
         ctx.update(qtypes=QTYPES, qtype_labels=QTYPE_LABELS, **bank.generation_ctx())
+        ctx.update(importer.status_ctx())
         ctx.update(await bank.list_ctx(source=path, difficulty="", search="", limit=20))
     elif tab == "fiches":
         ctx.update(max_pages=sheets.MAX_PAGES, **sheets.status_ctx())
