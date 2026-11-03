@@ -23,6 +23,7 @@ from rag_bachelor.core.qtypes import DIFFICULTIES as _DIFFICULTIES
 from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES, SELF_GRADED
 from rag_bachelor.study.store import (
     BankQuestion,
+    confirm_bank_answer,
     count_bank_questions,
     delete_bank_question,
     delete_bank_questions,
@@ -41,6 +42,7 @@ _RESULTS = ("correct", "incorrect", "untried")
 _RESULT_LABELS = {"correct": "Juste", "incorrect": "Faux", "untried": "Jamais tenté"}
 _DECKS = ("in", "out", "bad")
 _DECK_LABELS = {"bad": "Mal conçues"}  # every question is in revision except those flagged
+_ORIGIN_LABELS = {"imported": "Importées", "generated": "Générées", "to_confirm": "À confirmer"}
 _PAGE_SIZE = 20
 _MIN_TARGET = 1
 _MAX_TARGET = 100
@@ -137,6 +139,7 @@ async def list_ctx(
     result: str = "",
     deck: str = "",
     domain: str = "",
+    origin: str = "",
 ) -> dict[str, object]:
     src = source or None
     diff = difficulty if difficulty in _DIFFICULTIES else None
@@ -145,6 +148,7 @@ async def list_ctx(
     res = result if result in _RESULTS else None
     dk = deck if deck in _DECKS else None
     dom = _valid_domain(domain)
+    org = origin if origin in _ORIGIN_LABELS else None
 
     def _sync() -> tuple[list[BankQuestion], int, dict[str, int], list[str]]:
         subject = active_subject()
@@ -152,12 +156,12 @@ async def list_ctx(
         def count(r: str | None) -> int:
             return count_bank_questions(
                 source=src, difficulty=diff, search=q, qtype=qt, result=r, deck=dk,
-                subject=subject, domain=dom,
+                subject=subject, domain=dom, origin=org, with_unconfirmed=True,
             )  # fmt: skip
 
         items = list_bank_questions(
             source=src, difficulty=diff, search=q, qtype=qt, result=res, deck=dk,
-            limit=limit, subject=subject, domain=dom,
+            limit=limit, subject=subject, domain=dom, origin=org, with_unconfirmed=True,
         )  # fmt: skip
         by_result = {r: count(r) for r in ("correct", "incorrect", "untried")}
         return list(items), count(res), by_result, subject_frameworks(subject)
@@ -167,6 +171,8 @@ async def list_ctx(
         "frameworks": {fw: FRAMEWORKS[fw] for fw in frameworks},
         "domain_short": SHORT,
         "filter_domain": dom or "",
+        "filter_origin": org or "",
+        "origin_labels": _ORIGIN_LABELS,
         "items": items,
         "diff_labels": _DIFF_LABELS,
         "qtype_labels": QTYPE_LABELS,
@@ -267,11 +273,12 @@ async def list_bank(
     result: str = "",
     deck: str = "",
     domain: str = "",
+    origin: str = "",
     limit: int = _PAGE_SIZE,
 ) -> Response:
     ctx = {
         "request": request,
-        **(await list_ctx(source, difficulty, search, limit, qtype, result, deck, domain)),
+        **(await list_ctx(source, difficulty, search, limit, qtype, result, deck, domain, origin)),
     }
     return templates.TemplateResponse(request, "partials/bank_list.html", ctx)
 
@@ -337,12 +344,17 @@ async def delete_selected_bank(
     result: Annotated[str, Form()] = "",
     deck: Annotated[str, Form()] = "",
     domain: Annotated[str, Form()] = "",
+    origin: Annotated[str, Form()] = "",
 ) -> Response:
     # Questions flagged "Mal conçue" are deleted with their revision card, or they would linger there.
     await asyncio.to_thread(delete_bank_questions, ids, deck == "bad")
     ctx = {
         "request": request,
-        **(await list_ctx(source, difficulty, search, _PAGE_SIZE, qtype, result, deck, domain)),
+        **(
+            await list_ctx(
+                source, difficulty, search, _PAGE_SIZE, qtype, result, deck, domain, origin
+            )
+        ),
     }
     return templates.TemplateResponse(request, "partials/bank_list.html", ctx)
 
@@ -351,7 +363,7 @@ async def delete_selected_bank(
 async def add_bank_to_deck(bank_id: int) -> Response:
     def _sync() -> int | None:
         q = get_bank_question(bank_id)
-        if q is None:
+        if q is None or q.to_confirm:  # nothing to grade against until its answer is confirmed
             return None
         return materialize_bank_question(q)
 
@@ -359,7 +371,7 @@ async def add_bank_to_deck(bank_id: int) -> Response:
     if card_id is None:
         return HTMLResponse(
             '<span class="alert alert-warning" style="display:inline-block;padding:.2rem .6rem;">'
-            "Question introuvable</span>"
+            "Question introuvable ou réponse à confirmer</span>"
         )
     return HTMLResponse(
         f'<span class="alert alert-success" style="display:inline-block;padding:.2rem .6rem;">'
@@ -387,7 +399,7 @@ async def answer_bank_question(
 
     def _sync() -> dict[str, object] | None:
         q = get_bank_question(bank_id)
-        if q is None:
+        if q is None or q.to_confirm:
             return None
         if q.qtype in SELF_GRADED:
             is_correct = self_grade == "correct"
@@ -404,7 +416,7 @@ async def answer_bank_question(
     if outcome is None:
         return HTMLResponse(
             '<span class="alert alert-warning" style="display:inline-block;padding:.2rem .6rem;">'
-            "Question introuvable</span>"
+            "Question introuvable ou réponse à confirmer</span>"
         )
     ctx = {"request": request, "bank_id": bank_id, **outcome}
     return templates.TemplateResponse(request, "partials/bank_answer_feedback.html", ctx)
@@ -424,3 +436,17 @@ async def set_domains(request: Request, bank_id: int) -> Response:
     tags = {fw: match_domain(fw, form.get(f)) or "" for fw, f in fields.items() if f in form}
     await asyncio.to_thread(set_bank_domains, bank_id, tags)
     return HTMLResponse('<span role="status">Domaines enregistrés.</span>')
+
+
+@router.post("/bank/{bank_id}/confirm", response_class=HTMLResponse)
+async def confirm_answer(request: Request, bank_id: int) -> Response:
+    """Set the right option(s) of an imported question whose document gave no readable answer.
+
+    The ticked options arrive as ``c<bank id>`` fields (the list sits inside the bulk form).
+    """
+    form = await request.form()
+    raw = form.getlist(f"c{bank_id}")
+    selected = [int(v) for v in raw if isinstance(v, str) and v.isdigit()]
+    if await asyncio.to_thread(confirm_bank_answer, bank_id, selected):
+        return HTMLResponse('<span class="qpill ok" role="status">Réponse confirmée</span>')
+    return HTMLResponse('<span class="qpill ko" role="status">Coche au moins une option</span>')
