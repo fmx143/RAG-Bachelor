@@ -233,6 +233,8 @@ _COLUMNS_ADDED = {
         "domains": "TEXT",
         "origin": "TEXT NOT NULL DEFAULT 'generated'",
         "to_confirm": "INTEGER NOT NULL DEFAULT 0",
+        # Cached explanation from the subject's books, JSON {"text", "refs"} (core/explain.py).
+        "book_explanation": "TEXT",
     },
 }
 
@@ -648,6 +650,7 @@ class BankQuestion:
     domains: dict[str, str] = field(default_factory=dict)  # {exam framework: domain}
     origin: str = "generated"  # or "imported" (copied verbatim from a PDF)
     to_confirm: bool = False  # imported without a readable answer: no revision until confirmed
+    book_explanation: dict[str, Any] | None = None  # cached {"text", "refs"} from the books
 
 
 def add_bank_questions(items: list[BankQuestion]) -> int:
@@ -839,6 +842,16 @@ def set_bank_domains(bank_id: int, domains: dict[str, str]) -> None:
     conn.execute(
         _adapt("UPDATE question_bank SET domains = ? WHERE id = ?"),
         (_dump_domains(merged) if merged else None, bank_id),
+    )
+    conn.commit()
+
+
+def set_book_explanation(bank_id: int, text: str, refs: list[tuple[str, int]]) -> None:
+    """Cache a question's explanation from the books (overwrites a previous one)."""
+    conn = get_conn()
+    value = json.dumps({"text": text, "refs": [list(r) for r in refs]}, ensure_ascii=False)
+    conn.execute(
+        _adapt("UPDATE question_bank SET book_explanation = ? WHERE id = ?"), (value, bank_id)
     )
     conn.commit()
 
@@ -1386,6 +1399,7 @@ def _row_to_bank_question(row: sqlite3.Row | dict[str, Any]) -> BankQuestion:
         domains=_load_json_col(row["domains"]) or {},
         origin=row["origin"],
         to_confirm=bool(row["to_confirm"]),
+        book_explanation=_load_json_col(row["book_explanation"]),
     )
 
 
