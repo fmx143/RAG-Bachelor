@@ -1179,3 +1179,9 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .exam-corr li.mine:not(.right) { color: var(--bad); }
 .fq-sm { font-weight: 600; margin: 8px 0; }
 @media (max-width: 760px) { .exam-brow { grid-template-columns: 1fr auto; } .exam-brow .chap-bar { display: none; } }
+
+/* In-page confirmation opened by the htmx shim (hx-confirm) */
+.confirm-dlg { margin: auto; max-width: min(440px, calc(100vw - 32px)); padding: 22px; border: 1px solid var(--hair); border-radius: var(--r); background: var(--panel); color: var(--text); }
+.confirm-dlg::backdrop { background: rgba(0,0,0,.6); }
+.confirm-dlg p { margin-bottom: 18px; line-height: 1.5; }
+.confirm-dlg div { display: flex; justify-content: flex-end; gap: 8px; }
