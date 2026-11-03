@@ -29,6 +29,7 @@ from rag_bachelor.app.web.routes import (
     carte_savoir,
     document,
     documentation,
+    domains,
     home,
     library,
     maps,
@@ -156,6 +157,7 @@ app.include_router(auth.router)
 app.include_router(home.router)
 app.include_router(library.router)
 app.include_router(documentation.router)
+app.include_router(domains.router)
 app.include_router(subjects.router)
 app.include_router(ask.router)
 app.include_router(revision.router)

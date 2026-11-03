@@ -1090,3 +1090,9 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 /* Accueil: the map sits in the page flow instead of filling the viewport */
 .cs-accueil .cs-racine { --cs-hauteur: 560px; }
 @media (max-width: 760px) { .cs-accueil .cs-racine { --cs-hauteur: 70dvh; } }
+
+/* Exam-domain tags on bank questions */
+.qpill.dom { border-color: oklch(0.79 0.12 235 / .45); color: oklch(0.79 0.12 235); }
+.qdomains { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; margin: 10px 0; font-size: 13px; color: var(--muted); }
+.qdomains label { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 220px; }
+.qdomains .st { font-size: 12px; }
