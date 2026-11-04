@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse
 from starlette.responses import Response
 
 from rag_bachelor.app.web._deps import sidebar_ctx, templates
-from rag_bachelor.study.stats import get_activity, get_topic_stats, reading
+from rag_bachelor.study.stats import get_activity, get_topic_stats
 from rag_bachelor.study.store import get_all_cards, get_due_cards, list_exams
 from rag_bachelor.study.subjects import active_subject
 
@@ -29,7 +29,9 @@ async def progress_page(request: Request) -> Response:
         "stats": stats,
         "activity": get_activity(all_cards, subject),
         "rings": stats[:3],
-        "reading": reading(stats),
+        # stats are weakest first: the 3 best (best first), then the 3 weakest not already shown.
+        "best": stats[::-1][:3],
+        "worst": [s for s in stats if s not in stats[::-1][:3]][:3],
         "exams": [e for e in list_exams(subject, 10) if e.finished_at],
         **sidebar_ctx(),
     }
