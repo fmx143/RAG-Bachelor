@@ -18,8 +18,14 @@ from rag_bachelor.app.web._deps import sidebar_ctx, templates
 from rag_bachelor.config import settings
 from rag_bachelor.core.graph import fact_counts
 from rag_bachelor.study.stats import TopicStats, get_topic_stats
-from rag_bachelor.study.store import count_bank_questions
-from rag_bachelor.study.subjects import BOOKS_DIR, SOURCES_DIR, active_sources, active_subject
+from rag_bachelor.study.store import book_icons, count_bank_questions
+from rag_bachelor.study.subjects import (
+    BOOKS_DIR,
+    SOURCES_DIR,
+    active_sources,
+    active_subject,
+    icon_for,
+)
 from rag_bachelor.study.subjects import doc_kind as kind_of
 
 router = APIRouter()
@@ -38,12 +44,14 @@ class DocTile:
     stats: TopicStats | None
     indexed: bool = True
     facts: int = 0  # graph facts; 0 = no graph yet
+    icon: str = ""  # emoji on the tile's cover
 
 
 def _tiles(kind: str | None) -> list[DocTile]:
     subject = active_subject()
     stats = {s.topic: s for s in get_topic_stats(subject)}
     facts = fact_counts()
+    icons = book_icons()
     indexed = set(active_sources())
     on_disk: set[str] = set()  # PDFs not indexed yet still get a tile, so nothing is missing
     if kind:
@@ -63,6 +71,7 @@ def _tiles(kind: str | None) -> list[DocTile]:
                 stats.get(path),
                 path in indexed,
                 facts.get(path, 0),
+                icon_for(path, icons),
             )
         )
     return sorted(tiles, key=lambda t: (t.folder.casefold(), t.path.casefold()))

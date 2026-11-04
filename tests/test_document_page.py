@@ -195,3 +195,25 @@ def test_books_and_sources_pages_switch_between_each_other() -> None:
     assert '<a href="/livres" class="on" aria-current="page">Livres</a>' in books
     assert '<a href="/sources" class="on" aria-current="page">Sources</a>' in sources
     assert '<a href="/livres" class="on">' in sources  # bottom bar: Livres stays lit on Sources
+
+
+def test_book_icon_default_choice_and_rename() -> None:
+    _index()
+    url = "/document/" + DOC
+    with TestClient(server.app) as client:
+        assert "#i-book-open" in client.get(url).text  # default cover of a book
+        r = client.post(
+            "/document-icon", data={"path": DOC, "icon": "brain"}, follow_redirects=False
+        )
+        assert r.status_code == 303
+        assert (
+            'class="bh-cover" aria-hidden="true"><svg class="ic" aria-hidden="true"><use href="/static/book-icons.svg#i-brain"'
+            in client.get(url).text
+        )
+        client.post("/document-icon", data={"path": DOC, "icon": "<script>"})  # unknown → reset
+        assert "#i-book-open" in client.get(url).text
+        client.post("/document-icon", data={"path": DOC, "icon": "scale"})
+        absent = {"path": "Bachelor/Livres/absent.pdf", "icon": "brain"}
+        assert client.post("/document-icon", data=absent).status_code == 404
+    store.rename_document(DOC, "Bachelor/Livres/Autre.pdf")
+    assert store.book_icons() == {"Bachelor/Livres/Autre.pdf": "scale"}

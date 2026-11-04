@@ -141,8 +141,11 @@ def _top_lines(text: str) -> list[str]:
 
 def page_count(source: str) -> int:
     """Pages of *source*'s PDF, else the last indexed page (at least 1)."""
-    pages = _read_pdf(source)[0]
-    return pages or max((c.page for c in get_source_chunks(source)), default=1)
+    pdf = settings.pdfs_dir / source
+    if pdf.is_file():
+        with fitz.open(pdf) as doc:  # page count only: no text extraction (that is _read_pdf)
+            return int(doc.page_count)
+    return max((c.page for c in get_source_chunks(source)), default=1)
 
 
 def detect_chapters(source: str) -> list[Chapter]:

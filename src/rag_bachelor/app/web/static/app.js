@@ -466,24 +466,54 @@ document.querySelectorAll(".exam-timer[data-deadline]").forEach((el) => {
     if (!main) return;
     e.preventDefault();
     const r = tile.getBoundingClientRect();
-    const m = main.getBoundingClientRect();
+    // Measure the banner (and its cover) the book page will have: build a hidden copy with the page's own CSS.
+    const probe = document.createElement("header");
+    probe.className = "book-hero";
+    probe.style.cssText = `--h:${tile.style.getPropertyValue("--h")}`;
+    probe.innerHTML = '<a class="bh-back">←</a><div class="bh-row"><div class="bh-cover"></div><div class="bh-text"><span class="bh-eyebrow">x</span><h1></h1><p class="bh-stats"><span>x</span></p></div></div>';
+    probe.querySelector("h1").textContent = tile.querySelector(".nm")?.textContent ?? "";
+    main.prepend(probe);
+    const hero = probe.getBoundingClientRect();
+    const cov = probe.querySelector(".bh-cover").getBoundingClientRect();
+    // The probe stays on as a transparent layer carrying the title and the back link, which fade in
+    // as the banner forms (the cover flies separately; eyebrow and stats appear once the real page loads).
+    probe.classList.add("flight-text");
+    Object.assign(probe.style, { left: `${hero.left}px`, top: `${hero.top + scrollY}px`, width: `${hero.width}px`, height: `${hero.height}px` });
+    document.body.append(probe);
     const fl = document.createElement("div");
     fl.className = "book-flight";
     fl.style.cssText = `--h:${tile.style.getPropertyValue("--h")};left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px`;
     document.body.append(fl);
+    // The tile's cover icon flies along and lands where the banner's cover will be.
+    const icon = tile.querySelector(".lt-cover");
+    let cf = null;
+    if (icon) {
+      const c = icon.getBoundingClientRect();
+      cf = document.createElement("div");
+      cf.className = "cover-flight";
+      cf.style.cssText = `--h:${tile.style.getPropertyValue("--h")};left:${c.left}px;top:${c.top}px;width:${c.width}px;height:${c.height}px`;
+      cf.innerHTML = icon.innerHTML;
+      document.body.append(cf);
+    }
     tile.style.visibility = "hidden";
     sessionStorage.setItem("book-open", "1");
     requestAnimationFrame(() => {
       fl.classList.add("go");
-      Object.assign(fl.style, { left: `${m.left}px`, top: `${Math.max(m.top, 0)}px`, width: `${m.width}px`, height: "208px" });
-      tile.closest(".lib-grid")?.classList.add("fade");
+      // The new page opens scrolled to the top: targets are in page coordinates, minus the current scroll.
+      Object.assign(fl.style, { left: `${hero.left}px`, top: `${hero.top + scrollY}px`, width: `${hero.width}px`, height: `${hero.height}px` });
+      probe.classList.add("go");
+      if (cf) {
+        cf.classList.add("go");
+        Object.assign(cf.style, { left: `${cov.left}px`, top: `${cov.top + scrollY}px`, width: `${cov.width}px`, height: `${cov.height}px` });
+      }
+      main.classList.add("leaving");
     });
-    setTimeout(() => { location.href = tile.href; }, 520);
+    setTimeout(() => { location.href = tile.href; }, 800);  // let the flight land (0.76 s), then load: no cut mid-motion
   });
   addEventListener("pageshow", (e) => {  // back button restores the page from cache mid-animation
     if (!e.persisted) return;
-    document.querySelector(".book-flight")?.remove();
-    document.querySelectorAll(".lib-grid.fade").forEach((g) => g.classList.remove("fade"));
+    document.querySelectorAll(".book-flight, .cover-flight, .flight-text").forEach((f) => f.remove());
+    document.querySelector(".main")?.classList.remove("leaving");
     document.querySelectorAll("a.lib-tile").forEach((t) => { t.style.visibility = ""; });
   });
   // Played only when arriving from a tile, not when switching tabs.

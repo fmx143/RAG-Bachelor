@@ -5,7 +5,7 @@
 <header class="book-hero" style="--h:{{ path | hue }}">
   <a class="bh-back" href="{{ '/sources' if kind == 'source' else '/livres' }}">← {{ 'Sources' if kind == 'source' else 'Livres' }}</a>
   <div class="bh-row">
-    <div class="bh-cover" aria-hidden="true"><span>{{ path | label }}</span></div>
+    <div class="bh-cover" aria-hidden="true"><svg class="ic" aria-hidden="true"><use href="/static/book-icons.svg#i-{{ icon }}"/></svg></div>
     <div class="bh-text">
       <span class="bh-eyebrow">{{ kind_labels[kind] }}{% if indexed %} · {{ pages }} page{{ "s" if pages > 1 }}{% else %} · non indexé{% endif %}{% if file_folder %} · {{ file_folder }}{% endif %}</span>
       <h1 title="{{ path }}">{{ path | label }}</h1>
@@ -294,6 +294,18 @@
     <form method="post" action="/docs/file/graph"><input type="hidden" name="path" value="{{ path }}"><button type="submit" class="btn btn-ghost btn-sm"{% if job.running or not indexed %} disabled{% endif %}>Construire le graphe</button></form>
     <a class="btn btn-ghost btn-sm" href="/docs/page.png?path={{ path | url_encode }}&page=1" target="_blank" rel="noopener">Voir la 1ʳᵉ page</a>
   </div>
+</div>
+
+<div class="card">
+  <div class="subheader">Icône</div>
+  <form method="post" action="/document-icon">
+    <input type="hidden" name="path" value="{{ path }}">
+    <div class="chipgroup icon-pick" role="radiogroup" aria-label="Icône de la couverture">
+      {% for n in icon_choices %}<label class="chip-f" title="{{ n }}"><input type="radio" name="icon" value="{{ n }}"{% if n == icon %} checked{% endif %}><span><svg class="ic" aria-hidden="true"><use href="/static/book-icons.svg#i-{{ n }}"/></svg></span></label>{% endfor %}
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm u-mt-2">Enregistrer</button>
+  </form>
+  <small class="u-muted">Par défaut : un livre ouvert pour les livres, un document pour les sources.</small>
 </div>
 
 <div class="card">

@@ -23,18 +23,20 @@ from rag_bachelor.app.web.routes import bank, documentation, importer, maps, pod
 from rag_bachelor.core.chapters import chapters_for, detect_chapters, page_count
 from rag_bachelor.core.graph import fact_counts
 from rag_bachelor.core.qtypes import QTYPE_LABELS, QTYPES
-from rag_bachelor.ingest.index import list_sources, source_counts
+from rag_bachelor.ingest.index import is_indexed, list_sources, source_counts
 from rag_bachelor.study.stats import chapter_stats, get_topic_stats
 from rag_bachelor.study.store import (
     Chapter,
     add_card,
+    book_icons,
     count_bank_questions,
     list_maps,
     list_podcasts,
     list_sheets,
     set_chapters,
+    set_setting,
 )
-from rag_bachelor.study.subjects import active_subject, doc_kind
+from rag_bachelor.study.subjects import ICON_NAMES, active_subject, doc_kind, icon_for
 
 router = APIRouter()
 
@@ -63,6 +65,19 @@ _ERRORS = {
 def _doc_url(path: str, tab: str = "apercu", **query: str) -> str:
     params = "".join(f"&{k}={quote(v, safe='')}" for k, v in query.items())
     return f"/document/{quote(path, safe='/')}?tab={tab}{params}"
+
+
+@router.post("/document-icon")
+async def save_icon(
+    path: Annotated[str, Form()],
+    icon: Annotated[str, Form()] = "",
+) -> Response:
+    """Set the icon on a document's cover (anything not in ``ICON_NAMES`` resets it)."""
+    icon = icon if icon in ICON_NAMES else ""
+    if not await asyncio.to_thread(is_indexed, path):
+        return Response(status_code=404)
+    await asyncio.to_thread(set_setting, f"icon:{path}", icon)
+    return RedirectResponse(_doc_url(path, "fichier"), status_code=303)
 
 
 MAX_OCCLUSIONS = 30
@@ -136,7 +151,7 @@ async def document_page(
     page: int = 1,
     created: int = 0,
 ) -> Response:
-    indexed = path in await asyncio.to_thread(list_sources)
+    indexed = await asyncio.to_thread(is_indexed, path)
     if not indexed and not _on_disk(path):
         return Response(status_code=404)
     # A PDF not indexed yet has no chapters, questions or stats: only its Fichier tab (to index it).
@@ -174,6 +189,8 @@ async def document_page(
         "indexed": indexed,
         "kind": doc_kind(path),
         "kind_labels": KIND_LABELS,
+        "icon": icon_for(path, await asyncio.to_thread(book_icons)),
+        "icon_choices": ICON_NAMES,
         "tab": tab,
         "tabs": TABS,
         "error": _ERRORS.get(err),

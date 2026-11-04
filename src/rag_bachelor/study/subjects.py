@@ -73,3 +73,19 @@ def active_sources() -> list[str]:
     """Indexed document paths of the active subject."""
     subject = active_subject()
     return [s for s in list_sources() if subject_of(s) == subject]
+
+
+# Cover icons: ids of the symbols in static/book-icons.svg (Lucide).
+ICON_NAMES = (
+    "book-open book-text library graduation-cap brain atom flask-conical calculator code-xml cpu "
+    "database network globe languages scale landmark briefcase chart-column users shield-check "
+    "wrench palette heart-pulse leaf rocket"
+).split()
+
+
+def icon_for(path: str, icons: dict[str, str]) -> str:
+    """Cover icon of a document: the user's choice, else a book or a plain document."""
+    chosen = icons.get(path, "")
+    if chosen in ICON_NAMES:
+        return chosen
+    return "book-open" if doc_kind(path) == "livre" else "file-text"

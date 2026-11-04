@@ -8,6 +8,7 @@ the LLM is never trusted for citations.
 
 from __future__ import annotations
 
+import random
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -136,7 +137,7 @@ def generate_bank_for_source(
 ) -> int:
     """Generate up to *target* unique bank questions covering *source*.
 
-    Iterates chunk windows in reading order; one LLM call per window. Each
+    Iterates chunk windows in random order; one LLM call per window. Each
     window's candidates are embedded and compared against every question
     already stored for *source* (plus everything accepted earlier in this
     run) — a candidate whose cosine similarity to an existing one exceeds
@@ -157,6 +158,8 @@ def generate_bank_for_source(
     if page_range:
         chunks = [c for c in chunks if page_range[0] <= c.page <= page_range[1]]
     windows = [chunks[i : i + _WINDOW_SIZE] for i in range(0, len(chunks), _WINDOW_SIZE)]
+    # Random order so a small *target* samples the whole range instead of its first pages.
+    random.shuffle(windows)
 
     system_prompt = _system_prompt(qtype) + write_in(lang_of(source))
     provider, _name = get_provider()

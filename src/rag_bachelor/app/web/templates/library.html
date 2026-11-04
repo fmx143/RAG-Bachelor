@@ -15,6 +15,7 @@
 
 {% macro tile(d, tab="") %}
 <a href="{{ d.path | doc_url }}{{ tab if d.indexed else '?tab=fichier' }}" class="lib-tile" data-book style="--h:{{ d.path | hue }}" title="{{ d.path }}">
+  <span class="lt-cover" aria-hidden="true"><svg class="ic" aria-hidden="true"><use href="/static/book-icons.svg#i-{{ d.icon }}"/></svg></span>
   <span class="nm">{{ d.path | label }}</span>
   {% if d.folder %}<span class="fd">{{ d.folder }}</span>{% endif %}
   {% if not d.indexed %}<span class="badge badge-yellow">Non indexé</span>

@@ -140,8 +140,9 @@ def test_generate_bank_refs_come_from_window_not_llm() -> None:
 
     saved = store.list_bank_questions(source="c.pdf")
     assert store.count_bank_questions(source="c.pdf") == 1
-    assert saved[0].pages == [1, 2, 3, 4]  # first window's pages, not the LLM's "page 999"
-    assert saved[0].chunk_ids == [f"c.pdf__p{p}__c0" for p in range(1, 5)]
+    # Windows run in random order: one window's pages, not the LLM's "page 999"
+    assert saved[0].pages in ([1, 2, 3, 4], [5])
+    assert saved[0].chunk_ids == [f"c.pdf__p{p}__c0" for p in saved[0].pages]
 
 
 def test_generate_bank_stops_at_target() -> None:

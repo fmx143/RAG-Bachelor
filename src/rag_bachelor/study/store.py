@@ -448,6 +448,12 @@ def set_setting(key: str, value: str) -> None:
     conn.commit()
 
 
+def book_icons() -> dict[str, str]:
+    """``{document path: emoji}`` chosen by the user (stored as ``icon:<path>`` settings)."""
+    rows = get_conn().execute("SELECT key, value FROM app_settings WHERE key LIKE 'icon:%'")
+    return {r["key"][5:]: r["value"] for r in rows.fetchall() if r["value"]}
+
+
 # ── Documents (relative path ↔ content hash) ─────────────────────────────────
 
 
@@ -490,6 +496,7 @@ def rename_document(old: str, new: str) -> None:
             "UPDATE podcasts SET source = ? WHERE source = ?",
             "UPDATE chapters SET source = ? WHERE source = ?",
             "UPDATE cards SET topic = ? WHERE topic = ?",
+            "UPDATE app_settings SET key = 'icon:' || ? WHERE key = 'icon:' || ?",
         ):
             conn.execute(_adapt(sql), (new, old))
         conn.commit()

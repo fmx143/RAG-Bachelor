@@ -143,6 +143,11 @@ def list_sources() -> list[str]:
     return sorted(sources)
 
 
+def is_indexed(source: str) -> bool:
+    """True when *source* has at least one chunk (one filtered lookup, not a full index scan)."""
+    return bool(get_collection().get(where={"source": source}, limit=1, include=[])["ids"])
+
+
 def source_counts() -> dict[str, int]:
     """Return the number of chunks per source filename."""
     metas = get_collection().get(include=["metadatas"]).get("metadatas") or []
