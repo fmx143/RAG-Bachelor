@@ -7,6 +7,12 @@
   <a class="btn btn-primary btn-sm lib-add" href="/docs?kind={{ kind }}">+ Ajouter</a>
 </div>
 
+{# Books and sources share one entry in the phone's bottom bar: switch between them here. #}
+<nav class="doc-tabs" aria-label="Livres ou sources">
+  <a href="/livres"{% if kind == "livre" %} class="on" aria-current="page"{% endif %}>Livres</a>
+  <a href="/sources"{% if kind == "source" %} class="on" aria-current="page"{% endif %}>Sources</a>
+</nav>
+
 {% macro tile(d, tab="") %}
 <a href="{{ d.path | doc_url }}{{ tab if d.indexed else '?tab=fichier' }}" class="lib-tile" data-book style="--h:{{ d.path | hue }}" title="{{ d.path }}">
   <span class="nm">{{ d.path | label }}</span>

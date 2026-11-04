@@ -174,28 +174,3 @@ def _due_on(card: Card, today: date, offset: int) -> bool:
     return (
         card.due_date <= today if offset == 0 else card.due_date == today + timedelta(days=offset)
     )
-
-
-def _short(topic: str) -> str:
-    return topic.split("/", 1)[-1]
-
-
-def reading(stats: list[TopicStats]) -> list[str]:
-    """Up to three plain-language remarks on *stats* (weakest first), from fixed rules (no LLM)."""
-    if not stats:
-        return []
-    out: list[str] = []
-    best = stats[-1]
-    if best.mastery_pct >= 50:
-        out.append(f"Ton point fort : {_short(best.topic)} ({best.mastery_pct:.0f} % de maîtrise).")
-    # ponytail: "stuck" = short average interval on a few cards; no per-card lapse history is read.
-    stuck = [s for s in stats if s.total_cards >= 3 and s.avg_interval <= 1.5]
-    if stuck:
-        s = min(stuck, key=lambda s: s.mastery_pct)
-        out.append(f"{_short(s.topic)} stagne : les cartes reviennent encore chaque jour.")
-    busiest = max(stats, key=lambda s: s.due_cards)
-    if busiest.due_cards:
-        out.append(
-            f"{busiest.due_cards} carte(s) de {_short(busiest.topic)} attendent ta révision."
-        )
-    return out
