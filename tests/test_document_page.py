@@ -185,3 +185,13 @@ def test_saved_sheets_are_in_book_order_with_a_fold_after_two() -> None:
     head, fold = html.split("saved-more", 1)[0], html.split("saved-more", 1)[1]
     assert f'href="/sheets/{ids[2]}"' in head and f'href="/sheets/{ids[0]}"' in fold
     assert "data-saved-filter" in fold and "Tout le livre" in fold
+
+
+def test_books_and_sources_pages_switch_between_each_other() -> None:
+    with TestClient(server.app) as client:
+        books = client.get("/livres").text
+        sources = client.get("/sources").text
+    assert '<a href="/sources">Sources</a>' in books
+    assert '<a href="/livres" class="on" aria-current="page">Livres</a>' in books
+    assert '<a href="/sources" class="on" aria-current="page">Sources</a>' in sources
+    assert '<a href="/livres" class="on">' in sources  # bottom bar: Livres stays lit on Sources
