@@ -63,9 +63,11 @@ function CarteSavoir(racine){
 
   /* ---------- Messages ---------- */
   function toast(msg){ var t=q('toast'); t.textContent=msg; t.classList.add('cs-on'); clearTimeout(toastT); toastT=setTimeout(function(){t.classList.remove('cs-on');},2600); }
-  function afficherEtat(message, reessayer){
+  function afficherEtat(message, reessayer, detail){
     var e = q('etat'); e.textContent='';
     var p = document.createElement('p'); p.textContent = message; e.appendChild(p);
+    // The technical reason, readable without a console (e.g. on a phone browser).
+    if(detail){ var s=document.createElement('small'); s.className='cs-detail'; s.textContent='Détail : '+detail; e.appendChild(s); }
     if(reessayer){ var b=document.createElement('button'); b.type='button'; b.className='cs-btn'; b.textContent='Réessayer'; b.addEventListener('click',function(){ e.hidden=true; charger(); }); e.appendChild(b); }
     e.hidden = false;
   }
@@ -84,7 +86,7 @@ function CarteSavoir(racine){
     }
     promesse.then(construire).catch(function(err){
       console.error('[carte-savoir]',err);
-      afficherEtat('Impossible de charger la carte du savoir.',true);
+      afficherEtat('Impossible de charger la carte du savoir.',true,(err&&err.message)||String(err));
     });
   }
 

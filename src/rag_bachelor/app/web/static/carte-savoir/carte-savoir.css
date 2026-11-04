@@ -109,3 +109,5 @@
   .cs-detail{left:12px;right:12px;width:auto;top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);max-height:52%}
 }
 @media (prefers-reduced-motion: reduce){ .cs-toast,.cs-barre span{transition:none} }
+
+.cs-detail{display:block;margin:6px 0 10px;font-size:12px;opacity:.7;overflow-wrap:anywhere;}
