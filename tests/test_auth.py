@@ -165,10 +165,13 @@ def test_app_sends_hardening_headers_and_keeps_static_cacheable() -> None:
 
     client = TestClient(app)
     page = client.get("/login")
-    assert page.headers["Cache-Control"] == "no-store"
+    assert page.headers["Cache-Control"] == "private, no-cache"
     assert page.headers["Cross-Origin-Opener-Policy"] == "same-origin"
     assert "Permissions-Policy" in page.headers
-    assert client.get("/static/htmx.min.js").headers.get("Cache-Control") != "no-store"
+    assert client.get("/static/htmx.min.js").headers.get("Cache-Control") != "private, no-cache"
+    versioned = client.get("/static/htmx.min.js?v=1").headers["Cache-Control"]
+    assert "immutable" in versioned
+    assert "Clear-Site-Data" in client.get("/logout", follow_redirects=False).headers
 
 
 # ── non-ASCII passwords ──────────────────────────────────────────────────────

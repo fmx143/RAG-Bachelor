@@ -54,13 +54,30 @@
 
 body {
   font-family: var(--sans);
-  background: radial-gradient(70% 55% at 80% -10%, oklch(0.45 0.12 262 / .28), transparent 60%), radial-gradient(45% 40% at 0% 105%, oklch(0.5 0.12 78 / .10), transparent 60%), var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
   color: var(--text);
   line-height: 1.6;
   overflow-wrap: break-word;
-  min-height: 100vh;
+  min-height: 100vh; min-height: 100dvh;
 }
+/* Glow on its own fixed layer: `background-attachment: fixed` repaints the whole page on every phone scroll. */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(70% 55% at 80% -10%, oklch(0.45 0.12 262 / .28), transparent 60%), radial-gradient(45% 40% at 0% 105%, oklch(0.5 0.12 78 / .10), transparent 60%);
+}
+
+/* Top progress bar while a page loads (class set by app.js on tap, removed on pageshow). */
+html.loading::after {
+  content: ""; position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 200; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent) 0 0 / 40% 100% no-repeat;
+  animation: loadbar 1s var(--ease) infinite;
+}
+@keyframes loadbar { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+/* A button whose htmx request is in flight cannot be pressed twice. */
+.hx-busy { opacity: .6; pointer-events: none; }
+
+/* Card-to-card cross-fade (htmx shim, data-transition). */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .18s; }
 a { color: inherit; text-decoration: none; }
 code { font-family: var(--code); font-size: .88em; color: var(--text); }
 
@@ -1206,3 +1223,23 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .o-tlist { display: flex; flex-direction: column; gap: 18px; margin-bottom: 26px; }
 .o-tlist:last-child { margin-bottom: 0; }
 .o-tlist .o-tname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Phone fluidity ─────────────────────────────────────────────────────── */
+.side, .o-transcript, .mm-canvas, .import-plan { overscroll-behavior: contain; }
+
+/* Touch has no :hover — give a tap the same immediate feedback. */
+@media (hover: none) {
+  .nav-link:active, .row:active, .lib-tile:active, .opt:active, .o-weak:active,
+  .o-saved-item a:active, .tabbar a:active, .doc-tabs a:active { background: var(--card2); }
+  .gradebar button small.kbd, .opt .key, .hint { display: none; }
+}
+
+@media (max-width: 760px) {
+  /* Shorter entrance: the page must feel ready as soon as the server answered. */
+  .rise, .up, .page-header { animation-duration: .25s; }
+  .d1, .d2, .d3, .d4, .d5 { animation-delay: .05s; }
+  .up { animation-delay: min(var(--d, 0s), .1s); }
+  /* Grades stay under the thumb, above the tab bar, however far the card is scrolled. */
+  .gradebar { position: sticky; bottom: calc(72px + env(safe-area-inset-bottom)); z-index: 5; background: var(--panel); }
+  .gradebar button { min-height: 56px; }
+}

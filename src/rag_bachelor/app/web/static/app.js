@@ -522,3 +522,19 @@ document.querySelectorAll(".exam-timer[data-deadline]").forEach((el) => {
     if (!still.matches && document.querySelector(".book-hero")) document.documentElement.classList.add("book-open");
   }
 }
+
+// Tap feedback on phones: a top progress bar from the tap until the next page shows (cleared on pageshow,
+// so a back-forward cache restore never keeps it), and a short haptic tick when grading a card.
+{
+  const busy = () => document.documentElement.classList.add("loading");
+  addEventListener("pageshow", () => document.documentElement.classList.remove("loading"));
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest?.("a[href]");
+    if (a && !e.defaultPrevented && !e.button && !e.metaKey && !e.ctrlKey && !e.shiftKey && !a.target && !a.hasAttribute("download")
+        && a.origin === location.origin && !(a.pathname === location.pathname && a.search === location.search)) busy();
+    if (e.target.closest?.(".gradebar button")) navigator.vibrate?.(12);
+  });
+  document.addEventListener("submit", (e) => {
+    if (!e.defaultPrevented && !e.target.hasAttribute("hx-post") && !e.target.hasAttribute("hx-get")) busy();
+  });
+}

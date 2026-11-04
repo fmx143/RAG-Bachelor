@@ -137,4 +137,5 @@ async def login_submit(
 @router.get("/logout", include_in_schema=False)
 async def logout(request: Request) -> Response:
     request.session.clear()
-    return RedirectResponse(url="/login", status_code=303)
+    # Pages are cacheable by the browser alone (back/forward): drop them so none is shown after logout.
+    return RedirectResponse(url="/login", status_code=303, headers={"Clear-Site-Data": '"cache"'})

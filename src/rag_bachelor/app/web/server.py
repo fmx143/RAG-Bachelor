@@ -147,8 +147,12 @@ async def _security_headers(
     response = await call_next(request)
     response.headers.update(_SECURITY_HEADERS)
     if not request.url.path.startswith("/static"):
-        # Pages hold course content and answers: keep them out of browser/proxy caches.
-        response.headers["Cache-Control"] = "no-store"
+        # Pages hold course content and answers: keep them out of shared caches. "private, no-cache"
+        # (not no-store) still lets the browser's back/forward cache restore a page instantly.
+        response.headers["Cache-Control"] = "private, no-cache"
+    elif "v=" in request.url.query:
+        # asset_url() stamps the file's mtime: a changed file gets a new URL, so this one never goes stale.
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
 
 
