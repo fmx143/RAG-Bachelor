@@ -163,3 +163,13 @@ def test_reviser_ignores_sources() -> None:
     r = TestClient(app, follow_redirects=False).get("/carte-savoir/reviser", params={"concept": "bilan"})
 
     assert r.headers["location"] == "/revision?source=Bachelor/Livres/l.pdf"
+
+
+def test_data_source_is_a_relative_path_behind_a_https_proxy() -> None:
+    # Behind Cloudflare Tunnel uvicorn sees plain http (proxy headers from a non-local peer are
+    # ignored): an absolute url_for() gave "http://…" on an https page, a blocked mixed-content fetch.
+    for page in ("/carte-savoir", "/"):
+        html = TestClient(app, base_url="http://bachelor.example.org").get(page).text
+        if "data-carte-savoir" in html:
+            assert 'data-source="/api/carte-savoir"' in html
+            assert "http://bachelor.example.org/api" not in html
