@@ -271,30 +271,7 @@
 <script src="{{ asset_url('occlusion.js') }}" defer></script>
 
 {% elif tab == "fichier" %}
-{% if job.running %}
-<div class="alert alert-info" id="file-job" hx-get="{{ durl }}?tab=fichier" hx-select="#file-job" hx-target="this" hx-swap="outerHTML" hx-trigger="every 3s">
-  {% if job.phase == "graph" %}Construction du graphe{% else %}Indexation{% endif %} en cours ({{ job.pct }} %){% if job.current %} · {{ job.current }}{% endif %}. Elle continue si tu quittes la page.
-  {% if job.chunks_total %}
-  <div class="progress-wrap"><div class="progress-fill" style="--pct:{{ job.pct / 100 }}"></div></div>
-  <small>{{ job.chunks_done }}/{{ job.chunks_total }} {% if job.phase == "graph" %}passages analysés par le LLM{% else %}chunks{% endif %}</small>
-  {% else %}
-  <div class="u-inline-mid spinner"></div>
-  {% endif %}
-</div>
-{% endif %}
-<div class="card">
-  <div class="subheader">Index</div>
-  <p>
-    {% if indexed %}<span class="badge badge-green">Indexé · {{ chunks }} chunks</span>{% else %}<span class="badge badge-yellow">Non indexé</span>{% endif %}
-    {% if facts %}<span class="badge badge-green">Graphé · {{ facts }} faits</span>{% else %}<span class="badge badge-gray">Pas de graphe</span>{% endif %}
-  </p>
-  <p class="lede-sm">Relis le PDF (mise en page, découpage, embeddings) après l'avoir remplacé, ou construis son graphe de faits pour améliorer les questions qui croisent plusieurs pages.</p>
-  <div class="chap-btns">
-    <form method="post" action="/docs/file/index"><input type="hidden" name="path" value="{{ path }}"><button type="submit" class="btn btn-ghost btn-sm"{% if job.running %} disabled{% endif %}>{{ "Réindexer" if indexed else "Indexer" }}</button></form>
-    <form method="post" action="/docs/file/graph"><input type="hidden" name="path" value="{{ path }}"><button type="submit" class="btn btn-ghost btn-sm"{% if job.running or not indexed %} disabled{% endif %}>Construire le graphe</button></form>
-    <a class="btn btn-ghost btn-sm" href="/docs/page.png?path={{ path | url_encode }}&page=1" target="_blank" rel="noopener">Voir la 1ʳᵉ page</a>
-  </div>
-</div>
+{% include "partials/file_panel.html" %}
 
 <div class="card">
   <div class="subheader">Icône</div>

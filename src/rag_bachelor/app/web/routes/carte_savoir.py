@@ -20,10 +20,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _carte() -> CarteSavoir:
+def _carte(module: str | None = None) -> CarteSavoir:
     subject = active_subject()
     try:
-        return construire_carte(graphe_annote(subject, _label_filter), titre=subject)
+        return construire_carte(graphe_annote(subject, _label_filter, only=module), titre=subject)
     except Exception:  # noqa: BLE001  # the fact graph is optional: Chroma may be down or unbuilt
         logger.exception("carte du savoir indisponible")
         return CarteSavoir(titre=subject, modules=[], concepts=[], liens=[])
@@ -47,8 +47,8 @@ async def carte_savoir_page(request: Request) -> Response:
 
 
 @router.get("/api/carte-savoir", response_model=CarteSavoir, name="api_carte_savoir")
-async def api_carte_savoir() -> CarteSavoir:
-    return await asyncio.to_thread(_carte)
+async def api_carte_savoir(module: str | None = None) -> CarteSavoir:
+    return await asyncio.to_thread(_carte, module)
 
 
 @router.get("/carte-savoir/reviser")

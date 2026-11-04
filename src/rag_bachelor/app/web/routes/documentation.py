@@ -214,7 +214,8 @@ def _run_queue() -> None:
 def _describe(exc: Exception) -> str:
     """Exception type plus HTTP status when there is one — never the message (may echo a key)."""
     status = getattr(exc, "status_code", None)
-    return type(exc).__name__ + (f", HTTP {status}" if isinstance(status, int) else "")
+    hint = " — limite d'usage du fournisseur atteinte" if status == 429 else ""
+    return type(exc).__name__ + (f", HTTP {status}" if isinstance(status, int) else "") + hint
 
 
 def _graph_summary(name: str, facts: int, skipped: int) -> str:
@@ -756,7 +757,10 @@ async def move_path(
 
 def job_status() -> dict[str, object]:
     """The indexing/graph job as the document page shows it."""
-    return {**_JOB, "pct": _job_pct()}
+    status = {**_JOB, "pct": _job_pct()}
+    if not _JOB["running"]:
+        _JOB["message"], _JOB["error"] = None, None  # shown once, like the /docs list
+    return status
 
 
 def _file_url(path: str, err: str = "") -> str:

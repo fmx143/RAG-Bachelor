@@ -1,0 +1,32 @@
+{# Fichier tab, index card + job state. While a job runs it re-fetches itself (the project's htmx has no
+   "every" trigger: "load delay" re-armed by each swap, like partials/index_progress.html). #}
+<div id="file-panel"{% if job.running %} hx-get="/document-file?path={{ path | url_encode }}" hx-trigger="load delay:1s" hx-target="this" hx-swap="outerHTML"{% endif %}>
+{% if job.running %}
+<div class="alert alert-info">
+  <div class="job-row">
+    <span>{% if job.phase == "graph" %}Construction du graphe{% else %}Indexation{% endif %} en cours{% if job.phase != "graph" and job.current %} · {{ job.current }}{% endif %}</span>
+    <small>{{ job.chunks_done }}/{{ job.chunks_total }} {% if job.phase == "graph" %}passages analysés par le LLM{% else %}chunks{% endif %}</small>
+  </div>
+  <div class="progress-wrap labeled" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ job.pct }}"><div class="progress-fill" style="--pct:{{ job.pct / 100 }}"></div><span>{{ job.pct }} %</span></div>
+  <small>Elle continue si tu quittes la page.</small>
+</div>
+{% elif job.error %}<div class="alert alert-error">{{ job.error }}</div>
+{% elif job.message %}<div class="alert alert-success">{{ job.message }}</div>
+{% endif %}
+<div class="card">
+  <div class="subheader">Index</div>
+  <p>
+    {% if job.running %}<span class="badge badge-gray">Mise à jour en cours…</span>
+    {% else %}
+    {% if indexed %}<span class="badge badge-green">Indexé · {{ chunks }} chunks</span>{% else %}<span class="badge badge-yellow">Non indexé</span>{% endif %}
+    {% if facts %}<span class="badge badge-green">Graphé · {{ facts }} faits</span>{% else %}<span class="badge badge-gray">Pas de graphe</span>{% endif %}
+    {% endif %}
+  </p>
+  <p class="lede-sm">Relis le PDF (mise en page, découpage, embeddings) après l'avoir remplacé, ou construis son graphe de faits pour améliorer les questions qui croisent plusieurs pages.</p>
+  <div class="chap-btns">
+    <form method="post" action="/docs/file/index"><input type="hidden" name="path" value="{{ path }}"><button type="submit" class="btn btn-ghost btn-sm"{% if job.running %} disabled{% endif %}>{{ "Réindexer" if indexed else "Indexer" }}</button></form>
+    <form method="post" action="/docs/file/graph"><input type="hidden" name="path" value="{{ path }}"><button type="submit" class="btn btn-ghost btn-sm"{% if job.running or not indexed %} disabled{% endif %}>Construire le graphe</button></form>
+    <a class="btn btn-ghost btn-sm" href="/docs/page.png?path={{ path | url_encode }}&page=1" target="_blank" rel="noopener">Voir la 1ʳᵉ page</a>
+  </div>
+</div>
+</div>

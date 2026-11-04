@@ -31,7 +31,7 @@ function CarteSavoir(racine){
   var source = racine.getAttribute('data-source');
   var urlRevision = racine.getAttribute('data-revision-url');
   var titre = '';
-  var MODULES = [], noeuds = [], liens = [];
+  var MODULES = [], noeuds = [], liens = [], parId = {}, modParId = {}, ouverts = {};
   var T = {}, W = 1, H = 1, DPR = 1;
   var cam = {s:1,tx:0,ty:0}, camCible = {s:1,tx:0,ty:0};
   var alpha = 1, debut = null, recadre = false, enMarche = false;
@@ -90,36 +90,58 @@ function CarteSavoir(racine){
     });
   }
 
+  function ajouterConcept(c){
+    if(parId[String(c.id)]) return;
+    var m = modParId[String(c.module)];
+    if(!m){ m = {id:String(c.module), nom:String(c.module), couleur:PALETTE[MODULES.length%PALETTE.length], noeuds:[]}; modParId[m.id]=m; MODULES.push(m); }
+    var aujourdHui = new Date(); aujourdHui.setHours(0,0,0,0);
+    var vu = typeof c.maitrise==='number' && isFinite(c.maitrise);
+    var jours = null;
+    if(c.prochaine_revision){ var t = Date.parse(c.prochaine_revision); if(!isNaN(t)) jours = Math.round((t-aujourdHui.getTime())/864e5); }
+    var aRevoir = !!c.a_revoir || (vu && jours!==null && jours<=0);
+    var r = mulberry32(hash(c.id));
+    var n = {id:String(c.id), nom:String(c.nom||c.id), module:m, maitrise: vu?clamp(c.maitrise,0,1):0, mAff:0, vu:vu,
+      aRevoir:aRevoir, jours:jours, voisins:new Set(), x:0, y:0, vx:0, vy:0, fx:null, fy:null,
+      ph1:r()*6.28, ph2:r()*6.28, j1:r()-.5, j2:r()-.5, vis:0, zoom:1};
+    parId[n.id] = n; noeuds.push(n); m.noeuds.push(n);
+    return n;
+  }
+  function ajouterLien(l){
+    var a = parId[String(l.source)], b = parId[String(l.target)];
+    if(!a||!b||a===b||a.voisins.has(b)) return;
+    a.voisins.add(b); b.voisins.add(a);
+    liens.push({a:a,b:b,croise:a.module!==b.module,sens:(liens.length%2?1:-1)});
+  }
+  // Opening a chapter: the server sends all its concepts (the first load only holds the main ones).
+  function ouvrir(m){
+    if(ouverts[m.id] || source.charAt(0)==='#') return;
+    ouverts[m.id] = true;
+    fetch(source+(source.indexOf('?')<0?'?':'&')+'module='+encodeURIComponent(m.id),{credentials:'same-origin',headers:{'Accept':'application/json'}})
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+      .then(function(d){
+        d.concepts.forEach(function(c){
+          var n = ajouterConcept(c); if(!n) return;
+          n.x = m.ax+n.j1*30; n.y = m.ay+n.j2*30;
+        });
+        d.liens.forEach(ajouterLien);
+        noeuds.forEach(function(n){ n.r = 8+Math.sqrt(n.voisins.size)*2.6; });
+        recalculer(); renderModules();
+        if(etat.module===m) cadrer(m.noeuds);
+      })
+      .catch(function(err){ ouverts[m.id] = false; toast('Impossible de charger ce chapitre.'); console.error('[carte-savoir]',err); });
+  }
+
   function construire(d){
     if(!d || !Array.isArray(d.modules) || !Array.isArray(d.concepts) || !Array.isArray(d.liens)) throw new Error('format de données invalide');
     titre = typeof d.titre==='string' ? d.titre : '';
-    var parId = {}, modParId = {};
+    parId = {}; modParId = {}; ouverts = {};
     MODULES = d.modules.map(function(m,i){
       var mod = {id:String(m.id), nom:String(m.nom||m.id), couleur: hexValide(m.couleur)?m.couleur:PALETTE[i%PALETTE.length], noeuds:[]};
       modParId[mod.id] = mod; return mod;
     });
-    var aujourdHui = new Date(); aujourdHui.setHours(0,0,0,0);
-    noeuds = [];
-    d.concepts.forEach(function(c){
-      var m = modParId[String(c.module)];
-      if(!m){ m = {id:String(c.module), nom:String(c.module), couleur:PALETTE[MODULES.length%PALETTE.length], noeuds:[]}; modParId[m.id]=m; MODULES.push(m); }
-      var vu = typeof c.maitrise==='number' && isFinite(c.maitrise);
-      var jours = null;
-      if(c.prochaine_revision){ var t = Date.parse(c.prochaine_revision); if(!isNaN(t)) jours = Math.round((t-aujourdHui.getTime())/864e5); }
-      var aRevoir = !!c.a_revoir || (vu && jours!==null && jours<=0);
-      var r = mulberry32(hash(c.id));
-      var n = {id:String(c.id), nom:String(c.nom||c.id), module:m, maitrise: vu?clamp(c.maitrise,0,1):0, mAff:0, vu:vu,
-        aRevoir:aRevoir, jours:jours, voisins:new Set(), x:0, y:0, vx:0, vy:0, fx:null, fy:null,
-        ph1:r()*6.28, ph2:r()*6.28, j1:r()-.5, j2:r()-.5, vis:0, zoom:1};
-      parId[n.id] = n; noeuds.push(n); m.noeuds.push(n);
-    });
-    liens = [];
-    d.liens.forEach(function(l){
-      var a = parId[String(l.source)], b = parId[String(l.target)];
-      if(!a||!b||a===b||a.voisins.has(b)) return;
-      a.voisins.add(b); b.voisins.add(a);
-      liens.push({a:a,b:b,croise:a.module!==b.module,sens:(liens.length%2?1:-1)});
-    });
+    noeuds = []; liens = [];
+    d.concepts.forEach(ajouterConcept);
+    d.liens.forEach(ajouterLien);
     MODULES = MODULES.filter(function(m){ return m.noeuds.length>0; });
     if(!noeuds.length){ afficherEtat('Rien à afficher pour l’instant : la carte se construit à partir des livres graphés. Indexez un livre, puis lancez « Construire le graphe » depuis l’onglet Fichier de ce livre.',false); return; }
 
@@ -238,6 +260,7 @@ function CarteSavoir(racine){
         etat.module = etat.module===m ? null : m;
         fermerDetail(true); renderModules();
         cadrer(etat.module ? m.noeuds : noeuds);
+        if(etat.module) ouvrir(m);
       });
       li.appendChild(b); ul.appendChild(li);
     });

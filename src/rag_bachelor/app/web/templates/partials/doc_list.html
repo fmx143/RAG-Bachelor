@@ -28,7 +28,7 @@
     hx-target="#doc-list"
     hx-swap="innerHTML"
     class="btn btn-ghost btn-sm"
-  >Indexer</button>
+  >{{ "Réindexer" if d.indexed else "Indexer" }}</button>
   {% if d.indexed %}
   <button
     hx-post="/docs/graph/doc"

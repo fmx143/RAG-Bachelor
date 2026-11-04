@@ -67,6 +67,23 @@ def _doc_url(path: str, tab: str = "apercu", **query: str) -> str:
     return f"/document/{quote(path, safe='/')}?tab={tab}{params}"
 
 
+@router.get("/document-file", response_class=HTMLResponse)
+async def file_panel(request: Request, path: str) -> Response:
+    """The Fichier tab's index card + job state, polled while a job runs (see partials/file_panel.html).
+
+    Running: progress only, no index scan (the job is writing to it). Finished: the final message once
+    and fresh counts.
+    """
+    if not await asyncio.to_thread(is_indexed, path):
+        return Response(status_code=404)
+    job = documentation.job_status()
+    ctx: dict[str, object] = {"request": request, "path": path, "indexed": True, "job": job}
+    if not job["running"]:
+        ctx["chunks"] = (await asyncio.to_thread(source_counts)).get(path, 0)
+        ctx["facts"] = (await asyncio.to_thread(fact_counts)).get(path, 0)
+    return templates.TemplateResponse(request, "partials/file_panel.html", ctx)
+
+
 @router.post("/document-icon")
 async def save_icon(
     path: Annotated[str, Form()],

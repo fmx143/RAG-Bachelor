@@ -13,7 +13,6 @@ import re
 from collections import Counter, defaultdict
 from collections.abc import Callable
 from datetime import date
-from itertools import zip_longest
 
 import networkx as nx
 from pydantic import BaseModel, Field
@@ -24,7 +23,8 @@ from rag_bachelor.study.srs import retention
 from rag_bachelor.study.store import Chapter, bank_chunk_cards, get_all_cards
 from rag_bachelor.study.subjects import doc_kind, subject_of
 
-MAX_CONCEPTS = 300  # the front's O(n²) repulsion stays fluid up to ~400
+PER_MODULE = 8  # concepts shown per chapter until it is opened
+MAX_MODULE = 60  # concepts of one opened chapter (the front's O(n²) repulsion stays fluid up to ~400)
 _PAGE = re.compile(r"__p(\d+)__c\d+$")  # chunk ids are "<source>__p<page>__c<index>"
 
 
@@ -105,13 +105,13 @@ def graphe_annote(
     subject: str,
     label: Callable[[str], str],
     today: date | None = None,
-    max_concepts: int = MAX_CONCEPTS,
+    only: str | None = None,
 ) -> nx.Graph:
     """Concept graph of *subject*: entities linked per fact, annotated for ``construire_carte``.
 
     Only books count (``<Subject>/Livres/…``); a module is one chapter of a book. *label* shortens
-    a document path into the module's display name. At most *max_concepts* entities are kept: the
-    most connected of each module in turn, so no chapter crowds out the rest.
+    a document path into the module's display name. Each module keeps its ``PER_MODULE`` most
+    connected entities; with *only* (a module id) set, only that module is returned, up to ``MAX_MODULE``.
     """
     today = today or date.today()
     got = get_facts_collection().get(include=["metadatas", "documents"])
@@ -153,8 +153,10 @@ def graphe_annote(
     by_module: defaultdict[str, list[str]] = defaultdict(list)
     for n in sorted(g.nodes, key=lambda n: (-g.degree(n), n)):
         by_module[sources[n].most_common(1)[0][0]].append(n)
-    keep = [n for tier in zip_longest(*by_module.values()) for n in tier if n is not None]
-    keep = keep[:max_concepts]
+    if only is not None:
+        keep = by_module.get(only, [])[:MAX_MODULE]
+    else:
+        keep = [n for ns in by_module.values() for n in ns[:PER_MODULE]]
     g = g.subgraph(keep).copy()
 
     cards = {c.id: c for c in get_all_cards(subject=subject)}

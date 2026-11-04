@@ -84,14 +84,20 @@ def test_graphe_annote_scopes_subject_and_links_cards(monkeypatch: pytest.Monkey
     assert g.nodes["actif"]["prochaine_revision"] is None  # no card for chunk c2
 
 
-def test_graphe_annote_caps_concepts_by_degree() -> None:
+def test_graphe_annote_keeps_top_concepts_per_module_until_opened(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(carte_savoir, "PER_MODULE", 1)
     facts = get_facts_collection()
     for i, obj in enumerate(["x", "y", "z"]):
         facts.upsert(**_fact(i, "hub", obj, "Bachelor/Livres/a.pdf", f"c{i}"))  # type: ignore[arg-type]
+    facts.upsert(**_fact(9, "solo", "duo", "Bachelor/Livres/b.pdf", "c9"))  # type: ignore[arg-type]
 
-    g = graphe_annote("Bachelor", str, max_concepts=2)
+    g = graphe_annote("Bachelor", str)
+    opened = graphe_annote("Bachelor", str, only="Bachelor/Livres/a.pdf")
 
-    assert "hub" in g.nodes and g.number_of_nodes() == 2
+    assert sorted(g.nodes) == ["duo", "hub"]  # one per book, the most connected first
+    assert sorted(opened.nodes) == ["hub", "x", "y", "z"]  # the opened chapter gives all its own
 
 
 def test_api_returns_the_contract_on_an_empty_index() -> None:
@@ -125,17 +131,6 @@ def test_reviser_redirects_to_the_concept_document() -> None:
 
     assert r.status_code == 303 and r.headers["location"] == "/revision?source=Bachelor/Livres/a%20b.pdf"
     assert client.get("/carte-savoir/reviser").headers["location"] == "/revision"
-
-
-def test_graphe_annote_cap_spreads_over_documents() -> None:
-    facts = get_facts_collection()
-    for i, obj in enumerate(["x", "y", "z"]):
-        facts.upsert(**_fact(i, "hub", obj, "Bachelor/Livres/a.pdf", f"c{i}"))  # type: ignore[arg-type]
-    facts.upsert(**_fact(9, "solo", "duo", "Bachelor/Livres/b.pdf", "c9"))  # type: ignore[arg-type]
-
-    g = graphe_annote("Bachelor", str, max_concepts=2)
-
-    assert {g.nodes[n]["module"] for n in g.nodes} == {"Bachelor/Livres/a.pdf", "Bachelor/Livres/b.pdf"}
 
 
 def test_graphe_annote_books_only_one_module_per_chapter(monkeypatch: pytest.MonkeyPatch) -> None:

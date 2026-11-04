@@ -85,7 +85,7 @@ def test_index_and_graph_queue_the_document_and_return_to_it(client: TestClient)
     assert r.headers["location"] == "/document/Bachelor/Sources/n.pdf?tab=fichier"
     assert docs_module._PENDING == ["Bachelor/Sources/n.pdf"]
     page = client.get(r.headers["location"]).text
-    assert "Indexation en cours" in page and 'hx-trigger="every 3s"' in page
+    assert "Indexation en cours" in page and 'hx-trigger="load delay:1s"' in page
     graph = client.post("/docs/file/graph", data={"path": "Bachelor/Sources/n.pdf"})
     assert graph.headers["location"].endswith("err=busy")  # the indexing job holds the slot
 

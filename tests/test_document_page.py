@@ -217,3 +217,28 @@ def test_book_icon_default_choice_and_rename() -> None:
         assert client.post("/document-icon", data=absent).status_code == 404
     store.rename_document(DOC, "Bachelor/Livres/Autre.pdf")
     assert store.book_icons() == {"Bachelor/Livres/Autre.pdf": "scale"}
+
+
+def test_file_panel_polls_while_a_job_runs() -> None:
+    from unittest.mock import patch as _patch
+
+    from rag_bachelor.app.web.routes import documentation
+
+    _index()
+    running = {
+        "running": True, "phase": "graph", "chunks_done": 121, "chunks_total": 216, "message": None,
+        "error": None, "current": DOC,
+    }  # fmt: skip
+    with TestClient(server.app) as client:
+        with _patch.dict(documentation._JOB, running):
+            html = client.get(f"/document-file?path={DOC}").text
+            assert 'hx-trigger="load delay:1s"' in html  # re-armed by every swap
+            assert "Construction du graphe en cours" in html
+            assert "121/216 passages analysés par le LLM" in html
+            assert "<span>56 %</span>" in html  # the percentage is on the bar, not in the sentence
+            assert "(56 %)" not in html
+        done = {"running": False, "message": "Terminé", "error": None}
+        with _patch.dict(documentation._JOB, done):
+            html = client.get(f"/document-file?path={DOC}").text
+            assert "hx-trigger" not in html and "Terminé" in html and "Indexé" in html
+        assert client.get("/document-file?path=Bachelor/Livres/absent.pdf").status_code == 404
