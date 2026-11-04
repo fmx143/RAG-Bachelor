@@ -1185,3 +1185,9 @@ a.cite:hover, a.cite.on { background: oklch(0.79 0.13 305 / .2); border-color: o
 .confirm-dlg::backdrop { background: rgba(0,0,0,.6); }
 .confirm-dlg p { margin-bottom: 18px; line-height: 1.5; }
 .confirm-dlg div { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Statistiques: best / weakest topics */
+.o-tlab { margin: 0 0 14px; }
+.o-tlist { display: flex; flex-direction: column; gap: 18px; margin-bottom: 26px; }
+.o-tlist:last-child { margin-bottom: 0; }
+.o-tlist .o-tname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

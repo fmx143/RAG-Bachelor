@@ -69,21 +69,23 @@
 
 <div class="o-row">
   <div class="o-card o-pad" style="flex:1.3 1 420px">
-    <div class="o-lab" style="margin-bottom:20px">Tous les thèmes</div>
-    <div style="display:flex;flex-direction:column;gap:20px">
-      {% for s in stats %}
+    {% macro topics(title, rows) %}
+    <div class="o-lab o-tlab">{{ title }}</div>
+    <div class="o-tlist">
+      {% for s in rows %}
       <div style="--h:{{ s.topic | hue }}">
-        <div class="o-between" style="align-items:baseline"><span class="o-tname"><i></i>{{ s.topic | label }}</span><span class="o-tpct">{{ s.mastery_pct | int }}%</span></div>
+        <div class="o-between" style="align-items:baseline;flex-wrap:nowrap"><span class="o-tname" title="{{ s.topic }}"><i></i>{{ s.topic | label }}</span><span class="o-tpct">{{ s.mastery_pct | int }}%</span></div>
         <div class="o-tbar"><i style="width:{{ s.mastery_pct | int }}%"></i></div>
         <div class="o-pills">
           <span{% if s.due_cards %} class="due"{% endif %}><b>{{ s.due_cards }}</b> à réviser</span>
           <span><b>{{ s.total_cards }}</b> cartes</span>
-          <span>intervalle moyen <b>{{ s.avg_interval | int }} j</b></span>
         </div>
       </div>
       {% endfor %}
     </div>
-    {% if reading %}<ul class="reading" style="margin-top:22px">{% for line in reading %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}
+    {% endmacro %}
+    {{ topics("Les mieux maîtrisés", best) }}
+    {% if worst %}{{ topics("À retravailler", worst) }}{% endif %}
   </div>
   <div class="o-card o-pad o-col" style="display:flex;flex-direction:column">
     <div class="o-lab">À venir</div>

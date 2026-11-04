@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -59,17 +60,23 @@ def test_progress_page_renders_charts() -> None:
     assert 'class="o-heat"' in html and 'class="o-ring"' in html and "7 derniers jours" in html
 
 
-def test_reading_picks_best_stuck_and_busiest_topics() -> None:
-    from rag_bachelor.study.stats import TopicStats, reading
+def test_progress_lists_the_three_best_and_three_weakest_topics() -> None:
+    from rag_bachelor.app.web import server  # noqa: F401 — registers the template globals
+    from rag_bachelor.study.stats import TopicStats
 
-    def ts(topic: str, due: int, interval: float, mastery: float) -> TopicStats:
-        return TopicStats(topic, 5, due, interval, mastery)
-
-    out = reading([ts("S/a.pdf", 4, 1.0, 20), ts("S/b.pdf", 0, 9.0, 80)])
-
-    assert out == [
-        "Ton point fort : b.pdf (80 % de maîtrise).",
-        "a.pdf stagne : les cartes reviennent encore chaque jour.",
-        "4 carte(s) de a.pdf attendent ta révision.",
-    ]
-    assert reading([]) == []
+    long_path = "Bachelor/Livres/Semestre 3/Comptabilité/9 - Livre - Comptabilité analytique.pdf"
+    stats = [  # weakest first, as get_topic_stats returns them
+        TopicStats(f"Bachelor/Livres/t{i}.pdf", 2, 0, 3.0, float(10 * i)) for i in range(6)
+    ] + [TopicStats(long_path, 2, 1, 3.0, 95.0)]
+    app = FastAPI()
+    app.include_router(progress_module.router)
+    with patch.object(progress_module, "get_topic_stats", return_value=stats):
+        html = TestClient(app).get("/progress").text
+    best = html.split("Les mieux maîtrisés", 1)[1].split("À retravailler", 1)[0]
+    worst = html.split("À retravailler", 1)[1].split("À venir", 1)[0]
+    assert best.index("Comptabilité analytique") < best.index("t5") < best.index("t4")
+    assert all(f"t{i}<" in worst for i in (0, 1, 2)) and "t5<" not in worst
+    assert "Ton point fort" not in html  # the long generated remarks are gone
+    with patch.object(progress_module, "get_topic_stats", return_value=stats[:2]):
+        html = TestClient(app).get("/progress").text
+    assert "Les mieux maîtrisés" in html and "À retravailler" not in html
