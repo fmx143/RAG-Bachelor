@@ -48,3 +48,6 @@ data/*.db-journal
 *.db-wal
 *.db-shm
 .impeccable/
+
+# Local Claude Code settings
+.claude/settings.local.json

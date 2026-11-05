@@ -1,5 +1,7 @@
 # 🎓 RAG-Bachelor — Assistant de révision local
 
+> **📌 Frozen showcase repository.** This public repo is no longer updated: development continues in a private repository. It is kept as a portfolio piece — code and documentation only, no course data (the bundled `eval/questions.jsonl` is a small fictional sample).
+
 A local-first RAG study assistant for French bachelor PDF documents.  
 Ask questions about your courses, generate easy/medium/hard revision questions, and track your progress with spaced repetition — LLM via Ollama Cloud or OpenAI.
 
@@ -13,7 +15,7 @@ Ask questions about your courses, generate easy/medium/hard revision questions, 
 | 🧩 **Layout-aware indexing** | Docling's layout model recovers section titles and table structure: each chunk is prefixed by its section title, never spans a page break, and tables are indexed row by row with their header repeated |
 | ❓ **Q&A with citations** | Ask anything in French, get a sourced answer with file name + page number. Retrieval is hybrid (dense bge-m3 + BM25 keywords, fused with RRF, plus a fact-graph ranking once built) then reranked by a cross-encoder |
 | 🕸️ **Agentic search & graph** | LLM keyword extraction widens every search. Optional *deep search* agent searches the question as asked, then runs up to 2 more self-directed searches (query, keywords, target document) before answering. A HippoRAG-style fact graph (LLM triples per chunk → Personalized PageRank) helps multi-page questions |
-| 🔄 **Spaced repetition** | SM-2 algorithm (Anki-style) — review due cards, self-grade, auto-reschedule |
+| 🔄 **Spaced repetition** | FSRS-5 algorithm (Anki-style) — review due cards, self-grade, auto-reschedule |
 | 📚 **Books & sources** | One page per document with its chapters (auto-detected, editable), questions, sheets, mind maps, audio lessons and per-chapter stats; revise a whole book or a single chapter |
 | 🏦 **Question bank** | Generate a bank for a document or one of its chapters of free / cloze (texte à trous) / QCM (single/multi) / Vrai-Faux questions, semantic near-duplicate filtering, short answers (1–5 sentences) with the supporting passage from the course, filter by difficulty/type/result, auto-graded structured revision |
 | 📝 **Study aids** | For a chapter or page range: a cited **revision sheet** (printable), a collapsible **mind map**, and a two-voice **audio lesson** (local Phonon TTS). All three are persisted and re-openable — see [Study aids](#8--study-aids-sheets-mind-maps-audio) |
@@ -345,10 +347,10 @@ when ready, then grade yourself:
 | Button | Effect |
 |---|---|
 | 😰 Raté / 🤔 Difficile | Resets the card — back to 1 day |
-| 😊 Bien / 🌟 Parfait | Advances the card — interval grows via SM-2 |
+| 😊 Bien / 🌟 Parfait | Advances the card — interval grows via FSRS-5 |
 
 Structured cards (QCM/Vrai-Faux) added from a document's questions are **auto-graded**: pick your
-answer(s), the app compares them to the stored correct set and applies the matching SM-2
+answer(s), the app compares them to the stored correct set and applies the matching FSRS-5
 grade automatically — no self-assessment, no LLM call.
 
 ---
@@ -410,9 +412,8 @@ RAG-Bachelor/
 ├── docker-compose.yml            # NAS: app + isolated postgres/chroma data tier
 ├── docker/entrypoint.sh          # doppler run -- wrapper (falls back to no-Doppler for local dev)
 ├── pyproject.toml                # Python dependencies + tool config
-├── eval/questions.jsonl          # Retrieval eval questions (rag-eval)
-├── scripts/                      # docling_index.py (scratch index), gen_review.py (eval review)
-├── docs/                         # Specs (eval) and audit notes
+├── eval/questions.jsonl          # Fictional sample questions for rag-eval (replace with your own)
+├── scripts/                      # docling_index.py (scratch index)
 ├── tests/                        # pytest suite
 │
 ├── data/                         # Local dev only, not tracked in git
@@ -444,7 +445,7 @@ RAG-Bachelor/
     │   └── podcast.py            # Two-voice audio lesson (dialogue → Phonon TTS → MP3)
     ├── eval/                     # rag-eval: recall@k / MRR on eval/questions.jsonl
     ├── study/
-    │   ├── srs.py                # SM-2 spaced-repetition algorithm
+    │   ├── srs.py                # FSRS-5 spaced-repetition algorithm (from scratch)
     │   ├── store.py              # SQLite/PostgreSQL persistence (cards + reviews + question_bank)
     │   └── stats.py              # Per-topic mastery statistics
     └── app/
@@ -539,4 +540,4 @@ for a fixed release and upgrade client and server together when one appears.
 | Config | pydantic-settings |
 | Study DB | SQLite locally, PostgreSQL on the NAS (`POSTGRES_HOST`) |
 | Secrets | Doppler (no `.env`) |
-| Spaced repetition | SM-2 (custom implementation) |
+| Spaced repetition | FSRS-5 (custom implementation) |

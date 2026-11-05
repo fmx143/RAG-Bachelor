@@ -1,0 +1,4 @@
+{"id": "demo-01", "question": "Quelle est la capitale de la planète fictive Zorbania ?", "source": "demo-document.pdf", "pages": [1], "status": "valide", "category": "facile", "type": "lexical", "note": "Fictional sample: replace with questions on your own documents."}
+{"id": "demo-02", "question": "Comment s'appelle l'instrument à vent traditionnel des habitants de Zorbania ?", "source": "demo-document.pdf", "pages": [2], "status": "valide", "category": "facile", "type": "paraphrase"}
+{"id": "demo-03", "question": "Quelles sont les deux ressources dont dépend l'économie de Zorbania ?", "source": "demo-document.pdf", "pages": [2, 3], "status": "valide", "category": "moyen", "type": "multi_page"}
+{"id": "demo-04", "question": "Quel est le meilleur restaurant de Paris ?", "status": "valide", "category": "difficile", "type": "hors_sujet"}
