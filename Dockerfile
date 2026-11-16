@@ -1,7 +1,7 @@
 # ── Build stage: compilers, apt keys and pip caches stay here ──────────────────
 # Distro pinned (trixie); for fully reproducible builds pin the digest too:
 #   docker buildx imagetools inspect python:3.13-slim-trixie
-FROM python:3.13-slim-trixie AS build
+FROM python:3.15-slim-trixie AS build
 
 # Build tools needed by some sentence-transformers wheels + gnupg for the Doppler apt repo
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -36,7 +36,7 @@ RUN pip install --no-cache-dir torch torchvision --index-url https://download.py
     && pip install --no-cache-dir -e .
 
 # ── Runtime stage ──────────────────────────────────────────────────────────────
-FROM python:3.13-slim-trixie
+FROM python:3.15-slim-trixie
 
 WORKDIR /app
 
